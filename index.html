@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PChem Interactive Materials</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --accent-soft: #dbeafe;
+        --border: #e5e7eb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+
+      header {
+        background: linear-gradient(120deg, #0f172a, #1e3a8a);
+        color: #fff;
+        border-radius: 16px;
+        padding: 1.6rem;
+        margin-bottom: 1.4rem;
+      }
+
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: clamp(1.35rem, 2.7vw, 2rem);
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .note {
+        margin-top: 0.8rem;
+        padding: 0.8rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      main {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .panel h2 {
+        margin: 0 0 0.8rem;
+        font-size: 1.1rem;
+      }
+
+      #material-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .material-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+
+      .material-item a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .material-item a:hover {
+        text-decoration: underline;
+      }
+
+      .tag {
+        font-size: 0.75rem;
+        color: #1e40af;
+        background: var(--accent-soft);
+        border: 1px solid #bfdbfe;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+      }
+
+      footer {
+        margin-top: 1.4rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      code {
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 0.08rem 0.35rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>물리화학 Interactive 자료 모음</h1>
+        <p>강의 이해를 돕기 위한 시각화/시뮬레이션 자료를 한 곳에서 접근할 수 있는 배포용 인덱스입니다.</p>
+        <p class="note">
+          이 페이지는 현재 파일 목록을 자동으로 수집하려고 시도합니다. 서버 환경에서 디렉터리 목록 노출이 제한되면,
+          기본 목록(하드코딩된 목록)으로 표시됩니다.
+        </p>
+      </header>
+
+      <main>
+        <section class="panel">
+          <h2>자료 목록</h2>
+          <ul id="material-list"></ul>
+        </section>
+
+        <section class="panel">
+          <h2>운영 메모</h2>
+          <p>
+            자동 수집이 실패하는 환경이라면 아래 <code>defaultMaterials</code> 배열에 새 HTML 파일명을 추가해 주세요.
+            (예: <code>14_NewTopic.html</code>)
+          </p>
+        </section>
+      </main>
+
+      <footer>
+        <p>© PChem Interactive Contents</p>
+      </footer>
+    </div>
+
+    <script>
+      const defaultMaterials = [
+        "13_Boltzmann.html",
+        "13_Configuration.html",
+        "13_Sterling.html",
+        "13_Statistical.html",
+        "13_coin.html",
+      ];
+
+      const listElement = document.getElementById("material-list");
+
+      function toTitle(filename) {
+        return filename.replace(/\.html$/i, "").replace(/_/g, " ");
+      }
+
+      function renderList(files, sourceLabel) {
+        const unique = [...new Set(files)]
+          .filter((file) => file.endsWith(".html") && file !== "index.html")
+          .sort((a, b) => a.localeCompare(b, "ko"));
+
+        if (unique.length === 0) {
+          listElement.innerHTML = "<li class='material-item'>표시할 HTML 자료가 없습니다.</li>";
+          return;
+        }
+
+        listElement.innerHTML = unique
+          .map(
+            (file) => `
+              <li class="material-item">
+                <a href="${file}">${toTitle(file)}</a>
+                <span class="tag">${sourceLabel}</span>
+              </li>
+            `,
+          )
+          .join("");
+      }
+
+      async function tryAutoDiscover() {
+        try {
+          const response = await fetch("./", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const hrefs = Array.from(doc.querySelectorAll("a"))
+            .map((a) => a.getAttribute("href") || "")
+            .map((href) => href.split("?")[0].split("#")[0].trim())
+            .filter((href) => /^[^/]+\.html$/i.test(href));
+
+          if (hrefs.length > 0) {
+            renderList(hrefs, "auto");
+            return;
+          }
+
+          throw new Error("No discoverable html links");
+        } catch {
+          renderList(defaultMaterials, "default");
+        }
+      }
+
+      tryAutoDiscover();
+    </script>
+  </body>
+</html>
