@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>배열과 가중치 시뮬레이션</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax Configuration & Script -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            startup: {
+                typeset: true
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* Font rule applied as requested (English font family names only) */
+        body {
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Particle styling (Shrunk for compact view) */
+        .particle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin: 1px;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        /* Energy level shelf styling (Shrunk min-height) */
+        .energy-level {
+            border-bottom: 3px solid #cbd5e1;
+            min-height: 36px;
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 2px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .energy-level:hover, .energy-level.active {
+            background-color: #f1f5f9;
+            border-bottom-color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="max-w-6xl mx-auto p-4 lg:p-6">
+        
+        <!-- Header (Reduced margins and font sizes) -->
+        <header class="mb-4 text-center fade-in">
+            <h1 class="text-3xl font-bold text-slate-900 mb-1">13A.1 배열과 가중치</h1>
+            <p class="text-base text-slate-600">순간적 배열(Instantaneous Configuration)과 파동함수</p>
+        </header>
+
+        <!-- Main Grid (Reduced gap) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 fade-in">
+            
+            <!-- Left: Configuration Builder -->
+            <div class="lg:col-span-7 flex flex-col space-y-4">
+                
+                <!-- Setup Panel (Reduced padding) -->
+                <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center border-b pb-3 mb-3">
+                        <h2 class="text-lg font-bold text-indigo-700">입자 배치 (Configuration)</h2>
+                        <div class="flex items-center space-x-2 text-sm font-bold">
+                            <span>총 입자 수 (<em>N</em>):</span>
+                            <select id="input-N" class="border px-2 py-1 rounded text-indigo-700 bg-slate-50 cursor-pointer outline-none">
+                                <option value="5">5개</option>
+                                <option value="10" selected>10개</option>
+                                <option value="20">20개</option>
+                                <option value="50">50개</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Slide Presets -->
+                    <div class="mb-4 space-y-2">
+                        <p class="text-xs font-semibold text-slate-500 mb-1">슬라이드 예제 원클릭 설정:</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <button onclick="setPreset('all_e0')" class="py-1.5 px-2 bg-slate-100 hover:bg-indigo-100 text-slate-700 text-xs font-semibold border rounded transition">
+                                모두가 &epsilon;<sub>0</sub> 인 경우
+                            </button>
+                            <button onclick="setPreset('one_e1')" class="py-1.5 px-2 bg-slate-100 hover:bg-indigo-100 text-slate-700 text-xs font-semibold border rounded transition">
+                                하나만 &epsilon;<sub>1</sub> 인 경우
+                            </button>
+                            <button onclick="setPreset('two_e1')" class="py-1.5 px-2 bg-slate-100 hover:bg-indigo-100 text-slate-700 text-xs font-semibold border rounded transition">
+                                두 개가 &epsilon;<sub>1</sub> 인 경우
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Energy Ladder Visualization -->
+                    <div class="bg-slate-50 border rounded-lg p-4 relative">
+                        <p class="text-center text-xs text-slate-400 mb-3">* 준위에 마우스를 올리면 우측에 해당 양자 상태의 파동함수가 표시됩니다.</p>
+                        
+                        <div class="flex flex-col-reverse gap-3" id="energy-ladder">
+                            <!-- Levels injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Math Results Panel (Shrunk Heights and text sizes) -->
+                <div class="bg-indigo-50 p-4 md:p-5 rounded-xl shadow-sm border border-indigo-100 flex flex-col justify-center">
+                    <h3 class="font-bold text-indigo-900 mb-3 text-center text-base">현재 상태의 수학적 표현</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-stretch">
+                        
+                        <!-- Total Energy: 2 columns -->
+                        <div class="md:col-span-2 flex flex-col">
+                            <p class="text-xs text-indigo-800 font-bold mb-1.5">총 에너지 (Total E)</p>
+                            <div class="bg-white rounded-lg border border-slate-200 flex items-center justify-center flex-1 py-3 px-2 shadow-sm min-h-[60px]">
+                                <div class="flex items-baseline flex-wrap justify-center gap-2">
+                                    <div id="math-energy-term" class="text-lg md:text-xl font-bold text-indigo-500 tracking-wider">10&epsilon;<sub>0</sub></div>
+                                    <div class="text-lg md:text-xl font-bold text-slate-400">=</div>
+                                    <div id="math-energy-quantum" class="text-2xl md:text-3xl font-extrabold text-indigo-900">10 E<sub>1</sub></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Weight: 1 column -->
+                        <div class="md:col-span-1 flex flex-col">
+                            <p class="text-xs text-indigo-800 font-bold mb-1.5">가중치 (Weight, <em>W</em>)</p>
+                            <div class="bg-white rounded-lg border border-slate-200 flex items-center justify-center flex-1 py-3 shadow-sm min-h-[60px]">
+                                <div id="math-weight" class="text-2xl md:text-3xl font-extrabold text-indigo-600">1</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="static-math-note" class="text-xs text-center text-slate-500 mt-4 px-2">
+                        $$ W = \frac{N!}{n_0! n_1! n_2! \dots} $$
+                        <p class="mt-1" style="font-size: 11px;">* 가중치는 입자들이 구별 가능할 때 이 에너지 배치가 나타나는 미시 상태의 경우의 수입니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Wavefunction Visualizer -->
+            <div class="lg:col-span-5 flex flex-col h-full">
+                <!-- Reduced padding to p-4 -->
+                <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col">
+                    <h2 class="text-lg font-bold mb-2 text-slate-800 border-b pb-2 flex justify-between items-center">
+                        <span>1차원 상자 파동함수</span>
+                        <span id="quantum-n-label" class="text-indigo-600 font-mono text-sm bg-indigo-50 px-2 py-0.5 rounded">n=1 (&epsilon;<sub>0</sub>)</span>
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-3">현재 입자가 추가/제거된 준위의 물리적 모델입니다.</p>
+
+                    <!-- Formula Display (Reduced min-height) -->
+                    <div class="bg-slate-50 rounded border p-3 mb-3 text-center overflow-x-auto min-h-[70px] flex items-center justify-center">
+                        <span id="formula-display" class="text-sm">
+                            $$ \psi_1(x) = \left(\frac{2}{L}\right)^{1/2} \sin\left(\frac{1 \cdot \pi x}{L}\right) $$
+                        </span>
+                    </div>
+
+                    <!-- Canvas for Wavefunction (Reduced min-height from 250px to 200px) -->
+                    <div class="relative w-full flex-1 border border-slate-700 bg-[#fefefe] rounded flex items-center justify-center min-h-[180px] overflow-hidden">
+                        <!-- Left/Right Walls -->
+                        <div class="absolute left-0 top-0 bottom-0 w-2.5 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhhYWGMYAEYB8RmROaABADeOQ8CXl/xfgAAAABJRU5ErkJggg==')] border-r border-slate-800 z-10"></div>
+                        <div class="absolute right-0 top-0 bottom-0 w-2.5 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhhYWGMYAEYB8RmROaABADeOQ8CXl/xfgAAAABJRU5ErkJggg==')] border-l border-slate-800 z-10"></div>
+                        
+                        <canvas id="wave-canvas" class="absolute inset-0 w-full h-full"></canvas>
+                        
+                        <!-- Energy Formula Bottom -->
+                        <div class="absolute bottom-1 right-2 text-[10px] font-mono font-bold text-slate-600 bg-white/80 px-1.5 rounded">
+                            <span id="energy-display">E₁ = h&sup2; / 8mL&sup2;</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 flex items-center justify-center space-x-5 text-xs font-semibold text-slate-600">
+                        <div class="flex items-center"><span class="w-3 h-0.5 bg-green-500 inline-block mr-1.5"></span> 파동함수 &psi;(x)</div>
+                        <div class="flex items-center"><span class="w-3 h-3 bg-indigo-200 inline-block mr-1.5"></span> 확률밀도 |&psi;(x)|&sup2;</div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Data State
+        let N = 10;
+        const maxLevel = 4; // e0, e1, e2, e3, e4
+        let particles = new Array(maxLevel + 1).fill(0);
+        let activeLevel = 0; 
+        
+        // DOM Elements
+        const selectN = document.getElementById('input-N');
+        const ladderContainer = document.getElementById('energy-ladder');
+        const mathWeight = document.getElementById('math-weight');
+        const quantumNLabel = document.getElementById('quantum-n-label');
+        const formulaDisplay = document.getElementById('formula-display');
+        const energyDisplay = document.getElementById('energy-display');
+        const canvas = document.getElementById('wave-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // BigInt Factorial for Weight calculation
+        function factorial(n) {
+            if (n === 0 || n === 1) return 1n;
+            let res = 1n;
+            for (let i = 2n; i <= BigInt(n); i++) res *= i;
+            return res;
+        }
+
+        // Initialize Simulation
+        function initSim() {
+            N = parseInt(selectN.value);
+            particles.fill(0);
+            particles[0] = N; 
+            activeLevel = 0;
+            
+            renderLadder();
+            updateMath();
+            drawWavefunction();
+        }
+
+        // Handle Presets
+        window.setPreset = function(type) {
+            particles.fill(0);
+            if (type === 'all_e0') {
+                particles[0] = N;
+                activeLevel = 0;
+            } else if (type === 'one_e1') {
+                particles[0] = N - 1;
+                particles[1] = 1;
+                activeLevel = 1;
+            } else if (type === 'two_e1') {
+                particles[0] = N - 2;
+                particles[1] = 2;
+                activeLevel = 1;
+            }
+            renderLadder();
+            updateMath();
+            drawWavefunction();
+        };
+
+        // Move particle manually
+        window.moveParticle = function(level, amount) {
+            if (amount > 0) {
+                let found = false;
+                for(let i = 0; i <= maxLevel; i++) {
+                    if (i !== level && particles[i] > 0) {
+                        particles[i]--;
+                        particles[level]++;
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) return; 
+            } 
+            else if (amount < 0) {
+                if (particles[level] > 0) {
+                    particles[level]--;
+                    if(level !== 0) particles[0]++;
+                    else particles[1]++;
+                } else return;
+            }
+            
+            activeLevel = level;
+            renderLadder();
+            updateMath();
+            drawWavefunction();
+        }
+
+        // Hover Effect
+        window.hoverLevel = function(level) {
+            if (activeLevel !== level) {
+                activeLevel = level;
+                renderLadderHoverStyles();
+                updateMathFormulaOnly(); 
+                drawWavefunction();
+            }
+        }
+
+        // Render HTML Ladder (Buttons and text shrunk slightly)
+        function renderLadder() {
+            ladderContainer.innerHTML = '';
+            for (let i = 0; i <= maxLevel; i++) {
+                const levelDiv = document.createElement('div');
+                levelDiv.className = `energy-level relative flex justify-between px-2 ${i === activeLevel ? 'active' : ''}`;
+                levelDiv.onmouseenter = () => hoverLevel(i);
+                
+                // Left: Label and Buttons
+                const labelControls = document.createElement('div');
+                labelControls.className = 'flex items-center w-28 shrink-0 border-r border-slate-300 mr-2';
+                labelControls.innerHTML = `
+                    <span class="font-bold text-slate-700 w-8 text-base">&epsilon;<sub>${i}</sub></span>
+                    <div class="flex space-x-1 ml-1">
+                        <button onclick="moveParticle(${i}, -1)" class="w-6 h-6 flex items-center justify-center bg-slate-200 hover:bg-red-200 text-slate-700 rounded font-bold text-base transition">-</button>
+                        <button onclick="moveParticle(${i}, 1)" class="w-6 h-6 flex items-center justify-center bg-slate-200 hover:bg-blue-200 text-slate-700 rounded font-bold text-base transition">+</button>
+                    </div>
+                `;
+                
+                // Right: Particles
+                const particleArea = document.createElement('div');
+                particleArea.className = 'flex flex-wrap items-end flex-1 pl-1 gap-y-0.5';
+                for (let p = 0; p < particles[i]; p++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'particle';
+                    particleArea.appendChild(dot);
+                }
+
+                levelDiv.appendChild(labelControls);
+                levelDiv.appendChild(particleArea);
+                
+                ladderContainer.appendChild(levelDiv);
+            }
+        }
+
+        function renderLadderHoverStyles() {
+            const levels = ladderContainer.children;
+            for (let i = 0; i <= maxLevel; i++) {
+                if (i === activeLevel) levels[i].classList.add('active');
+                else levels[i].classList.remove('active');
+            }
+        }
+
+        function updateMathFormulaOnly() {
+            const n = activeLevel + 1; 
+            quantumNLabel.innerHTML = `n=${n} (&epsilon;<sub>${activeLevel}</sub>)`;
+            
+            formulaDisplay.innerHTML = `$$ \\psi_{${n}}(x) = \\left(\\frac{2}{L}\\right)^{1/2} \\sin\\left(\\frac{${n}\\pi x}{L}\\right) $$`;
+            energyDisplay.innerHTML = `E<sub>${n}</sub> = ${n === 1 ? '' : n*n}h&sup2; / 8mL&sup2;`;
+
+            if(window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetClear([formulaDisplay]);
+                MathJax.typesetPromise([formulaDisplay]).catch((err) => console.error(err));
+            }
+        }
+
+        // Update Math Strings
+        function updateMath() {
+            let wDenom = 1n;
+            for (let count of particles) {
+                if (count > 1) {
+                    wDenom *= factorial(count);
+                }
+            }
+            let W = factorial(N) / wDenom;
+            mathWeight.innerText = W.toLocaleString('en-US');
+
+            let eTerms = [];
+            let totalQuantumE = 0; 
+            
+            for(let i=0; i<=maxLevel; i++){
+                if(particles[i] > 0) {
+                    eTerms.push(`${particles[i]}&epsilon;<sub>${i}</sub>`);
+                    let n = i + 1; 
+                    totalQuantumE += particles[i] * (n * n);
+                }
+            }
+            if(eTerms.length === 0) eTerms.push("0");
+            
+            document.getElementById('math-energy-term').innerHTML = eTerms.join(' + ');
+            document.getElementById('math-energy-quantum').innerHTML = `${totalQuantumE} E<sub>1</sub>`;
+
+            updateMathFormulaOnly();
+        }
+
+        // Draw the 1D Box Wavefunction
+        function drawWavefunction() {
+            const rect = canvas.parentNode.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            const y0 = h / 2;
+            ctx.beginPath();
+            ctx.moveTo(0, y0);
+            ctx.lineTo(w, y0);
+            ctx.strokeStyle = '#94a3b8'; 
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const n = activeLevel + 1; 
+            const points = 200;
+            const L = w; 
+            const amplitude = h * 0.35; 
+            
+            ctx.beginPath();
+            ctx.moveTo(0, y0);
+            for(let i = 0; i <= points; i++) {
+                let x = (i / points) * L;
+                let mathX = (i / points);
+                let psi = Math.sin(n * Math.PI * mathX);
+                let prob = psi * psi; 
+                ctx.lineTo(x, y0 - (prob * amplitude * 1.2)); 
+            }
+            ctx.lineTo(w, y0);
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.15)'; 
+            ctx.fill();
+
+            ctx.beginPath();
+            for(let i = 0; i <= points; i++) {
+                let x = (i / points) * L;
+                let mathX = (i / points); 
+                let psi = Math.sin(n * Math.PI * mathX);
+                let y = y0 - (psi * amplitude);
+                
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = '#22c55e'; 
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        window.addEventListener('resize', drawWavefunction);
+        selectN.addEventListener('change', initSim);
+
+        window.onload = initSim;
+
+    </script>
+</body>
+</html>

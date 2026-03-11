@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>통계 열역학: 몬테카를로 시뮬레이션</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Font rule applied as requested (English font family names only) */
+        body {
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* n x n grid cell style */
+        .grid-cell {
+            aspect-ratio: 1 / 1;
+            border-radius: 4px;
+            transition: background-color 0.1s ease;
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.1);
+        }
+
+        /* Custom Range Slider (Equalizer style) */
+        input[type=range] {
+            -webkit-appearance: none;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="max-w-7xl mx-auto p-6">
+        
+        <header class="mb-8 text-center fade-in">
+            <h1 class="text-4xl font-bold text-slate-900 mb-2">통계 열역학 몬테카를로 시뮬레이션</h1>
+            <p class="text-lg text-slate-600">미시적 상태 무작위 교환에서 볼츠만 분포까지</p>
+        </header>
+
+        <!-- ========================================== -->
+        <!-- Section 1: n x n Grid Macrostate Tracker -->
+        <!-- ========================================== -->
+        <section class="bg-white rounded-xl shadow-md p-6 mb-8 fade-in">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2 text-indigo-700">1. 거시 상태 출현 확률 및 조합수 ($W$)</h2>
+            <p class="mb-4 text-slate-600">
+                입자들이 무작위로 에너지를 교환할 때, 어떤 에너지 분포(거시 상태)가 가장 큰 <strong>조합수(Microstates)</strong>를 가지며 가장 자주 출현하는지 확인해 보세요.
+            </p>
+
+            <!-- Controls for Section 1 -->
+            <div class="mb-6 bg-slate-50 p-4 border rounded-lg flex flex-wrap gap-4 items-end shadow-sm">
+                <div>
+                    <label class="block text-sm font-bold mb-1 text-slate-700">그리드 크기 ($n \times n$)</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="s1-input-n" value="4" min="2" max="10" class="border p-2 rounded w-20 text-center font-bold text-indigo-700">
+                        <span class="text-slate-500 text-sm">$\rightarrow$ 입자 <span id="s1-N-display">16</span>개</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-1 text-slate-700">총 에너지 ($E$)</label>
+                    <input type="number" id="s1-input-e" value="16" min="1" max="200" class="border p-2 rounded w-28 text-center font-bold text-indigo-700">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-1 text-slate-700">최대 에너지 준위 ($E_{max}$)</label>
+                    <input type="number" id="s1-input-emax" value="3" min="1" max="6" class="border p-2 rounded w-28 text-center font-bold text-indigo-700">
+                </div>
+                <div class="flex space-x-2">
+                    <button id="btn-s1-start" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded hover:bg-indigo-700 transition shadow">▶ 시작</button>
+                    <button id="btn-s1-pause" class="bg-amber-500 text-white font-bold py-2 px-6 rounded hover:bg-amber-600 transition shadow hidden">⏸ 정지</button>
+                    <button id="btn-s1-reset" class="bg-red-500 text-white font-bold py-2 px-6 rounded hover:bg-red-600 transition shadow">↺ 초기화</button>
+                </div>
+                <div class="mt-2 md:mt-0 md:ml-auto text-slate-600 font-semibold self-center text-right">
+                    진행: <span id="s1-steps" class="text-indigo-600 font-bold text-lg">0</span> Steps
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Visual Grid -->
+                <div class="lg:col-span-4 bg-slate-100 p-4 rounded-lg border flex flex-col items-center justify-center min-h-[300px]">
+                    <h3 class="font-bold text-slate-700 mb-4">입자 에너지 상태 실시간</h3>
+                    <div id="s1-grid-container" class="w-full max-w-[300px] gap-1" style="display: grid;">
+                        <!-- Grid cells injected via JS -->
+                    </div>
+                    <!-- Legend -->
+                    <div id="s1-legend" class="mt-6 flex flex-wrap justify-center gap-2 text-xs font-semibold">
+                        <!-- Legend injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="lg:col-span-8 bg-white border rounded-lg p-4 shadow-sm h-[400px]">
+                    <canvas id="s1-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- Section 2: Large Particles Boltzmann Curve -->
+        <!-- ========================================== -->
+        <section class="bg-white rounded-xl shadow-md p-6 fade-in">
+            <h2 class="text-2xl font-bold mb-4 border-b pb-2 text-indigo-700">2. 대규모 입자계와 볼츠만 분포 수렴</h2>
+            <p class="mb-4 text-slate-600">
+                대규모 입자 시스템의 변수들을 조절하며 분포 곡선의 변화를 관찰하세요. (최소 입자수/에너지: <strong>10</strong>)
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Controls (Equalizers) -->
+                <div class="lg:col-span-1 bg-slate-50 p-5 rounded-lg border flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg mb-4 text-slate-800">시스템 파라미터 제어</h3>
+                        
+                        <!-- Sliders -->
+                        <div class="space-y-5">
+                            <div>
+                                <div class="flex justify-between text-sm font-bold text-slate-700 mb-1">
+                                    <span>총 입자 수 ($N$)</span>
+                                    <span id="s2-val-n" class="text-indigo-600 bg-indigo-100 px-2 rounded">1000</span>
+                                </div>
+                                <input type="range" id="s2-slider-n" min="10" max="5000" step="10" value="1000" class="w-full">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm font-bold text-slate-700 mb-1">
+                                    <span>총 에너지 ($E$)</span>
+                                    <span id="s2-val-e" class="text-indigo-600 bg-indigo-100 px-2 rounded">1000</span>
+                                </div>
+                                <input type="range" id="s2-slider-e" min="10" max="5000" step="10" value="1000" class="w-full">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm font-bold text-slate-700 mb-1">
+                                    <span>에너지 간격 ($\Delta E$)</span>
+                                    <span id="s2-val-de" class="text-indigo-600 bg-indigo-100 px-2 rounded">1</span>
+                                </div>
+                                <input type="range" id="s2-slider-de" min="1" max="10" step="1" value="1" class="w-full">
+                            </div>
+                        </div>
+
+                        <!-- Graph Mode Toggle -->
+                        <div class="mt-6 pt-4 border-t border-slate-200">
+                            <label class="block text-sm font-bold mb-2 text-slate-700">그래프 모드 선택</label>
+                            <div class="flex flex-col space-y-2">
+                                <label class="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-white transition border border-transparent hover:border-slate-200">
+                                    <input type="radio" name="s2-chart-mode" value="x" checked class="accent-indigo-600 w-4 h-4">
+                                    <span class="font-semibold text-slate-700">입자 비율 vs 에너지 (수직)</span>
+                                </label>
+                                <label class="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-white transition border border-transparent hover:border-slate-200">
+                                    <input type="radio" name="s2-chart-mode" value="y" class="accent-indigo-600 w-4 h-4">
+                                    <span class="font-semibold text-slate-700">에너지 vs 입자 비율 (수평)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex flex-col space-y-3 border-t border-slate-200 pt-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-semibold text-slate-600">진행 스텝:</span>
+                            <span id="s2-steps" class="text-xl text-green-600 font-bold">0</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-semibold text-slate-600">평균 에너지 (E/N):</span>
+                            <span id="s2-avg-e" class="text-xl text-indigo-600 font-bold">0.00</span>
+                        </div>
+                        <button id="btn-s2-start" class="py-3 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition shadow">▶ 시뮬레이션 시작</button>
+                        <button id="btn-s2-pause" class="py-3 bg-amber-500 text-white font-bold rounded hover:bg-amber-600 transition shadow hidden">⏸ 일시정지</button>
+                        <button id="btn-s2-reset" class="py-3 bg-slate-300 text-slate-700 font-bold rounded hover:bg-slate-400 transition shadow">↺ 조건 초기화</button>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="lg:col-span-3 relative h-[450px] w-full border rounded-lg p-4 bg-white shadow-sm flex flex-col">
+                    <div class="flex-1 w-full h-full relative">
+                        <canvas id="s2-chart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-slate-400 mt-2">* 대규모 계에서는 각 막대 위의 숫자가 매우 크므로 생략하고 곡선의 형태에 집중합니다.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // Common Utilities
+        // ==========================================
+        const energyColors = [
+            '#e74c3c', // 0
+            '#3498db', // 1
+            '#2ecc71', // 2
+            '#f1c40f', // 3
+            '#9b59b6', // 4
+            '#e67e22', // 5
+            '#1abc9c', // 6
+            '#34495e', // 7
+            '#95a5a6'  // 8+
+        ];
+
+        function getEnergyColor(e) {
+            if (e < 0) return '#000';
+            if (e < energyColors.length) return energyColors[e];
+            return energyColors[energyColors.length - 1]; 
+        }
+
+        // Factorial function for microstate calculation
+        const memoFactorial = [1n, 1n];
+        function factorial(n) {
+            if (n < 0) return 0n;
+            if (memoFactorial[n]) return memoFactorial[n];
+            for (let i = memoFactorial.length; i <= n; i++) {
+                memoFactorial[i] = memoFactorial[i - 1] * BigInt(i);
+            }
+            return memoFactorial[n];
+        }
+
+        function calculateW(countsKey, totalN) {
+            const counts = countsKey.split(',').map(Number);
+            let denominator = 1n;
+            counts.forEach(count => {
+                denominator *= factorial(count);
+            });
+            return factorial(totalN) / denominator;
+        }
+
+        // ==========================================
+        // Section 1: n x n Grid Macrostate Tracker
+        // ==========================================
+        let s1_isRunning = false;
+        let s1_animId;
+        let s1_particles = [];
+        let s1_n = 4;
+        let s1_N = 16;
+        let s1_E = 16;
+        let s1_Emax = 3; 
+        let s1_counts = {};
+        let s1_totalSteps = 0;
+        let s1_chartInstance = null;
+        let s1_frameSkip = 0;
+
+        const s1_inputN = document.getElementById('s1-input-n');
+        const s1_inputE = document.getElementById('s1-input-e');
+        const s1_inputEmax = document.getElementById('s1-input-emax');
+        
+        s1_inputN.addEventListener('input', () => {
+            document.getElementById('s1-N-display').innerText = s1_inputN.value * s1_inputN.value;
+            resetS1();
+        });
+        s1_inputE.addEventListener('input', resetS1);
+        s1_inputEmax.addEventListener('input', resetS1);
+
+        function initS1() {
+            s1_n = parseInt(s1_inputN.value);
+            if (isNaN(s1_n) || s1_n < 2) s1_n = 2;
+            s1_N = s1_n * s1_n;
+            
+            s1_Emax = parseInt(s1_inputEmax.value);
+            if (isNaN(s1_Emax) || s1_Emax < 1) s1_Emax = 1;
+
+            s1_E = parseInt(s1_inputE.value);
+            if (isNaN(s1_E) || s1_E < 0) s1_E = 0;
+
+            if (s1_E > s1_N * s1_Emax) {
+                s1_E = s1_N * s1_Emax;
+                s1_inputE.value = s1_E;
+            }
+
+            s1_particles = new Array(s1_N).fill(0);
+            
+            let remE = s1_E;
+            let safetyCount = 0;
+            while(remE > 0 && safetyCount < 100000) {
+                let idx = Math.floor(Math.random() * s1_N);
+                if (s1_particles[idx] < s1_Emax) {
+                    s1_particles[idx]++;
+                    remE--;
+                }
+                safetyCount++;
+            }
+
+            s1_counts = {};
+            s1_totalSteps = 0;
+            document.getElementById('s1-steps').innerText = "0";
+            
+            buildS1Grid();
+            updateS1GridColors();
+            updateS1Legend();
+            initS1Chart();
+        }
+
+        function updateS1Legend() {
+            const legendContainer = document.getElementById('s1-legend');
+            legendContainer.innerHTML = '';
+            for (let e = 0; e <= s1_Emax; e++) {
+                const div = document.createElement('div');
+                div.className = 'flex items-center';
+                div.innerHTML = `<span class="w-3 h-3 rounded-full mr-1" style="background-color: ${getEnergyColor(e)}"></span>E=${e}`;
+                legendContainer.appendChild(div);
+            }
+        }
+
+        function buildS1Grid() {
+            const container = document.getElementById('s1-grid-container');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${s1_n}, minmax(0, 1fr))`;
+            
+            for(let i=0; i<s1_N; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.id = `s1-cell-${i}`;
+                container.appendChild(cell);
+            }
+        }
+
+        function updateS1GridColors() {
+            for(let i=0; i<s1_N; i++) {
+                const cell = document.getElementById(`s1-cell-${i}`);
+                if(cell) {
+                    cell.style.backgroundColor = getEnergyColor(s1_particles[i]);
+                }
+            }
+        }
+
+        function getS1ChartData() {
+            let sorted = Object.entries(s1_counts).sort((a,b) => b[1] - a[1]);
+            let top10 = sorted.slice(0, 10);
+            
+            let labels = top10.map(item => `[${item[0]}]`);
+            let data = top10.map(item => ((item[1] / s1_totalSteps) * 100));
+            
+            let wValues = top10.map(item => calculateW(item[0], s1_N));
+
+            let backgroundColors = top10.map(() => 'rgba(99, 102, 241, 0.8)');
+            let borderColors = top10.map(() => 'rgb(79, 70, 229)');
+
+            return { labels, data, wValues, backgroundColors, borderColors };
+        }
+
+        function initS1Chart() {
+            const canvas = document.getElementById('s1-chart');
+            // FIX: 기존 차트가 존재하면 확실히 destroy() 호출
+            if (s1_chartInstance) {
+                s1_chartInstance.destroy();
+                s1_chartInstance = null;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            s1_chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '누적 확률 (%)',
+                        data: [],
+                        wValues: [], 
+                        backgroundColor: [],
+                        borderColor: [],
+                        borderWidth: 1,
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0,
+                        onComplete: function() {
+                            const chart = this; // s1_chartInstance 대신 this 사용 (더 안전함)
+                            const ctx = chart.ctx;
+                            ctx.font = "bold 11px 'Inter'";
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillStyle = '#4338ca';
+
+                            chart.data.datasets.forEach(function(dataset, i) {
+                                const meta = chart.getDatasetMeta(i);
+                                meta.data.forEach(function(bar, index) {
+                                    const wVal = dataset.wValues[index];
+                                    if (wVal !== undefined) {
+                                        let text = "W=" + (wVal > 1e12 ? Number(wVal).toExponential(1) : wVal.toLocaleString());
+                                        ctx.fillText(text, bar.x, bar.y - 5);
+                                    }
+                                });
+                            });
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: '거시 상태별 출현 확률 및 조합수 ($W$)', font: { size: 16 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let p = context.parsed.y.toFixed(2) + '%';
+                                    let w = context.dataset.wValues[context.dataIndex];
+                                    return [`확률: ${p}`, `조합수 W: ${w ? w.toLocaleString() : 'N/A'}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            max: 100, 
+                            title: { display: true, text: '확률 (%)' }
+                        },
+                        x: {
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function stepS1() {
+            if (!s1_isRunning) return;
+
+            const speed = 100; 
+            for(let i=0; i<speed; i++) {
+                let p1 = Math.floor(Math.random() * s1_N);
+                let p2 = Math.floor(Math.random() * s1_N);
+                
+                if (p1 !== p2) {
+                    if (Math.random() < 0.5) {
+                        if (s1_particles[p1] > 0 && s1_particles[p2] < s1_Emax) { 
+                            s1_particles[p1]--; s1_particles[p2]++; 
+                        }
+                    } else {
+                        if (s1_particles[p2] > 0 && s1_particles[p1] < s1_Emax) { 
+                            s1_particles[p2]--; s1_particles[p1]++; 
+                        }
+                    }
+                }
+                
+                let dist = new Array(s1_Emax + 1).fill(0);
+                for(let p=0; p<s1_N; p++) {
+                    dist[s1_particles[p]]++;
+                }
+                
+                let key = dist.join(',');
+                s1_counts[key] = (s1_counts[key] || 0) + 1;
+                s1_totalSteps++;
+            }
+            
+            updateS1GridColors();
+            
+            s1_frameSkip++;
+            // FIX: s1_chartInstance 존재 여부 확인 후 업데이트
+            if (s1_frameSkip % 5 === 0 && s1_chartInstance) {
+                const chartData = getS1ChartData();
+                s1_chartInstance.data.labels = chartData.labels;
+                s1_chartInstance.data.datasets[0].data = chartData.data;
+                s1_chartInstance.data.datasets[0].wValues = chartData.wValues;
+                s1_chartInstance.data.datasets[0].backgroundColor = chartData.backgroundColors;
+                s1_chartInstance.data.datasets[0].borderColor = chartData.borderColors;
+                
+                let maxVal = Math.max(...chartData.data, 5);
+                s1_chartInstance.options.scales.y.max = Math.ceil(maxVal / 10) * 10;
+                
+                s1_chartInstance.update('none'); // 애니메이션 없이 업데이트하여 부하 감소
+                document.getElementById('s1-steps').innerText = s1_totalSteps.toLocaleString();
+            }
+
+            s1_animId = requestAnimationFrame(stepS1);
+        }
+
+        function resetS1() {
+            s1_isRunning = false;
+            cancelAnimationFrame(s1_animId);
+            document.getElementById('btn-s1-pause').classList.add('hidden');
+            document.getElementById('btn-s1-start').classList.remove('hidden');
+            initS1();
+        }
+
+        document.getElementById('btn-s1-start').addEventListener('click', () => {
+            s1_isRunning = true;
+            document.getElementById('btn-s1-start').classList.add('hidden');
+            document.getElementById('btn-s1-pause').classList.remove('hidden');
+            stepS1();
+        });
+
+        document.getElementById('btn-s1-pause').addEventListener('click', () => {
+            s1_isRunning = false;
+            cancelAnimationFrame(s1_animId);
+            document.getElementById('btn-s1-pause').classList.add('hidden');
+            document.getElementById('btn-s1-start').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-s1-reset').addEventListener('click', resetS1);
+
+
+        // ==========================================
+        // Section 2: Large Particles Boltzmann Curve
+        // ==========================================
+        let s2_N = 1000;
+        let s2_E = 1000;
+        let s2_dE = 1;
+        let s2_particles = [];
+        let s2_isRunning = false;
+        let s2_animId;
+        let s2_stepCount = 0;
+        let s2_chartInstance = null;
+        let s2_maxPercent = 0; 
+        let s2_sumHistPercent = []; 
+        let s2_sampleCount = 0;     
+        const S2_MAX_BINS = 20; 
+
+        const sliderN = document.getElementById('s2-slider-n');
+        const sliderE = document.getElementById('s2-slider-e');
+        const sliderDE = document.getElementById('s2-slider-de');
+        const valN = document.getElementById('s2-val-n');
+        const valE = document.getElementById('s2-val-e');
+        const valDE = document.getElementById('s2-val-de');
+        const radiosMode = document.querySelectorAll('input[name="s2-chart-mode"]');
+
+        sliderN.addEventListener('input', (e) => { valN.innerText = e.target.value; });
+        sliderE.addEventListener('input', (e) => { valE.innerText = e.target.value; });
+        sliderDE.addEventListener('input', (e) => { valDE.innerText = e.target.value; });
+
+        sliderN.addEventListener('change', resetS2);
+        sliderE.addEventListener('change', resetS2);
+        sliderDE.addEventListener('change', resetS2);
+
+        radiosMode.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (s2_chartInstance) {
+                    initS2Chart(); 
+                    updateS2Chart();
+                }
+            });
+        });
+
+        function initS2() {
+            s2_N = parseInt(sliderN.value);
+            s2_E = parseInt(sliderE.value);
+            s2_dE = parseInt(sliderDE.value);
+
+            let Q = Math.floor(s2_E / s2_dE);
+            s2_particles = new Array(s2_N).fill(0);
+
+            let baseQ = Math.floor(Q / s2_N);
+            let remQ = Q % s2_N;
+            s2_particles.fill(baseQ);
+            
+            for(let i=0; i<remQ; i++) {
+                s2_particles[Math.floor(Math.random() * s2_N)]++;
+            }
+
+            s2_stepCount = 0;
+            document.getElementById('s2-steps').innerText = "0";
+            
+            s2_maxPercent = 0; 
+            s2_sumHistPercent = new Array(S2_MAX_BINS).fill(0); 
+            s2_sampleCount = 0; 
+            
+            initS2Chart();
+            updateS2Chart();
+        }
+
+        function getS2ChartData() {
+            let hist = new Array(S2_MAX_BINS).fill(0); 
+            for(let i=0; i<s2_N; i++) {
+                let quanta = s2_particles[i];
+                if(quanta >= S2_MAX_BINS - 1) {
+                    hist[S2_MAX_BINS - 1]++; 
+                } else {
+                    hist[quanta]++;
+                }
+            }
+            
+            let histPercent = hist.map(count => (count / s2_N) * 100);
+            
+            s2_sampleCount++;
+            let avgHistPercent = new Array(S2_MAX_BINS);
+            for(let i=0; i<S2_MAX_BINS; i++) {
+                s2_sumHistPercent[i] += histPercent[i];
+                avgHistPercent[i] = s2_sumHistPercent[i] / s2_sampleCount;
+            }
+            
+            let labels = [];
+            for(let i=0; i<S2_MAX_BINS; i++) {
+                let energyVal = i * s2_dE;
+                if (i === S2_MAX_BINS - 1) labels.push(`E ≥ ${energyVal}`);
+                else labels.push(`E=${energyVal}`);
+            }
+
+            return { labels, data: histPercent, avgData: avgHistPercent };
+        }
+
+        function initS2Chart() {
+            if (s2_chartInstance) {
+                s2_chartInstance.destroy();
+                s2_chartInstance = null;
+            }
+            
+            const ctx = document.getElementById('s2-chart').getContext('2d');
+            const mode = document.querySelector('input[name="s2-chart-mode"]:checked').value;
+            const isHorizontal = (mode === 'y');
+
+            const titleX = isHorizontal ? '입자 비율 (%)' : '에너지 준위';
+            const titleY = isHorizontal ? '에너지 준위' : '입자 비율 (%)';
+
+            s2_chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: '실시간 분포 (%)',
+                            data: [],
+                            backgroundColor: 'rgba(39, 174, 96, 0.4)', 
+                            borderColor: 'rgb(46, 204, 113)',
+                            borderWidth: 1,
+                            borderRadius: 2,
+                            order: 2 
+                        },
+                        {
+                            type: 'line',
+                            label: '누적 평균 (볼츠만 곡선)',
+                            data: [],
+                            borderColor: 'rgb(231, 76, 60)', 
+                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                            borderWidth: 3,
+                            pointRadius: 1,
+                            fill: false,
+                            tension: 0.4, 
+                            order: 1 
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: mode, 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        title: { display: true, text: '에너지 준위별 입자 비율 (%)', font: { size: 16 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = isHorizontal ? context.parsed.x : context.parsed.y;
+                                    return context.dataset.label + ': ' + value.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: titleX, font: { weight: 'bold' } },
+                            beginAtZero: true,
+                            max: isHorizontal && s2_maxPercent > 0 ? s2_maxPercent : undefined
+                        },
+                        y: { 
+                            title: { display: true, text: titleY, font: { weight: 'bold' } },
+                            beginAtZero: true,
+                            reverse: isHorizontal,
+                            max: !isHorizontal && s2_maxPercent > 0 ? s2_maxPercent : undefined
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateS2Chart() {
+            if(!s2_chartInstance) return;
+            const chartData = getS2ChartData();
+            s2_chartInstance.data.labels = chartData.labels;
+            s2_chartInstance.data.datasets[0].data = chartData.data; 
+            s2_chartInstance.data.datasets[1].data = chartData.avgData; 
+
+            let currentDataMax = Math.max(...chartData.data, ...chartData.avgData);
+            if (currentDataMax > s2_maxPercent) {
+                s2_maxPercent = Math.ceil(currentDataMax / 5) * 5; 
+            }
+
+            const mode = document.querySelector('input[name="s2-chart-mode"]:checked').value;
+            const isHorizontal = (mode === 'y');
+            
+            if (isHorizontal) {
+                s2_chartInstance.options.scales.x.max = s2_maxPercent;
+            } else {
+                s2_chartInstance.options.scales.y.max = s2_maxPercent;
+            }
+
+            s2_chartInstance.update('none');
+            document.getElementById('s2-steps').innerText = s2_stepCount.toLocaleString();
+
+            let totalQuanta = 0;
+            for(let i=0; i<s2_N; i++) {
+                totalQuanta += s2_particles[i];
+            }
+            let avgE = (totalQuanta * s2_dE) / s2_N;
+            document.getElementById('s2-avg-e').innerText = avgE.toFixed(2);
+        }
+
+        function stepS2() {
+            if (!s2_isRunning) return;
+
+            const speed = Math.max(1000, Math.floor(s2_N * 0.5)); 
+            
+            for(let i=0; i<speed; i++) {
+                let p1 = Math.floor(Math.random() * s2_N);
+                let p2 = Math.floor(Math.random() * s2_N);
+                if (p1 !== p2 && s2_particles[p1] > 0) {
+                    s2_particles[p1]--;
+                    s2_particles[p2]++;
+                }
+                s2_stepCount++;
+            }
+            
+            updateS2Chart();
+            s2_animId = requestAnimationFrame(stepS2);
+        }
+
+        function resetS2() {
+            s2_isRunning = false;
+            cancelAnimationFrame(s2_animId);
+            document.getElementById('btn-s2-pause').classList.add('hidden');
+            document.getElementById('btn-s2-start').classList.remove('hidden');
+            initS2();
+        }
+
+        document.getElementById('btn-s2-start').addEventListener('click', () => {
+            s2_isRunning = true;
+            document.getElementById('btn-s2-start').classList.add('hidden');
+            document.getElementById('btn-s2-pause').classList.remove('hidden');
+            stepS2();
+        });
+
+        document.getElementById('btn-s2-pause').addEventListener('click', () => {
+            s2_isRunning = false;
+            cancelAnimationFrame(s2_animId);
+            document.getElementById('btn-s2-pause').classList.add('hidden');
+            document.getElementById('btn-s2-start').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-s2-reset').addEventListener('click', resetS2);
+
+
+        // ==========================================
+        // On Load
+        // ==========================================
+        window.onload = () => {
+            initS1();
+            initS2();
+        };
+
+    </script>
+</body>
+</html>
