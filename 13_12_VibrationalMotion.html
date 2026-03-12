@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Dynamics - Vibrational Quantum</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- KaTeX for Math Rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700&display=swap');
+        
+        body { 
+            background-color: #020617; 
+            margin: 0; 
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Slider Styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            height: 6px;
+            border-radius: 5px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #10b981;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+
+        /* Hide Scrollbar */
+        ::-webkit-scrollbar { width: 0px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        /**
+         * System Configuration & Magic Numbers
+         */
+        const CONFIG = {
+            xMin: -5,
+            xMax: 5,
+            yMin: 0,
+            yMax: 7.5, // Accommodates E_5 = 5.5
+            phaseSpeed: 2.5,
+            cloudSlices: 300,
+            scaleX: 35, // Maps quantum x to pixels in cloud view
+            leftAtomXOffset: -120,
+            rightAtomXOffset: 80,
+            probThreshold: 0.0005, // Lowered to show more of the Gaussian tails
+        };
+
+        /**
+         * KaTeX Helper Component
+         */
+        const Katex = ({ tex, display = false, fontSize = "1.1rem" }) => {
+            const containerRef = useRef(null);
+            useEffect(() => {
+                if (window.katex && containerRef.current) {
+                    try {
+                        window.katex.render(tex, containerRef.current, {
+                            displayMode: display,
+                            throwOnError: false,
+                        });
+                    } catch (e) {
+                        containerRef.current.textContent = tex;
+                    }
+                }
+            }, [tex, display]);
+            return <span ref={containerRef} style={{ fontSize }} />;
+        };
+
+        // --- Quantum Harmonic Oscillator Math ---
+        
+        // Iterative Factorial for safety and general use
+        const factorial = (n) => {
+            let res = 1;
+            for (let i = 2; i <= n; i++) res *= i;
+            return res;
+        };
+        
+        // Iterative Physicists' Hermite Polynomial: H_{n+1}(x) = 2xH_n(x) - 2nH_{n-1}(x)
+        const hermite = (v, x) => {
+            if (v === 0) return 1;
+            if (v === 1) return 2 * x;
+            let h0 = 1;
+            let h1 = 2 * x;
+            let hn = h1;
+            for (let i = 1; i < v; i++) {
+                hn = 2 * x * h1 - 2 * i * h0;
+                h0 = h1;
+                h1 = hn;
+            }
+            return hn;
+        };
+
+        const normalization = (v) => 1 / Math.sqrt(Math.pow(2, v) * factorial(v) * Math.sqrt(Math.PI));
+        const wavefunction = (v, x) => normalization(v) * Math.exp(-0.5 * x * x) * hermite(v, x);
+        const probability = (v, x) => Math.pow(wavefunction(v, x), 2);
+
+        const App = () => {
+            // UI State
+            const [v, setV] = useState(0); 
+            const [showProbability, setShowProbability] = useState(false);
+            const [isPlaying, setIsPlaying] = useState(true);
+
+            // Refs for Animation Loop (Prevents React re-renders on every frame)
+            const vRef = useRef(v);
+            const showProbRef = useRef(showProbability);
+            const isPlayingRef = useRef(isPlaying);
+            const timePhaseRef = useRef(0);
+            
+            const canvasWellRef = useRef(null);
+            const canvasCloudRef = useRef(null);
+
+            // Sync React State to Refs
+            useEffect(() => { vRef.current = v; }, [v]);
+            useEffect(() => { showProbRef.current = showProbability; }, [showProbability]);
+            useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+            const energy = v + 0.5;
+
+            // --- Main Animation Engine & Canvas Rendering ---
+            useEffect(() => {
+                let frameId;
+                let lastTime = performance.now();
+
+                const drawWell = (ctx, w, h) => {
+                    ctx.clearRect(0, 0, w, h);
+                    const currentV = vRef.current;
+                    const En = currentV + 0.5;
+
+                    const mapX = (x) => ((x - CONFIG.xMin) / (CONFIG.xMax - CONFIG.xMin)) * w;
+                    const mapY = (y) => h - ((y - CONFIG.yMin) / (CONFIG.yMax - CONFIG.yMin)) * h;
+
+                    // 1. Draw Parabolic Potential V(x) = 0.5 * x^2
+                    ctx.beginPath();
+                    for (let px = 0; px <= w; px++) {
+                        const x = CONFIG.xMin + (px / w) * (CONFIG.xMax - CONFIG.xMin);
+                        const y = 0.5 * x * x;
+                        if (px === 0) ctx.moveTo(mapX(x), mapY(y));
+                        else ctx.lineTo(mapX(x), mapY(y));
+                    }
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // 2. Draw Energy Levels
+                    for (let n = 0; n <= 5; n++) {
+                        const levelE = n + 0.5;
+                        const turningPoint = Math.sqrt(2 * levelE);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(mapX(-turningPoint), mapY(levelE));
+                        ctx.lineTo(mapX(turningPoint), mapY(levelE));
+                        ctx.strokeStyle = n === currentV ? "rgba(16, 185, 129, 0.8)" : "rgba(255, 255, 255, 0.15)";
+                        ctx.lineWidth = n === currentV ? 2 : 1;
+                        ctx.setLineDash(n === currentV ? [] : [4, 4]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        
+                        ctx.fillStyle = n === currentV ? "#10b981" : "rgba(255,255,255,0.4)";
+                        ctx.font = "bold 12px Inter";
+                        ctx.textAlign = "right";
+                        ctx.fillText(`v=${n}`, mapX(-turningPoint) - 8, mapY(levelE) + 4);
+                    }
+
+                    // 3. Draw Wavefunction or Probability Density
+                    ctx.beginPath();
+                    const waveScale = showProbRef.current ? 1.5 : 1.2;
+                    const phaseOscillation = showProbRef.current ? 1 : Math.cos(timePhaseRef.current);
+
+                    for (let px = 0; px <= w; px++) {
+                        const x = CONFIG.xMin + (px / w) * (CONFIG.xMax - CONFIG.xMin);
+                        let val = showProbRef.current 
+                            ? probability(currentV, x) * waveScale 
+                            : wavefunction(currentV, x) * phaseOscillation * waveScale;
+                        
+                        const y = En + val;
+                        if (px === 0) ctx.moveTo(mapX(x), mapY(y));
+                        else ctx.lineTo(mapX(x), mapY(y));
+                    }
+                    
+                    ctx.lineTo(mapX(CONFIG.xMax), mapY(En));
+                    ctx.lineTo(mapX(CONFIG.xMin), mapY(En));
+                    ctx.closePath();
+
+                    const grad = ctx.createLinearGradient(0, mapY(En + waveScale), 0, mapY(En - waveScale));
+                    if (showProbRef.current) {
+                        grad.addColorStop(0, "rgba(245, 158, 11, 0.6)"); // Amber
+                        grad.addColorStop(1, "rgba(245, 158, 11, 0.0)");
+                        ctx.fillStyle = grad;
+                        ctx.strokeStyle = "#fbbf24";
+                    } else {
+                        grad.addColorStop(0, "rgba(16, 185, 129, 0.5)"); // Emerald
+                        grad.addColorStop(0.5, "rgba(16, 185, 129, 0.0)");
+                        grad.addColorStop(1, "rgba(16, 185, 129, 0.5)");
+                        ctx.fillStyle = grad;
+                        ctx.strokeStyle = "#34d399";
+                    }
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                };
+
+                const drawCloud = (ctx, w, h) => {
+                    ctx.clearRect(0, 0, w, h);
+                    const currentV = vRef.current;
+                    const En = currentV + 0.5;
+
+                    const cx = w / 2;
+                    const cy = h / 2;
+                    const leftAtomX = cx + CONFIG.leftAtomXOffset;
+                    const eqRightAtomX = cx + CONFIG.rightAtomXOffset;
+
+                    // 1. Draw classical equilibrium line
+                    ctx.beginPath();
+                    ctx.moveTo(leftAtomX, cy);
+                    ctx.lineTo(eqRightAtomX, cy);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash([8, 8]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // 2. Draw Left Atom (Fixed Reference)
+                    ctx.beginPath();
+                    ctx.arc(leftAtomX, cy, 25, 0, Math.PI * 2);
+                    const gradLeft = ctx.createRadialGradient(leftAtomX - 8, cy - 8, 2, leftAtomX, cy, 25);
+                    gradLeft.addColorStop(0, "#fff");
+                    gradLeft.addColorStop(0.3, "#3b82f6");
+                    gradLeft.addColorStop(1, "#0f172a");
+                    ctx.fillStyle = gradLeft;
+                    ctx.fill();
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 14px Inter";
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText("M1", leftAtomX, cy);
+
+                    // 3. Draw Right Atom (Probability Cloud Heatmap)
+                    // Rendered as vertical slices to preserve node visibility
+                    const dx = (CONFIG.xMax - CONFIG.xMin) / CONFIG.cloudSlices * CONFIG.scaleX;
+                    const colorRGB = showProbRef.current ? "245, 158, 11" : "16, 185, 129";
+                    
+                    const cloudGrad = ctx.createLinearGradient(0, cy - 28, 0, cy + 28);
+                    cloudGrad.addColorStop(0, `rgba(${colorRGB}, 0)`);
+                    cloudGrad.addColorStop(0.5, `rgba(${colorRGB}, 1)`);
+                    cloudGrad.addColorStop(1, `rgba(${colorRGB}, 0)`);
+                    ctx.fillStyle = cloudGrad;
+
+                    for (let i = 0; i <= CONFIG.cloudSlices; i++) {
+                        const x = CONFIG.xMin + (i / CONFIG.cloudSlices) * (CONFIG.xMax - CONFIG.xMin);
+                        const prob = probability(currentV, x);
+                        
+                        if (prob > CONFIG.probThreshold) {
+                            const drawX = eqRightAtomX + x * CONFIG.scaleX;
+                            ctx.globalAlpha = Math.min(1, prob * 2.5); // Enhance visibility while keeping nodes empty
+                            ctx.fillRect(drawX - dx/2, cy - 28, dx + 0.5, 56);
+                        }
+                    }
+                    ctx.globalAlpha = 1.0; // Reset alpha
+
+                    // 4. Classical Particle Overlay (Always drawn, oscillates when playing)
+                    const A = Math.sqrt(2 * En);
+                    const classicalX = eqRightAtomX + A * Math.cos(timePhaseRef.current) * CONFIG.scaleX;
+                    
+                    ctx.beginPath();
+                    ctx.arc(classicalX, cy, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = "#fff";
+                    ctx.shadowColor = "#fff";
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    ctx.font = "10px Inter";
+                    ctx.fillStyle = "rgba(255,255,255,0.7)";
+                    ctx.fillText("Classical", classicalX, cy - 15);
+                };
+
+                const tick = (time) => {
+                    const dt = (time - lastTime) / 1000;
+                    lastTime = time;
+
+                    if (isPlayingRef.current) {
+                        const currentEnergy = vRef.current + 0.5;
+                        timePhaseRef.current = (timePhaseRef.current + dt * currentEnergy * CONFIG.phaseSpeed) % (Math.PI * 2);
+                    }
+
+                    const dpr = window.devicePixelRatio || 1;
+
+                    // Handle Well Canvas
+                    const canvasW = canvasWellRef.current;
+                    if (canvasW) {
+                        const rect = canvasW.getBoundingClientRect();
+                        if (canvasW.width !== rect.width * dpr || canvasW.height !== rect.height * dpr) {
+                            canvasW.width = rect.width * dpr;
+                            canvasW.height = rect.height * dpr;
+                        }
+                        const ctxW = canvasW.getContext('2d');
+                        ctxW.save();
+                        ctxW.scale(dpr, dpr);
+                        drawWell(ctxW, rect.width, rect.height);
+                        ctxW.restore();
+                    }
+
+                    // Handle Cloud Canvas
+                    const canvasC = canvasCloudRef.current;
+                    if (canvasC) {
+                        const rect = canvasC.getBoundingClientRect();
+                        if (canvasC.width !== rect.width * dpr || canvasC.height !== rect.height * dpr) {
+                            canvasC.width = rect.width * dpr;
+                            canvasC.height = rect.height * dpr;
+                        }
+                        const ctxC = canvasC.getContext('2d');
+                        ctxC.save();
+                        ctxC.scale(dpr, dpr);
+                        drawCloud(ctxC, rect.width, rect.height);
+                        ctxC.restore();
+                    }
+
+                    frameId = requestAnimationFrame(tick);
+                };
+
+                frameId = requestAnimationFrame(tick);
+                return () => cancelAnimationFrame(frameId);
+            }, []);
+
+            return (
+                <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto p-4 bg-[#020617] min-h-screen text-slate-100">
+                    <header className="glass px-8 py-5 rounded-3xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div>
+                            <h1 className="text-3xl font-black uppercase tracking-tighter leading-none text-white">Quantum Dynamics</h1>
+                            <p className="text-emerald-400 text-xs font-bold tracking-[0.2em] mt-2 uppercase">Vibrational Quantum Oscillator</p>
+                        </div>
+                        <div className="flex items-center gap-6 bg-slate-900/50 px-6 py-3 rounded-2xl border border-white/5 shadow-inner">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">QUANTUM v</span>
+                                <input type="range" min="0" max="5" step="1" value={v} 
+                                    onChange={(e) => setV(parseInt(e.target.value))} 
+                                    className="w-40 cursor-pointer accent-emerald-500" 
+                                />
+                            </div>
+                            <div className="text-4xl font-black text-emerald-400 font-mono w-16 text-center">v={v}</div>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+                        
+                        {/* Left Panel: Potential Well */}
+                        <div className="flex flex-col gap-6 h-full">
+                            <div className="glass p-5 rounded-2xl border-emerald-500/20 min-h-[140px]">
+                                <h2 className="text-lg font-black text-emerald-400 uppercase tracking-widest mb-2">Potential Well & Wavefunction</h2>
+                                <p className="text-base text-slate-200 mb-1">
+                                    Energy states: <Katex tex={String.raw`E_v = \left(v + \frac{1}{2}\right) \hbar \omega`} />
+                                </p>
+                                <p className="text-xs text-slate-400 mt-2">
+                                    {v === 0 ? "Zero-point energy prevents the molecule from ever being completely at rest." : `Quantized level with ${v} nodes in the spatial wavefunction.`}
+                                </p>
+                            </div>
+                            <div className="glass p-6 rounded-[32px] flex flex-col relative h-[480px] shadow-2xl overflow-hidden bg-slate-950/20 items-center justify-center">
+                                <div className="absolute top-6 left-8 z-10 bg-slate-900/40 p-3 rounded-lg border border-white/5 max-w-[65%]">
+                                    <h2 className="text-[10px] font-black uppercase tracking-widest text-emerald-500/80 font-mono mb-1">
+                                        {showProbability ? "Probability Density |ψ|²" : "Wavefunction Re(ψ)"}
+                                    </h2>
+                                    <p className="text-[9px] text-slate-400 leading-tight">
+                                        {showProbability 
+                                            ? "Probability density is stationary over time." 
+                                            : "Displayed wavefunction is the real part of the phase factor evolving over time."}
+                                    </p>
+                                </div>
+                                <div className="absolute top-6 right-8 z-10 bg-slate-900/90 p-2 px-4 rounded-xl border border-slate-700/50 shadow-lg font-mono font-black text-amber-400 text-lg">
+                                    E = {energy.toFixed(1)} ħω
+                                </div>
+                                <canvas ref={canvasWellRef} className="w-full h-full absolute inset-0"></canvas>
+                                <p className="absolute bottom-4 text-[10px] text-slate-500 italic pointer-events-none">
+                                    Position x is shown in dimensionless normalized coordinate.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Right Panel: Physical Interpretation */}
+                        <div className="flex flex-col gap-6 h-full">
+                            <div className="glass p-5 rounded-2xl border-amber-500/20 min-h-[140px]">
+                                <h2 className="text-lg font-black text-amber-400 uppercase tracking-widest mb-2">Physical Probability Cloud</h2>
+                                <p className="text-base text-slate-200">
+                                    The spatial distribution of the atom is represented by <Katex tex={String.raw`|\psi_v(x)|^2`} />.
+                                </p>
+                                <div className="mt-3 flex gap-6">
+                                    <div className="text-xs text-slate-400 border-l-2 border-white/10 pl-4">
+                                        <span className="block font-bold text-white uppercase text-[10px] mb-1">Turning Pts</span>
+                                        <Katex tex={String.raw`x = \pm ${Math.sqrt(2 * energy).toFixed(2)}`} fontSize="1.1rem" />
+                                    </div>
+                                    <div className="text-xs text-slate-400 border-l-2 border-white/10 pl-4">
+                                        <span className="block font-bold text-white uppercase text-[10px] mb-1">Nodes</span>
+                                        <Katex tex={`n = ${v}`} fontSize="1.1rem" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="glass p-6 rounded-[32px] shadow-2xl flex flex-col h-[480px] overflow-hidden bg-slate-950/40 relative items-center justify-center">
+                                <div className="absolute top-6 left-8 z-10 bg-slate-900/40 p-2 rounded-lg border border-white/5">
+                                    <h2 className="text-[10px] font-black uppercase tracking-widest text-amber-500/80 font-mono">Atom Distribution</h2>
+                                </div>
+                                <canvas ref={canvasCloudRef} className="w-full h-full absolute inset-0"></canvas>
+                                
+                                <div className="absolute bottom-6 w-full flex justify-center text-[10px] text-slate-500 font-mono">
+                                    Classical Particle vs Quantum Probability Cloud
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer className="glass p-6 rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl mt-auto border border-white/10">
+                        <div className="flex flex-wrap gap-3 items-center">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-4">Select <Katex tex="v" fontSize="0.9rem" />:</span>
+                            {[0, 1, 2, 3, 4, 5].map((n) => (
+                                <button key={n} onClick={() => setV(n)}
+                                    className={`w-14 h-14 rounded-xl font-black text-xl font-mono transition-all flex items-center justify-center border ${v === n ? 'bg-emerald-600 text-white shadow-2xl scale-110 border-emerald-400' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700'}`}
+                                >
+                                    {n}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-3 shrink-0">
+                            <button onClick={() => setShowProbability(!showProbability)} className={`w-56 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${showProbability ? 'bg-amber-600 border-amber-400 text-white shadow-amber-500/20 shadow-2xl' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'}`}>
+                                Switch to {showProbability ? 'Wavefunction' : 'Probability'}
+                            </button>
+                            <button onClick={() => setIsPlaying(!isPlaying)} className="w-32 bg-blue-600 hover:bg-blue-500 border-2 border-blue-500 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-blue-500/30 shadow-2xl transition-all">
+                                {isPlaying ? 'Pause Time' : 'Play Time'}
+                            </button>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

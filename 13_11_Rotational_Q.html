@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotational Partition Function Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@500;800&display=swap');
+        
+        body { 
+            margin: 0; padding: 0; 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0f172a; 
+            display: flex; align-items: flex-start; justify-content: center;
+            min-height: 100vh; overflow-y: auto;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%; height: 6px;
+            background: #334155;
+            border-radius: 3px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px; height: 18px;
+            background: #60a5fa;
+            border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: background 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #93c5fd;
+        }
+        
+        .math-font { font-family: 'JetBrains Mono', monospace; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        
+        Chart.register(
+            Chart.CategoryScale, Chart.LinearScale, Chart.PointElement, 
+            Chart.LineElement, Chart.BarElement, Chart.Title, 
+            Chart.Tooltip, Chart.Legend, Chart.Filler
+        );
+
+        const App = () => {
+            // Default Values: T = 300K
+            const [temp, setTemp] = useState(300); 
+            // Rotational Constant B in cm^-1 (e.g., HCl ~ 10.59, N2 ~ 1.99)
+            const [rotConstant, setRotConstant] = useState(10); 
+
+            // Constants
+            const h = 6.626e-34; // J s
+            const c = 2.998e10;  // cm/s (B is in cm^-1)
+            const k = 1.381e-23; // J/K
+            const beta = 1 / (k * temp);
+
+            // Energy conversion factor: h*c*B
+            const hcB = h * c * rotConstant;
+
+            // Rotational Temperature (Theta_R)
+            const thetaR = hcB / k;
+
+            // 1. Classical Approximation (Integral)
+            // q = kT / (hcB) = T / Theta_R
+            const qIntegral = temp / thetaR;
+
+            // 2. Discrete Summation (Exact)
+            // q = sum_{J=0}^{inf} (2J+1) * exp(-hcBJ(J+1)/kT)
+            const qSum = useMemo(() => {
+                let sum = 0;
+                for (let J = 0; J <= 500; J++) {
+                    const term = (2 * J + 1) * Math.exp(-hcB * J * (J + 1) * beta);
+                    sum += term;
+                    if (term < 1e-7 && J > 10) break; 
+                }
+                return sum;
+            }, [beta, hcB]);
+
+            const errorPercent = Math.abs((qIntegral - qSum) / qSum) * 100;
+
+            const chartData = useMemo(() => {
+                // Determine J range to visualize
+                // Max probability is near J ~ sqrt(kT/2hcB) - 1/2
+                const J_max_pop = Math.sqrt(temp / (2 * thetaR)) - 0.5;
+                const maxJ = Math.max(15, Math.ceil(J_max_pop * 4));
+                
+                const discretePoints = [];
+                const continuousPoints = [];
+                
+                // Discrete points (Lines)
+                for (let J = 0; J <= maxJ; J++) {
+                    const val = (2 * J + 1) * Math.exp(-hcB * J * (J + 1) * beta);
+                    discretePoints.push({ x: J, y: val });
+                }
+
+                // Continuous curve
+                const step = maxJ / 200;
+                for (let x = 0; x <= maxJ; x += step) {
+                    // Continuous analog: (2x+1) * exp(-x(x+1)Theta_R/T)
+                    const val = (2 * x + 1) * Math.exp(-hcB * x * (x + 1) * beta);
+                    continuousPoints.push({ x: x, y: val });
+                }
+
+                return { discretePoints, continuousPoints, maxX: maxJ };
+            }, [beta, hcB, temp, thetaR]);
+
+            const chartRef = useRef(null);
+
+            useEffect(() => {
+                const ctx = chartRef.current.getContext('2d');
+                if (chartRef.current.chartInstance) chartRef.current.chartInstance.destroy();
+
+                chartRef.current.chartInstance = new Chart(ctx, {
+                    data: {
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Discrete States (Σ)',
+                                data: chartData.discretePoints,
+                                backgroundColor: 'rgba(96, 165, 250, 0.8)', 
+                                borderColor: 'transparent',
+                                borderWidth: 0,
+                                barThickness: 2,
+                                maxBarThickness: 3,
+                                order: 2
+                            },
+                            {
+                                type: 'line',
+                                label: 'Boltzmann Distribution (∫)',
+                                data: chartData.continuousPoints,
+                                borderColor: '#f43f5e',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                fill: false,
+                                pointRadius: 0,
+                                tension: 0.4,
+                                order: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400, easing: 'easeOutQuad' },
+                        plugins: {
+                            legend: { 
+                                position: 'top', 
+                                labels: { 
+                                    color: '#cbd5e1', 
+                                    font: { family: 'Inter', weight: 'bold' },
+                                    usePointStyle: true,
+                                    pointStyle: 'line'
+                                } 
+                            },
+                            tooltip: { enabled: false }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                min: 0,
+                                max: chartData.maxX,
+                                title: { display: true, text: 'Rotational Quantum Number (J)', color: '#94a3b8', font: { weight: 'bold' } },
+                                grid: { color: '#1e293b' },
+                                ticks: { color: '#64748b' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Population Probability Factor', color: '#94a3b8', font: { weight: 'bold' } },
+                                grid: { color: '#1e293b' },
+                                ticks: { color: '#64748b' }
+                            }
+                        }
+                    }
+                });
+
+                return () => {
+                    if (chartRef.current && chartRef.current.chartInstance) {
+                        chartRef.current.chartInstance.destroy();
+                    }
+                };
+            }, [chartData]);
+
+            const isClassical = temp > 10 * thetaR;
+
+            return (
+                <div className="w-[1280px] min-h-[720px] bg-[#0b1120] text-slate-200 flex flex-col relative border border-slate-800 rounded-2xl shadow-2xl my-8 overflow-hidden">
+                    
+                    <header className="h-[90px] bg-slate-900 border-b border-slate-800 px-8 flex items-center justify-between shrink-0">
+                        <div>
+                            <h1 className="text-2xl font-black text-white tracking-tight uppercase tracking-tight">Rotational Partition Function</h1>
+                            <p className="text-xs text-sky-400 font-bold uppercase tracking-[0.2em] mt-1">Sum vs Integral for Linear Rotators</p>
+                        </div>
+                    </header>
+
+                    <div className="flex-1 flex p-6 gap-6 bg-[#0f172a]">
+                        
+                        <aside className="w-[320px] flex flex-col gap-6 shrink-0">
+                            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
+                                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">System Parameters</h2>
+                                <div className="space-y-8">
+                                    <ControlSlider label="Temperature (T)" unit="K" min={1} max={1000} step={1} value={temp} onChange={setTemp} color="bg-rose-500" />
+                                    <ControlSlider label="Rotational Constant (B)" unit="cm⁻¹" min={1} max={60} step={1} value={rotConstant} onChange={setRotConstant} color="bg-sky-500" />
+                                </div>
+                                <div className="mt-6 pt-4 border-t border-slate-700/50">
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
+                                        <span>Rot. Temp (Θ_R)</span>
+                                        <span className="math-font text-white">{thetaR.toFixed(2)} K</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex-1 flex flex-col text-center">
+                                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Calculation Results</h2>
+                                
+                                <div className="space-y-4">
+                                    <ResultBox label="Discrete Sum (Σ)" value={qSum.toLocaleString(undefined, {maximumFractionDigits: 2})} highlight="text-sky-400" />
+                                    <ResultBox label="Classical Approx. (∫)" value={qIntegral.toLocaleString(undefined, {maximumFractionDigits: 2})} highlight="text-rose-400" />
+                                    
+                                    <div className="pt-4 border-t border-slate-700 text-left">
+                                        <div className="flex justify-between items-end">
+                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Error Rate</span>
+                                            <span className={`text-xl font-mono font-black ${errorPercent < 1 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                {errorPercent.toFixed(3)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </aside>
+
+                        <main className="flex-1 flex flex-col gap-6 min-w-0">
+                            
+                            <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800 flex justify-around items-center shrink-0 shadow-inner">
+                                <div className="text-center">
+                                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Sum over J</div>
+                                    <div className="math-font text-sky-400 text-sm italic">q = Σ (2J+1) exp(-hcB J(J+1) / kT)</div>
+                                </div>
+                                <div className="text-slate-600 font-bold text-xl">≅</div>
+                                <div className="text-center">
+                                    <div className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">High T Limit</div>
+                                    <div className="math-font text-rose-400 text-sm italic underline decoration-sky-500 underline-offset-4 font-bold">kT / hcB</div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 flex-1 relative flex flex-col shadow-inner">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="max-w-[500px]">
+                                        <p className="text-[11px] text-slate-400 italic leading-relaxed">
+                                            Notice the peak at <strong className="text-white not-italic">J &gt; 0</strong>. Unlike translation, rotational states have a <strong className="text-sky-400 not-italic">(2J+1) degeneracy</strong> that increases with energy, competing with the exponential decay. As lines gather, they form the continuous <strong className="text-rose-400 not-italic">Boltzmann envelope</strong>.
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex-1 relative mt-4">
+                                    <canvas ref={chartRef}></canvas>
+                                </div>
+                            </div>
+
+                            <div className={`rounded-2xl p-5 border flex items-center justify-between shrink-0 transition-colors duration-500 ${isClassical ? 'bg-emerald-900/20 border-emerald-500/30' : 'bg-amber-900/20 border-amber-500/30'}`}>
+                                <div className="flex gap-10">
+                                    <div>
+                                        <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1">Temperature (T)</p>
+                                        <p className="math-font text-lg text-white">{temp} K</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1">Rotational Temp (Θ_R)</p>
+                                        <p className="math-font text-lg text-white">{thetaR.toFixed(2)} K</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="text-right">
+                                    <p className="text-[10px] uppercase font-black tracking-widest mb-1 text-slate-400">Classical Limit (T ≫ Θ_R)</p>
+                                    <p className={`text-sm font-black uppercase tracking-wider ${isClassical ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                        {isClassical ? 'Continuous Approximable' : 'Quantum Discrete regime'}
+                                    </p>
+                                </div>
+                            </div>
+
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const ControlSlider = ({ label, unit, min, max, step = 1, value, onChange, color }) => (
+            <div className="group">
+                <div className="flex justify-between mb-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-white transition-colors">{label}</label>
+                    <span className="text-xs font-mono font-bold text-white bg-slate-900 border border-slate-700 px-2 py-0.5 rounded shadow-inner">{value} {unit}</span>
+                </div>
+                <div className="relative h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                    <div className={`absolute top-0 left-0 h-full ${color} opacity-80 pointer-events-none`} style={{ width: `${((value - min) / (max - min)) * 100}%` }}></div>
+                    <input 
+                        type="range" min={min} max={max} step={step} value={value} 
+                        onChange={(e) => onChange(parseInt(e.target.value))}
+                        className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <input 
+                        type="range" min={min} max={max} step={step} value={value} 
+                        readOnly
+                        className="w-full relative z-0"
+                    />
+                </div>
+            </div>
+        );
+
+        const ResultBox = ({ label, value, highlight }) => (
+            <div className="flex justify-between items-end pb-2 border-b border-slate-700/50">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
+                <span className={`text-2xl font-mono font-black ${highlight}`}>{value}</span>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
