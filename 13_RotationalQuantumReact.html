@@ -1,0 +1,355 @@
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+
+/**
+ * KaTeX Helper Component
+ * Safely renders mathematical notation using a Ref to prevent React-child errors.
+ */
+const Katex = ({ tex, display = false, fontSize = "1.2rem" }) => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (window.katex && containerRef.current) {
+      try {
+        window.katex.render(tex, containerRef.current, {
+          displayMode: display,
+          throwOnError: false,
+        });
+      } catch (e) {
+        containerRef.current.textContent = tex;
+      }
+    }
+  }, [tex, display]);
+
+  return <span ref={containerRef} style={{ fontSize }} />;
+};
+
+const App = () => {
+  const [j, setJ] = useState(2);
+  const [mj, setMj] = useState(1);
+  const [isAutoPrecess, setIsAutoPrecess] = useState(true);
+  const [isVectorLocked, setIsVectorLocked] = useState(false);
+  
+  const [precessionPhase, setPrecessionPhase] = useState(0);
+  const [spinPhase, setSpinPhase] = useState(0);
+
+  const canvasRef = useRef(null);
+
+  // --- Physical State Definitions ---
+  const q_L_mag = useMemo(() => Math.sqrt(j * (j + 1)), [j]);
+  const q_Lz = mj;
+  const q_Lxy = useMemo(() => Math.sqrt(Math.max(0, q_L_mag ** 2 - q_Lz ** 2)), [q_L_mag, q_Lz]);
+  const thetaRad = useMemo(() => (j === 0 ? 0 : Math.acos(q_Lz / (q_L_mag || 1))), [j, q_Lz, q_L_mag]);
+  const thetaDeg = (thetaRad * 180) / Math.PI;
+
+  const mjValues = useMemo(() => {
+    const vals = [];
+    for (let m = j; m >= -j; m--) vals.push(m);
+    return vals;
+  }, [j]);
+
+  // --- Animation Engine ---
+  useEffect(() => {
+    let frameId;
+    let lastTime = performance.now();
+    const tick = (time) => {
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
+      
+      if (isAutoPrecess) {
+        if (!isVectorLocked) {
+          setPrecessionPhase((p) => (p + dt * 1.2) % (Math.PI * 2));
+        }
+        setSpinPhase((p) => (p + dt * 4.5) % (Math.PI * 2));
+      }
+      frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [isAutoPrecess, isVectorLocked]);
+
+  // --- 3D Rendering (Canvas) ---
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+
+    if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    const w = rect.width;
+    const h = rect.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    ctx.clearRect(0, 0, w, h);
+
+    const project = (x, y, z) => {
+      const perspective = 900 / (900 + y + 500); 
+      return { x: cx + x * perspective, y: cy - z * perspective, depth: y, scale: perspective };
+    };
+
+    const phi = isVectorLocked ? 0 : precessionPhase;
+    const th = thetaRad;
+    const psi = spinPhase;
+
+    const rotatePoint = (px, py, pz, applySpin = true) => {
+      let x1 = applySpin ? (px * Math.cos(psi) - py * Math.sin(psi)) : px;
+      let y1 = applySpin ? (px * Math.sin(psi) + py * Math.cos(psi)) : py;
+      let z1 = pz;
+      let x2 = x1 * Math.cos(th) + z1 * Math.sin(th);
+      let y2 = y1;
+      let z2 = -x1 * Math.sin(th) + z1 * Math.cos(th);
+      let x3 = x2 * Math.cos(phi) - y2 * Math.sin(phi);
+      let y3 = x2 * Math.sin(phi) + y2 * Math.cos(phi);
+      let z3 = z2;
+      return { x: x3, y: y3, z: z3 };
+    };
+
+    const bondHalf = 192; 
+
+    // 1. Draw Spherical Surface Grid
+    const drawSphericalSurface = () => {
+        const steps = 18; 
+        ctx.lineWidth = 0.7;
+        for (let i = 1; i < steps; i++) {
+            const lat = (i / steps) * Math.PI;
+            ctx.beginPath();
+            for (let jCount = 0; jCount <= 72; jCount++) {
+                const lon = (jCount / 72) * Math.PI * 2;
+                const x = bondHalf * Math.sin(lat) * Math.cos(lon);
+                const y = bondHalf * Math.sin(lat) * Math.sin(lon);
+                const z = bondHalf * Math.cos(lat);
+                const p = project(x, y, z);
+                const op = 0.1 + Math.max(0, (p.depth + 250)/700) * 0.15;
+                ctx.strokeStyle = `rgba(186, 230, 253, ${op})`;
+                if (jCount === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+        }
+        for (let i = 0; i < steps; i++) {
+            const lon = (i / steps) * Math.PI * 2;
+            ctx.beginPath();
+            for (let jCount = 0; jCount <= 72; jCount++) {
+                const lat = (jCount / 72) * Math.PI;
+                const x = bondHalf * Math.sin(lat) * Math.cos(lon);
+                const y = bondHalf * Math.sin(lat) * Math.sin(lon);
+                const z = bondHalf * Math.cos(lat);
+                const p = project(x, y, z);
+                const op = 0.1 + Math.max(0, (p.depth + 250)/700) * 0.15;
+                ctx.strokeStyle = `rgba(186, 230, 253, ${op})`;
+                if (jCount === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+        }
+    };
+    drawSphericalSurface();
+
+    // 2. Trajectory Orbit Path
+    const orbitSegments = 100;
+    const orbitPoints = [];
+    for (let i = 0; i <= orbitSegments; i++) {
+      const alpha = (i / orbitSegments) * Math.PI * 2;
+      const pt = rotatePoint(bondHalf * Math.cos(alpha), bondHalf * Math.sin(alpha), 0, false);
+      orbitPoints.push({ ...pt, ...project(pt.x, pt.y, pt.z) });
+    }
+
+    ctx.lineWidth = 4.5;
+    for (let i = 0; i < orbitSegments; i++) {
+      const p1 = orbitPoints[i];
+      const p2 = orbitPoints[i+1];
+      const avgDepth = (p1.depth + p2.depth) / 2;
+      const opacity = 0.4 + Math.max(0, (avgDepth + 250) / 500) * 0.5;
+      ctx.strokeStyle = `rgba(56, 189, 248, ${opacity})`;
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+
+    // 3. Atom Positions
+    const atomRel1 = rotatePoint(bondHalf, 0, 0, true);
+    const atomRel2 = rotatePoint(-bondHalf, 0, 0, true);
+    const atom1 = { ...atomRel1, label: 'H', color: '#f1f5f9', size: 28 };
+    const atom2 = { ...atomRel2, label: 'Cl', color: '#22c55e', size: 56 };
+
+    const p1 = project(atom1.x, atom1.y, atom1.z);
+    const p2 = project(atom2.x, atom2.y, atom2.z);
+    const pOrigin = project(0, 0, 0);
+
+    // Blue Vector L
+    const arrowLen = 140;
+    const vecLx = arrowLen * Math.sin(th) * Math.cos(phi);
+    const vecLy = arrowLen * Math.sin(th) * Math.sin(phi);
+    const vecLz = arrowLen * Math.cos(th);
+    const lEnd = project(vecLx, vecLy, vecLz);
+
+    ctx.beginPath(); ctx.moveTo(pOrigin.x, pOrigin.y); ctx.lineTo(lEnd.x, lEnd.y);
+    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 6; ctx.stroke();
+    const headLen = 22;
+    const ang = Math.atan2(lEnd.y - pOrigin.y, lEnd.x - pOrigin.x);
+    ctx.beginPath();
+    ctx.moveTo(lEnd.x, lEnd.y);
+    ctx.lineTo(lEnd.x - headLen * Math.cos(ang - Math.PI/7), lEnd.y - headLen * Math.sin(ang - Math.PI/7));
+    ctx.lineTo(lEnd.x - headLen * Math.cos(ang + Math.PI/7), lEnd.y - headLen * Math.sin(ang + Math.PI/7));
+    ctx.closePath(); ctx.fillStyle = '#38bdf8'; ctx.fill();
+
+    // 4. Render Bond and Particles
+    const renderList = [
+      { type: 'atom', p: p1, data: atom1 },
+      { type: 'atom', p: p2, data: atom2 },
+      { type: 'bond', p1, p2, depth: (p1.depth + p2.depth) / 2 }
+    ];
+    renderList.sort((a, b) => (b.p?.depth || b.depth) - (a.p?.depth || a.depth));
+
+    renderList.forEach((el) => {
+      if (el.type === 'bond') {
+        ctx.beginPath();
+        ctx.moveTo(el.p1.x, el.p1.y);
+        ctx.lineTo(el.p2.x, el.p2.y);
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 20 * el.p1.scale; 
+        ctx.lineCap = "round"; ctx.stroke();
+      } else {
+        const { p, data } = el;
+        let r = data.size * p.scale;
+        const grad = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+        grad.addColorStop(0, '#fff'); grad.addColorStop(0.4, data.color); grad.addColorStop(1, '#000');
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+        ctx.fillStyle = "white"; ctx.font = `bold ${r * 0.5}px Inter`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(data.label, p.x, p.y);
+      }
+    });
+    ctx.restore();
+  }, [j, mj, precessionPhase, spinPhase, q_L_mag, q_Lxy, q_Lz, thetaRad, isVectorLocked]);
+
+  return (
+    <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto p-4 bg-[#020617] min-h-screen text-slate-100 font-sans animate-in fade-in duration-700">
+      {/* Top Header - Larger Text */}
+      <header className="glass px-10 py-6 rounded-3xl shadow-xl border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-black uppercase tracking-tighter leading-none text-white">Quantum Dynamics</h1>
+          <p className="text-sky-400 text-sm font-bold tracking-[0.2em] mt-2 uppercase">3D Spherical Precession Visualization</p>
+        </div>
+        <div className="flex items-center gap-8 bg-slate-900/50 px-8 py-4 rounded-3xl border border-white/5 shadow-inner">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-black text-slate-500 uppercase tracking-widest text-center">QUANTUM J</span>
+            <input type="range" min="0" max="4" step="1" value={j} 
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setJ(val);
+                if (mj > val) setMj(val);
+                if (mj < -val) setMj(-val);
+              }} 
+              className="w-48 cursor-pointer accent-sky-500" 
+            />
+          </div>
+          <div className="text-5xl font-black text-sky-400 font-mono w-20 text-center">J={j}</div>
+        </div>
+      </header>
+
+      {/* Main Dash Grid (520px Height restored) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch">
+        
+        {/* Left Section: Molecular Rotor */}
+        <div className="flex flex-col gap-6 h-full">
+          <div className="glass p-6 rounded-3xl border-sky-500/20 min-h-[160px]">
+            <h2 className="text-xl font-black text-sky-400 uppercase tracking-widest mb-3">3D Conceptual Visualization</h2>
+            <p className="text-lg text-slate-200 leading-relaxed mb-2">
+              Geometric relation between <Katex tex="|L| = \sqrt{J(J+1)} \hbar" fontSize="1.4rem" /> and <Katex tex="L_z = M_J \hbar" fontSize="1.4rem" />.
+            </p>
+            <p className="text-sm text-slate-500 italic">
+              Precessing diatomic rotor precessing on a quantized shell.
+            </p>
+          </div>
+          <div className="glass p-8 rounded-[40px] flex flex-col relative h-[520px] shadow-2xl overflow-hidden border-white/10 bg-slate-950/20 flex items-center justify-center">
+            <div className="absolute top-8 left-10 z-10 pointer-events-none">
+              <h2 className="text-xs font-black uppercase tracking-widest text-sky-500/60 font-mono">Spherical Rotor</h2>
+            </div>
+            <div className="absolute top-8 right-10 z-10 bg-slate-900/90 p-3 px-5 rounded-2xl border border-slate-700/50 shadow-lg font-mono font-black text-emerald-400 text-3xl">
+              {thetaDeg.toFixed(1)}°
+            </div>
+            <canvas ref={canvasRef} className="w-full h-full absolute inset-0"></canvas>
+          </div>
+        </div>
+
+        {/* Right Section: Cones of Quantization */}
+        <div className="flex flex-col gap-6 h-full">
+          <div className="glass p-6 rounded-3xl border-purple-500/20 min-h-[160px]">
+            <h2 className="text-xl font-black text-purple-400 uppercase tracking-widest mb-3">Cones of Quantization</h2>
+            <p className="text-lg text-slate-200 leading-relaxed">
+              Z-projection is <Katex tex="L_z = M_J \hbar" fontSize="1.4rem" />, Magnitude is <Katex tex="|L| = \sqrt{J(J+1)} \hbar" fontSize="1.4rem" />.
+            </p>
+            <div className="mt-4 flex gap-8">
+                <div className="text-sm text-slate-400 border-l-2 border-white/10 pl-5">
+                    <span className="block font-bold text-white uppercase text-xs mb-1">Magnitude</span>
+                    <Katex tex={`|L| = ${q_L_mag.toFixed(3)} \\hbar`} fontSize="1.3rem" />
+                </div>
+                <div className="text-sm text-slate-400 border-l-2 border-white/10 pl-5">
+                    <span className="block font-bold text-white uppercase text-xs mb-1">Z-Projection</span>
+                    <Katex tex={`L_z = ${mj > 0 ? '+' + mj : mj}.00 \\hbar`} fontSize="1.3rem" />
+                </div>
+            </div>
+          </div>
+          <div className="glass p-8 rounded-[40px] shadow-2xl flex flex-col h-[520px] overflow-hidden border-white/10 bg-slate-950/40 relative flex items-center justify-center">
+            <div className="absolute top-8 left-10 z-10 pointer-events-none">
+                <h2 className="text-xs font-black uppercase tracking-widest text-purple-500/60 font-mono">Quantized Cones</h2>
+            </div>
+            <svg width="100%" height="100%" viewBox="0 0 300 350" className="overflow-visible flex-1">
+                <circle cx="150" cy={175} r={130} fill="none" stroke="rgba(56,189,248,0.15)" strokeWidth="1" strokeDasharray="5,5" />
+                <radialGradient id="sphereGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="rgba(56,189,248,0.08)" />
+                    <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+                </radialGradient>
+                <circle cx="150" cy={175} r={130} fill="url(#sphereGrad)" />
+                <line x1="150" y1="20" x2="150" y2="330" stroke="rgba(255,255,255,0.2)" strokeDasharray="6,6" strokeWidth="2" />
+                {j > 0 && mjValues.map((m) => {
+                    const scale = 130 / (q_L_mag || 1);
+                    const zPos = 175 - m * scale;
+                    const curRxy = Math.sqrt(Math.max(0, q_L_mag ** 2 - m ** 2)) * scale;
+                    const isSelected = m === mj;
+                    const svgPhi = isVectorLocked ? 0 : precessionPhase;
+                    return (
+                    <g key={m} onClick={() => setMj(m)} className="cursor-pointer group">
+                        <polygon points={`150,175 ${150 - curRxy},${zPos} ${150 + curRxy},${zPos}`} fill={isSelected ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.03)'} />
+                        <ellipse cx="150" cy={zPos} rx={curRxy} ry={curRxy * 0.22} fill={isSelected ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.06)'} stroke={isSelected ? "#a855f7" : "rgba(255,255,255,0.12)"} strokeWidth={isSelected ? 3 : 1} />
+                        {isSelected && (
+                        <line x1="150" y1="175" x2={150 + curRxy * Math.cos(svgPhi)} y2={zPos + curRxy * 0.22 * Math.sin(svgPhi)} stroke="#38bdf8" strokeWidth="5" />
+                        )}
+                        <text x={150 + curRxy + 15} y={zPos + 6} fill={isSelected ? '#d8b4fe' : '#64748b'} fontSize="18" fontWeight="black" className="font-mono">{m > 0 ? `+${m}` : m}</text>
+                    </g>
+                    );
+                })}
+                <circle cx="150" cy={175} r={6} fill="#38bdf8" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Interface - Massive Buttons & Text */}
+      <div className="glass p-8 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-10 shadow-xl border-white/5 mt-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          <span className="text-sm font-black text-slate-500 uppercase tracking-widest mr-6">Substate Selection:</span>
+          {mjValues.map((m) => (
+            <button key={m} onClick={() => setMj(m)}
+              className={`w-16 h-16 rounded-2xl font-black text-2xl font-mono transition-all flex items-center justify-center ${mj === m ? 'bg-purple-600 text-white shadow-2xl scale-110' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
+            >
+              {m > 0 ? `+${m}` : m}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-4 shrink-0">
+          <button onClick={() => setIsVectorLocked(!isVectorLocked)} className={`w-56 py-5 rounded-3xl text-sm font-black uppercase tracking-widest transition-all border-2 ${isVectorLocked ? 'bg-emerald-600 border-emerald-400 text-white shadow-emerald-500/20 shadow-2xl' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'}`}>
+            {isVectorLocked ? 'AXIS LOCKED' : 'LOCK VECTOR'}
+          </button>
+          <button onClick={() => setIsAutoPrecess(!isAutoPrecess)} className="w-40 bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-3xl text-sm font-black uppercase tracking-widest shadow-blue-500/30 shadow-2xl transition-all scale-105">
+            {isAutoPrecess ? 'PAUSE' : 'PLAY'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;

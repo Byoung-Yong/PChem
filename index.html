@@ -1,49 +1,39 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>부경대 물리화학</title>
-    
+    <title>물리화학3 인터랙티브 모듈</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <style>
-        /* Typography: English font families only */
         body {
-            font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
-            background-color: #0f172a; /* slate-900 */
-            color: #f8fafc; /* slate-50 */
+            font-family: "Pretendard", "Noto Sans KR", "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
         }
-
-        /* High-tech Grid Background */
         .bg-grid-pattern {
-            background-image: 
+            background-image:
                 linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
                 linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
             background-size: 40px 40px;
             background-position: center center;
         }
-
-        /* Ambient Glow Effects */
         .glow-cyan {
             box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
         }
-        
         .card-hover {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s ease;
         }
         .card-hover:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3);
-            border-color: rgba(56, 189, 248, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px -12px rgba(56, 189, 248, 0.35);
+            border-color: rgba(56, 189, 248, 0.55);
         }
-
         .fade-in-up {
-            animation: fadeInUp 0.6s ease-out forwards;
+            animation: fadeInUp 0.55s ease-out forwards;
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(16px);
         }
-        
         @keyframes fadeInUp {
             to {
                 opacity: 1;
@@ -53,187 +43,146 @@
     </style>
 </head>
 <body class="min-h-screen bg-grid-pattern relative overflow-x-hidden selection:bg-cyan-500 selection:text-white">
-
     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none"></div>
 
     <div class="relative max-w-7xl mx-auto px-6 py-16 lg:py-24">
-        
         <header class="text-center mb-16 fade-in-up">
             <div class="inline-block mb-4 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-bold tracking-widest uppercase">
                 Interactive Modules
             </div>
             <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500">
-               Physical Chemistry
+                물리화학 3
             </h1>
+            <p class="text-slate-400 max-w-3xl mx-auto">
+                통계열역학 핵심 개념을 인터랙티브 시뮬레이션으로 학습하는 모듈 모음입니다.
+            </p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            
-            <a href="13_1_coin.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 100ms;">
+            <a href="13_1_coin.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 100ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">01</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">01</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_1</span>
                 </div>
                 <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">동전 던지기와 정규분포</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    대규모 동전 던지기 시뮬레이션을 통해 큰 수의 법칙과 정규분포 수렴 과정을 확인합니다.
-                </p>
+                <p class="text-sm text-slate-400 leading-relaxed">대수의 법칙과 중심극한 경향이 어떻게 나타나는지 실시간 샘플링으로 확인합니다.</p>
             </a>
 
-            <a href="13_2_Configuration.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 200ms;">
+            <a href="13_2_Configuration.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 200ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">02</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">02</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_2</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">배열과 가중치</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    양자역학적 상자 모델을 기반으로 입자 배열에 따른 가중치 $W$의 변화를 탐구합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">배치와 가중치</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">입자 배치 수와 가중치 \(W\)가 상태 점유에 어떤 영향을 주는지 살펴봅니다.</p>
             </a>
 
-            <a href="13_3_Statistical.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 300ms;">
+            <a href="13_3_Statistical.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 300ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">03</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">03</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_3</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">몬테카를로 시뮬레이션</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    무작위 입자 충돌을 통해 시스템이 볼츠만 분포로 진화하는 열역학적 과정을 관찰합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">몬테카를로 분포 진화</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">무작위 갱신이 반복될 때 분포가 평형으로 수렴하는 과정을 시각화합니다.</p>
             </a>
 
-            <a href="13_4_Sterling.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 400ms;">
+            <a href="13_4_Sterling.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 400ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">04</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">04</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_4</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">스털링 근사식</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    $\ln N! \approx N \ln N - N$ 유도 과정과 입자 수 증가에 따른 오차 감소를 확인합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">스털링 근사</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">\(\ln N! \approx N\ln N - N\) 근사의 정확도와 적용 범위를 비교합니다.</p>
             </a>
 
-            <a href="13_5_Wmax.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 500ms;">
+            <a href="13_5_Wmax.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 500ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center text-2xl group-hover:bg-pink-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">05</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center text-2xl group-hover:bg-pink-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">05</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_5</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">$\ln W$ 최적화 프로세스</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    라그랑주 미정계수법을 활용하여 평형 분포에 도달하는 과정을 수치적으로 시뮬레이션합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">\(\ln W\) 최대화</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">가장 우세한 거시상태가 어떻게 결정되는지 최대 가중치 조건으로 설명합니다.</p>
             </a>
 
-            <a href="13_6_Boltzmann.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 600ms;">
+            <a href="13_6_Boltzmann.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 600ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center text-2xl group-hover:bg-red-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">06</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center text-2xl group-hover:bg-red-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">06</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_6</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">볼츠만 분포 시뮬레이터</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    온도 변화에 따른 볼츠만 인자와 분배함수 $q$의 관계를 그래프로 시각화합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">볼츠만 분포</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">온도 변화에 따라 \(e^{-\beta E}\) 가중이 점유확률을 어떻게 바꾸는지 확인합니다.</p>
             </a>
 
-            <a href="13_7_MolecularPartitionFunction.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 700ms;">
+            <a href="13_7_MolecularPartitionFunction.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 700ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-2xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">07</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-2xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">07</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_7</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">분자 분배함수 (q)</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    병진, 회전, 진동, 전자 상태의 각 에너지 모드가 전체 분배함수에 기여하는 비중을 분석합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">분자 분배함수 \(q\)</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">병진, 회전, 진동 성분이 전체 분배함수에 기여하는 비율을 분석합니다.</p>
             </a>
 
-            <a href="13_8_Translational_Q.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 800ms;">
+            <a href="13_8_Translational_Q.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 800ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl group-hover:bg-sky-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">08</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-2xl group-hover:bg-sky-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">08</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_8</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">병진 운동 분배함수</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    이산적 에너지 수준이 연속적인 적분으로 근사되는 과정을 수치적으로 검증합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">병진 분배함수</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">에너지 준위 합이 적분 근사로 넘어가는 과정을 수치적으로 비교합니다.</p>
             </a>
 
-            <a href="13_9_RotationalMotion_Classic.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 900ms;">
+            <a href="13_9_RotationalMotion_Classic.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 900ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-2xl group-hover:bg-cyan-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">09</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-2xl group-hover:bg-cyan-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">09</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_9</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">분자 대칭성과 회전</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    주요 분자들의 점군과 대칭 조작을 3D 시뮬레이션 및 회전 동역학으로 탐색합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">고전적 회전 운동</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">분자의 회전 운동을 고전 모델로 이해하고 온도 의존성을 확인합니다.</p>
             </a>
 
-            <a href="13_10_RotationalMotion_Quantum.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 1000ms;">
+            <a href="13_10_RotationalMotion_Quantum.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 1000ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-violet-500/20 text-violet-400 flex items-center justify-center text-2xl group-hover:bg-violet-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">10</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-violet-500/20 text-violet-400 flex items-center justify-center text-2xl group-hover:bg-violet-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">10</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_10</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">회전 운동의 양자화</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    회전 양자수 $J$와 $M_J$에 따른 각운동량 벡터의 세차 운동과 공간 양자화를 3D로 시각화합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">양자 회전 운동</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">양자수에 따른 회전 준위와 점유 변화를 시각적으로 탐색합니다.</p>
             </a>
 
-            <a href="13_11_Rotational_Q.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 1100ms;">
+            <a href="13_11_Rotational_Q.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 1100ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl group-hover:bg-rose-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">11</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl group-hover:bg-rose-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">11</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_11</span>
                 </div>
                 <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">회전 분배함수와 근사</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    이산적 상태의 합과 고온 극한에서의 적분 근사 사이의 오차를 온도와 회전 상수에 따라 분석합니다.
-                </p>
+                <p class="text-sm text-slate-400 leading-relaxed">이산 합과 고온 적분 근사의 차이를 온도별로 비교합니다.</p>
             </a>
 
-            <a href="13_12_VibrationalMotion.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up" style="animation-delay: 1200ms;">
+            <a href="13_12_VibrationalMotion.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 1200ms;">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-300">
-                        <span class="font-bold text-lg">12</span>
-                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">12</span></div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_12</span>
                 </div>
-                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">진동 운동의 양자역학</h3>
-                <p class="text-sm text-slate-400 leading-relaxed mb-4">
-                    양자 조화 진동자의 파동함수와 확률 밀도 분포를 통해 영점 에너지와 마디의 형성을 관찰합니다.
-                </p>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">진동 운동과 양자화</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">조화진동자 모델에서 에너지 양자화와 점유 통계를 확인합니다.</p>
             </a>
 
+            <a href="13_13_Ensemble.html" class="block group card-hover bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 glow-cyan fade-in-up h-full" style="animation-delay: 1300ms;">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300"><span class="font-bold text-lg">13</span></div>
+                    <span class="text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">13_13</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">앙상블 시뮬레이터</h3>
+                <p class="text-sm text-slate-400 leading-relaxed">상태분포, 가중치, 샘플링 변동을 통해 앙상블 핵심 개념을 통합적으로 학습합니다.</p>
+            </a>
         </div>
 
         <footer class="mt-20 pt-8 border-t border-slate-800 text-center fade-in-up" style="animation-delay: 1.3s;">
             <p class="text-slate-500 text-sm font-medium">
-                &copy; echemai.com - Interactive Educational Modules for Physical Chemistry.
+                © echemai.com - Physical Chemistry Interactive Modules
             </p>
         </footer>
-
     </div>
-
 </body>
 </html>
+
