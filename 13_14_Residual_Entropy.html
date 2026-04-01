@@ -1,0 +1,599 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>13F.1 얼음의 잔류 엔트로피</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f1f5f9;
+        }
+        
+        .header-bg {
+            background-color: #1e293b;
+        }
+
+        .panel-bg {
+            background-color: #ffffff;
+        }
+
+        .math-container {
+            font-size: 1rem;
+            overflow-x: auto;
+        }
+
+        /* SVG Elements Styling */
+        svg {
+            width: 100%;
+            height: auto;
+            max-width: 550px;
+            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.08));
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        svg:active {
+            transform: scale(0.98);
+        }
+
+        .cube-edge {
+            stroke: #94a3b8;
+            stroke-width: 1;
+            fill: none;
+            opacity: 0.25;
+        }
+        
+        .bond-covalent {
+            stroke: #0f172a;
+            stroke-width: 3.5;
+            stroke-linecap: round;
+        }
+        
+        .bond-hydrogen {
+            stroke: #64748b;
+            stroke-width: 2;
+            stroke-dasharray: 4, 4;
+            stroke-linecap: round;
+        }
+
+        .atom-o {
+            fill: #e11d48;
+            stroke: #9f1239;
+            stroke-width: 1;
+        }
+        
+        .atom-h {
+            fill: #ffffff;
+            stroke: #334155;
+            stroke-width: 1.5;
+        }
+        
+        .proton {
+            fill: #ffffff;
+            stroke: #334155;
+            stroke-width: 1.5;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col items-center py-6 px-4">
+
+    <div class="max-w-7xl w-full bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200">
+        <!-- Header -->
+        <div class="header-bg px-8 py-6 text-center border-b-4 border-blue-500">
+            <h1 class="text-3xl font-black text-white tracking-wide mb-2">얼음의 잔류 엔트로피 시뮬레이션</h1>
+            <p class="text-slate-300 font-medium text-sm">무작위 몬테카를로 탐색을 통해 미시상태 수와 엔트로피의 수렴을 관찰합니다.</p>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-0 border-b border-slate-200">
+            
+            <!-- Left Panel (Interactive Grid) -->
+            <div class="lg:col-span-5 p-6 bg-slate-50 flex flex-col items-center border-r border-slate-200">
+                <div class="text-center mb-2">
+                    <p class="text-sm font-bold text-blue-600 bg-blue-100 px-4 py-2 rounded-full inline-block animate-pulse">
+                        아래 구조를 클릭하거나 버튼을 눌러 새로운 얼음 배치를 샘플링하세요
+                    </p>
+                </div>
+
+                <!-- N x N Grid SVG Container -->
+                <div id="network-container" class="w-full flex justify-center items-center py-2" onclick="manualStep()">
+                    <!-- SVG injected by JS -->
+                </div>
+                
+                <p class="text-xs text-slate-500 text-center mt-2 px-4">
+                    * 주기적 경계 조건(PBC)을 가진 2차원 square-ice 모형입니다. 3차원 실제 얼음과 동일하지는 않지만 잔류 엔트로피 개념을 시각화하기에 적합합니다.
+                </p>
+            </div>
+
+            <!-- Right Panel (Controls & Stats) -->
+            <div class="lg:col-span-7 panel-bg p-6 md:p-8 flex flex-col justify-between">
+                
+                <!-- N x N Selector & Controls -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="col-span-2 bg-slate-100 p-4 rounded-xl border border-slate-200 shadow-inner">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">격자 크기 선택 (N × N)</label>
+                        <select id="select-n" class="w-full bg-white text-blue-700 border border-slate-300 p-2 rounded-lg font-bold text-lg cursor-pointer outline-none focus:border-blue-500 shadow-sm">
+                            <option value="2">2 × 2 (총 4개 분자) - 매우 강한 유한 크기 효과</option>
+                            <option value="3" selected>3 × 3 (총 9개 분자) - 기본 추천</option>
+                            <option value="4">4 × 4 (총 16개 분자) - 무한계에 조금 더 접근</option>
+                            <option value="5">5 × 5 (총 25개 분자) - 탐색 시간 더 필요</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-2 font-medium">N이 커질수록 가능한 상태 수가 급격히 증가하고, 유한 크기 효과는 줄어듭니다. 따라서 큰 격자일수록 참값에 느리게 접근합니다.</p>
+                    </div>
+
+                    <button id="btn-manual" class="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md active:scale-95">
+                        1회 샘플
+                    </button>
+                    <button id="btn-reset" class="py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition shadow-md active:scale-95">
+                        기록 초기화
+                    </button>
+                    <button id="btn-auto-start" class="col-span-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition shadow-md active:scale-95">
+                        자동 탐색 시작
+                    </button>
+                    <button id="btn-auto-pause" class="col-span-2 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition shadow-md hidden active:scale-95">
+                        자동 탐색 정지
+                    </button>
+                </div>
+
+                <!-- Status Dashboard -->
+                <div class="bg-slate-800 rounded-xl p-6 text-white shadow-inner mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase mb-1">총 시도 횟수 (Trials)</p>
+                            <p id="stat-trials" class="text-2xl font-mono text-blue-300">0</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold uppercase mb-1">발견한 상태 수 (W_found)</p>
+                            <p id="stat-w" class="text-2xl font-mono text-emerald-300">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-slate-600 pt-4">
+                        <div class="flex justify-between items-end mb-1">
+                            <p class="text-xs text-slate-400 font-bold uppercase">추정 엔트로피 (S)</p>
+                            <div class="text-right">
+                                <p class="text-[10px] text-emerald-400 font-bold uppercase mb-0.5">2D square ice 기준값 (Lieb)</p>
+                                <p class="text-[10px] text-rose-400 font-bold uppercase">3D bulk ice 근사값 (Pauling)</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-baseline">
+                            <p class="text-4xl font-mono text-amber-300" id="stat-s">0.000</p>
+                            <div class="text-right flex flex-col items-end">
+                                <p class="text-xl font-mono text-emerald-300 mb-1">3.587</p>
+                                <p class="text-sm font-mono text-rose-300">3.371</p>
+                            </div>
+                        </div>
+                        <p class="text-right text-[10px] text-slate-500 mt-2">단위: J / (K · mol)</p>
+                    </div>
+                </div>
+
+                <!-- Equations -->
+                <div class="math-container text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-col md:flex-row justify-around items-center gap-2 text-sm">
+                    <div>$$S_{est} = \frac{R}{N_{cells}}\ln(W_{found})$$</div>
+                    <div class="hidden md:block h-10 w-px bg-slate-300"></div>
+                    <div>$$S_{Lieb(2D)} = R \ln\left(\frac{4}{3}\right)^{\frac{3}{2}}$$</div>
+                    <div class="hidden md:block h-10 w-px bg-slate-300"></div>
+                    <div>$$S_{Pauling(3D)} \approx R \ln\left(\frac{3}{2}\right)$$</div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Chart & Explanation Section -->
+        <div class="p-6 md:p-8 bg-white">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
+                <h2 class="text-lg font-bold text-slate-800">엔트로피 수렴 그래프 (Convergence of S)</h2>
+                <div class="flex flex-wrap gap-4 text-xs font-bold text-slate-600">
+                    <span class="flex items-center gap-1"><div class="w-3 h-3 bg-blue-500 rounded-sm"></div> 추정값</span>
+                    <span class="flex items-center gap-1"><div class="w-3 h-0.5 bg-emerald-500"></div> 2D square ice 기준값 (3.587)</span>
+                    <span class="flex items-center gap-1"><div class="w-3 h-0.5 bg-rose-500"></div> 3D bulk ice 근사값 (3.371)</span>
+                </div>
+            </div>
+            
+            <div class="relative w-full h-[300px]">
+                <canvas id="entropy-chart"></canvas>
+            </div>
+
+            <!-- Scientific Explanation box -->
+            <div class="mt-8 bg-slate-50 p-5 rounded-lg border border-slate-200 text-sm text-slate-700 leading-relaxed shadow-sm">
+                <h3 class="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">물리 해설</span> 
+                    왜 값이 바로 기준선으로 가지 않을까요?
+                </h3>
+                <p class="mb-3" id="dynamic-explanation">
+                    <!-- Text generated dynamically based on N -->
+                </p>
+                <ul class="list-disc pl-5 space-y-1 text-slate-600">
+                    <li><strong class="text-slate-800">유한 크기 효과:</strong> 작은 격자에서는 경계와 루프 제약이 매우 강해 무한계와 다른 값이 나타납니다. N이 커질수록 이 효과가 줄어듭니다.</li>
+                    <li><strong class="text-slate-800">참조선의 의미:</strong> Lieb 값은 2차원 square-ice의 정확한 무한계이고, Pauling 값은 3차원 bulk ice의 고전적 근사입니다. 현재 시뮬레이션은 2차원 장난감 모형이므로 두 선은 비교 기준으로 보아야 합니다.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Physics & State Variables ---
+        const R = 8.314; // J/(K mol)
+        let gridSize = 3;
+        let N_cells = 9;
+        
+        // Limits
+        const S_pauling = R * Math.log(1.5); // 3.371 (Pauling Limit 3D)
+        const S_lieb = R * Math.log(Math.pow(4/3, 1.5)); // 3.587 (Lieb's Exact 2D Limit)
+        
+        let H_edges = [];
+        let V_edges = [];
+        
+        let totalTrials = 0;
+        let uniqueStates = new Set();
+        
+        let isAutoRunning = false;
+        let rafId = null;
+
+        // Chart Data
+        let chartLabels = [];
+        let chartDataS = [];
+        let chartDataLieb = [];
+        let chartDataPauling = [];
+        let lastPlotTrial = 0;
+        let chartInstance = null;
+
+        // Visual Constants
+        const spacingX = 50;
+        const spacingY = 50;
+        const center = { x: 50, y: 50 };
+
+        function initGridArrays() {
+            H_edges = Array(gridSize).fill().map(() => Array(gridSize).fill(-1));
+            V_edges = Array(gridSize).fill().map(() => Array(gridSize).fill(-1));
+        }
+
+        // --- 2. Chart Initialization & UI Update ---
+        function updateExplanationText() {
+            const expText = document.getElementById('dynamic-explanation');
+            let approxVal = "";
+            if (gridSize === 2) approxVal = "2×2 격자는 매우 작아서 유한 크기 효과가 가장 강합니다. 상태 수는 빨리 포화되지만 무한계와의 차이도 가장 큽니다.";
+            else if (gridSize === 3) approxVal = "3×3 격자는 시각화와 탐색 속도의 균형이 가장 좋습니다. 상태 수가 계속 늘지만 증가 속도는 점점 느려집니다.";
+            else if (gridSize === 4) approxVal = "4×4부터는 발견해야 할 상태 수가 크게 늘어나므로 곡선이 더 천천히 올라갑니다. 대신 유한 크기 효과는 줄어듭니다.";
+            else if (gridSize === 5) approxVal = "5×5는 상태 공간이 매우 커서 많은 샘플이 필요합니다. 한동안은 기준선보다 낮은 추정치가 유지되는 것이 정상입니다.";
+            
+            expText.innerHTML = `${approxVal} 여기서 계산하는 값은 발견한 상태 수 <strong>W<sub>found</sub></strong> 로부터 만든 추정치입니다. 시도 횟수가 늘수록 값은 증가하지만, 새로운 상태를 찾기 어려워지면서 수렴 속도는 느려집니다.`;
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('entropy-chart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: '추정 잔류 엔트로피',
+                            data: chartDataS,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            pointRadius: 0,
+                            tension: 0.2,
+                            order: 1
+                        },
+                        {
+                            label: '2D square ice 기준값 (3.587)',
+                            data: chartDataLieb,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0,
+                            order: 2
+                        },
+                        {
+                            label: '3D bulk ice 근사값 (3.371)',
+                            data: chartDataPauling,
+                            borderColor: '#f43f5e',
+                            borderWidth: 2,
+                            borderDash: [3, 3],
+                            fill: false,
+                            pointRadius: 0,
+                            order: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: '시도 횟수 (Trials)', font: { weight: 'bold' } },
+                            grid: { color: '#f1f5f9' },
+                            ticks: { maxTicksLimit: 10 }
+                        },
+                        y: { 
+                            title: { display: true, text: '엔트로피 [J / (K·mol)]', font: { weight: 'bold' } },
+                            min: 0,
+                            max: gridSize === 2 ? 6.5 : (gridSize === 3 ? 5.0 : 4.5), 
+                            grid: { color: '#e2e8f0' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- 3. Grid Logic (Periodic Boundary Conditions) ---
+        function getPorts(r, c) {
+            if ((r + c) % 2 === 0) {
+                return [
+                    { id: 0, x: 30, y: 35 }, { id: 1, x: 20, y: 65 },
+                    { id: 2, x: 80, y: 85 }, { id: 3, x: 70, y: 15 }
+                ];
+            } else {
+                return [
+                    { id: 0, x: 30, y: 85 }, { id: 1, x: 70, y: 65 },
+                    { id: 2, x: 80, y: 35 }, { id: 3, x: 20, y: 15 }
+                ];
+            }
+        }
+
+        function isCovalent(r, c, portId) {
+            if (portId === 0) return H_edges[r][c] === 1;
+            if (portId === 1) return V_edges[(r+1)%gridSize][c] === 0;
+            if (portId === 2) return H_edges[r][(c+1)%gridSize] === 0;
+            if (portId === 3) return V_edges[r][c] === 1;
+            return false;
+        }
+
+        function isBoundaryVisually(r, c, portId) {
+            if (portId === 0) return c === 0;
+            if (portId === 1) return r === gridSize - 1;
+            if (portId === 2) return c === gridSize - 1;
+            if (portId === 3) return r === 0;
+            return false;
+        }
+
+        function getHash(H, V) {
+            return H.flat().join('') + V.flat().join('');
+        }
+
+        // --- 4. DFS Backtracking Solver for Random Sampling ---
+        function isValidPartial(H, V) {
+            for(let r=0; r<gridSize; r++){
+                for(let c=0; c<gridSize; c++){
+                    let h0 = H[r][c];
+                    let h1 = H[r][(c+1)%gridSize];
+                    let v0 = V[r][c];
+                    let v1 = V[(r+1)%gridSize][c];
+
+                    let min_cov = 0, max_cov = 0;
+                    if (h0 === 1) min_cov++; if (h0 !== 0) max_cov++;
+                    if (v0 === 1) min_cov++; if (v0 !== 0) max_cov++;
+                    if (h1 === 0) min_cov++; if (h1 !== 1) max_cov++;
+                    if (v1 === 0) min_cov++; if (v1 !== 1) max_cov++;
+
+                    if (min_cov > 2 || max_cov < 2) return false;
+                }
+            }
+            return true;
+        }
+
+        function solveDFS(edgeIdx, H, V) {
+            if (edgeIdx === 2 * N_cells) return true; // All edges assigned
+            
+            let isH = edgeIdx < N_cells;
+            let r, c;
+            if (isH) {
+                r = Math.floor(edgeIdx / gridSize); c = edgeIdx % gridSize;
+            } else {
+                let vIdx = edgeIdx - N_cells;
+                r = Math.floor(vIdx / gridSize); c = vIdx % gridSize;
+            }
+            
+            if ((isH ? H[r][c] : V[r][c]) !== -1) {
+                return solveDFS(edgeIdx + 1, H, V);
+            }
+            
+            let tries = Math.random() > 0.5 ? [0, 1] : [1, 0];
+            for (let val of tries) {
+                if (isH) H[r][c] = val; else V[r][c] = val;
+                if (isValidPartial(H, V)) {
+                    if (solveDFS(edgeIdx + 1, H, V)) return true;
+                }
+            }
+            
+            if (isH) H[r][c] = -1; else V[r][c] = -1;
+            return false;
+        }
+
+        function generateRandomState() {
+            let tempH = Array(gridSize).fill().map(() => Array(gridSize).fill(-1));
+            let tempV = Array(gridSize).fill().map(() => Array(gridSize).fill(-1));
+            solveDFS(0, tempH, tempV);
+            H_edges = tempH;
+            V_edges = tempV;
+
+            let hash = getHash(tempH, tempV);
+            totalTrials++;
+            
+            let newlyDiscovered = false;
+            if (!uniqueStates.has(hash)) {
+                uniqueStates.add(hash);
+                newlyDiscovered = true;
+            }
+            return newlyDiscovered;
+        }
+
+        // --- 5. UI Updates & Rendering ---
+        function updateDashboard() {
+            document.getElementById('stat-trials').innerText = totalTrials.toLocaleString();
+            document.getElementById('stat-w').innerText = uniqueStates.size.toLocaleString();
+            
+            let currentS = uniqueStates.size > 0 ? (R / N_cells) * Math.log(uniqueStates.size) : 0;
+            document.getElementById('stat-s').innerText = currentS.toFixed(3);
+        }
+
+        function pushChartData() {
+            let interval = 1;
+            if (totalTrials > 100) interval = 5;
+            if (totalTrials > 500) interval = 20;
+            if (totalTrials > 2000) interval = 50;
+
+            if (totalTrials - lastPlotTrial >= interval || totalTrials === 1) {
+                chartLabels.push(totalTrials);
+                let currentS = uniqueStates.size > 0 ? (R / N_cells) * Math.log(uniqueStates.size) : 0;
+                chartDataS.push(currentS);
+                chartDataLieb.push(S_lieb);
+                chartDataPauling.push(S_pauling);
+                
+                if (chartLabels.length > 300) {
+                    chartLabels.shift();
+                    chartDataS.shift();
+                    chartDataLieb.shift();
+                    chartDataPauling.shift();
+                }
+
+                chartInstance.update();
+                lastPlotTrial = totalTrials;
+            }
+        }
+
+        const cubePaths = [
+            "M 30 35 L 80 35 L 80 85 L 30 85 Z", "M 20 15 L 70 15 L 70 65 L 20 65 Z",
+            "M 30 35 L 20 15", "M 80 35 L 70 15", "M 80 85 L 70 65", "M 30 85 L 20 65"
+        ];
+
+        function renderNetwork() {
+            let viewSize = gridSize * spacingX + 50;
+            let svg = `<svg viewBox="-5 -5 ${viewSize+5} ${viewSize+5}" xmlns="http://www.w3.org/2000/svg">`;
+            
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    let ports = getPorts(r, c);
+                    let cx = c * spacingX;
+                    let cy = r * spacingY;
+
+                    svg += `<g transform="translate(${cx}, ${cy})">`;
+                    svg += `<circle cx="50" cy="50" r="30" fill="#f8fafc" opacity="0.8" />`;
+
+                    cubePaths.forEach(d => {
+                        svg += `<path d="${d}" class="cube-edge" />`;
+                    });
+
+                    ports.forEach(p => {
+                        let isCov = isCovalent(r, c, p.id);
+                        let bondClass = isCov ? "bond-covalent" : "bond-hydrogen";
+                        svg += `<line x1="${center.x}" y1="${center.y}" x2="${p.x}" y2="${p.y}" class="${bondClass}" />`;
+                        
+                        if (isCov) {
+                            let hx = center.x + (p.x - center.x) * 0.35;
+                            let hy = center.y + (p.y - center.y) * 0.35;
+                            svg += `<circle cx="${hx}" cy="${hy}" r="2" class="proton" />`;
+                        } else if (!isCov && isBoundaryVisually(r, c, p.id)) {
+                            let hx = center.x + (p.x - center.x) * 0.65;
+                            let hy = center.y + (p.y - center.y) * 0.65;
+                            svg += `<circle cx="${hx}" cy="${hy}" r="2" class="proton" opacity="0.3" />`;
+                        }
+                    });
+
+                    svg += `<circle cx="${center.x}" cy="${center.y}" r="4.5" class="atom-o" />`;
+                    ports.forEach(p => {
+                        svg += `<circle cx="${p.x}" cy="${p.y}" r="2.5" class="atom-o" opacity="0.2" />`;
+                    });
+
+                    svg += `</g>`;
+                }
+            }
+
+            svg += `</svg>`;
+            document.getElementById('network-container').innerHTML = svg;
+        }
+
+        // --- 6. Interaction Handlers ---
+        function manualStep() {
+            generateRandomState();
+            updateDashboard();
+            pushChartData();
+            renderNetwork();
+        }
+
+        function autoLoop() {
+            if (!isAutoRunning) return;
+
+            let updated = false;
+            // Adaptive speed based on N size
+            let speed = gridSize >= 4 ? 15 : 40;
+            for(let i = 0; i < speed; i++) {
+                if (generateRandomState()) updated = true;
+            }
+
+            updateDashboard();
+            pushChartData();
+            
+            if (updated || totalTrials % 90 === 0) {
+                renderNetwork();
+            }
+
+            rafId = requestAnimationFrame(autoLoop);
+        }
+
+        function resetSimulation() {
+            isAutoRunning = false;
+            if(rafId) cancelAnimationFrame(rafId);
+            document.getElementById('btn-auto-pause').classList.add('hidden');
+            document.getElementById('btn-auto-start').classList.remove('hidden');
+            
+            totalTrials = 0;
+            uniqueStates.clear();
+            chartLabels = [];
+            chartDataS = [];
+            chartDataLieb = [];
+            chartDataPauling = [];
+            lastPlotTrial = 0;
+            
+            initGridArrays();
+            updateExplanationText();
+            initChart();
+            manualStep();
+        }
+
+        // Events
+        document.getElementById('select-n').addEventListener('change', (e) => {
+            gridSize = parseInt(e.target.value);
+            N_cells = gridSize * gridSize;
+            resetSimulation();
+        });
+
+        document.getElementById('btn-manual').onclick = manualStep;
+        document.getElementById('btn-reset').onclick = resetSimulation;
+
+        document.getElementById('btn-auto-start').onclick = () => {
+            isAutoRunning = true;
+            document.getElementById('btn-auto-start').classList.add('hidden');
+            document.getElementById('btn-auto-pause').classList.remove('hidden');
+            autoLoop();
+        };
+
+        document.getElementById('btn-auto-pause').onclick = () => {
+            isAutoRunning = false;
+            if(rafId) cancelAnimationFrame(rafId);
+            document.getElementById('btn-auto-pause').classList.add('hidden');
+            document.getElementById('btn-auto-start').classList.remove('hidden');
+        };
+
+        // Initialize
+        window.onload = resetSimulation;
+
+    </script>
+</body>
+</html>

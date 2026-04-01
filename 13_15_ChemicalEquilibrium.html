@@ -1,0 +1,715 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>13F.2 분배함수와 화학 평형</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --bg: #f6f3ea;
+            --panel: rgba(255, 252, 245, 0.92);
+            --ink: #1f2937;
+            --line: #d6d3d1;
+        }
+
+        body {
+            font-family: 'Manrope', 'Noto Sans KR', sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 10% 0%, rgba(29, 78, 216, 0.10), transparent 32%),
+                radial-gradient(circle at 90% 0%, rgba(180, 83, 9, 0.14), transparent 28%),
+                linear-gradient(180deg, #fcfbf7 0%, #f3efe3 100%);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(214, 211, 209, 0.95);
+            box-shadow: 0 16px 40px -26px rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(10px);
+        }
+
+        .control-card {
+            background: rgba(255, 255, 255, 0.66);
+            border: 1px solid rgba(214, 211, 209, 0.95);
+        }
+
+        .preset-btn, .sim-btn {
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .preset-btn:hover, .sim-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px -16px rgba(15, 23, 42, 0.65);
+        }
+
+        .active-preset {
+            border-color: #1d4ed8 !important;
+            box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.2);
+            background: rgba(219, 234, 254, 0.82) !important;
+        }
+
+        input[type="range"] {
+            accent-color: #1d4ed8;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 lg:p-8">
+    <main class="max-w-7xl mx-auto">
+        <header class="mb-6 md:mb-8">
+            <div class="inline-flex items-center gap-2 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-extrabold tracking-[0.18em] text-blue-800 uppercase">
+                13F.2 Chemical Equilibrium
+            </div>
+            <h1 class="mt-3 text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">분배함수로 화학 평형 이해하기</h1>
+            <p class="mt-2 max-w-4xl text-sm md:text-base text-slate-600">
+                단순 반응 \( R \rightleftharpoons P \) 에서, 바닥 에너지 차이 \( \Delta E_0 \) 와 상태 수를 정하는
+                준위 간격 \( \varepsilon \) 이 분배함수 \(q\) 와 평형상수 \(K\) 를 어떻게 바꾸는지 실시간 샘플링으로 보여줍니다.
+            </p>
+        </header>
+
+        <section class="panel rounded-3xl p-5 md:p-6 lg:p-7">
+            <div class="grid grid-cols-1 xl:grid-cols-[1.15fr_1.35fr] gap-6">
+                <div id="left-column" class="space-y-5">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div class="control-card rounded-2xl p-4">
+                            <div class="text-[11px] font-black tracking-[0.18em] uppercase text-slate-500">프리셋</div>
+                            <div class="mt-3 grid gap-2">
+                                <button id="preset-similar" class="preset-btn active-preset rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-left">
+                                    <div class="font-bold text-slate-900">유사한 간격</div>
+                                    <div class="mt-1 text-xs text-slate-600">\( \varepsilon_R \approx \varepsilon_P \). 바닥 에너지 차이가 우세한 경우</div>
+                                </button>
+                                <button id="preset-dense" class="preset-btn rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-left">
+                                    <div class="font-bold text-slate-900">P가 더 조밀</div>
+                                    <div class="mt-1 text-xs text-slate-600">\( \varepsilon_P < \varepsilon_R \). \( q_P \) 가 더 빠르게 증가</div>
+                                </button>
+                                <button id="preset-extreme" class="preset-btn rounded-xl border border-slate-300 bg-slate-50 px-3 py-3 text-left">
+                                    <div class="font-bold text-slate-900">극단적 경우</div>
+                                    <div class="mt-1 text-xs text-slate-600">R은 거의 바닥 상태만, P는 촘촘한 준위를 매우 많이 가진 경우</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="control-card rounded-2xl p-4">
+                            <div class="text-[11px] font-black tracking-[0.18em] uppercase text-slate-500">샘플링</div>
+                            <div class="mt-3 grid grid-cols-3 gap-2">
+                                <button id="step-btn" class="sim-btn rounded-xl border border-blue-300 bg-blue-50 px-2 py-3 text-sm font-extrabold text-blue-800">1회</button>
+                                <button id="run-btn" class="sim-btn rounded-xl border border-emerald-300 bg-emerald-50 px-2 py-3 text-sm font-extrabold text-emerald-800">자동</button>
+                                <button id="pause-btn" class="sim-btn rounded-xl border border-rose-300 bg-rose-50 px-2 py-3 text-sm font-extrabold text-rose-800">정지</button>
+                            </div>
+                            <div class="mt-3 flex items-center justify-between rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-300">
+                                <span>Run State</span>
+                                <span id="run-state" class="text-amber-300">정지</span>
+                            </div>
+                            <p class="mt-3 text-xs text-slate-600">
+                                분자들은 현재 온도와 분배함수 비율에 따라 \(R\) 또는 \(P\) 의 여러 에너지 준위로 계속 다시 샘플링됩니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="control-card rounded-2xl p-4">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="flex items-center justify-between text-sm font-bold text-slate-700">
+                                    <span>온도 \(T\)</span>
+                                    <span id="temp-value" class="mono text-blue-700">2.50</span>
+                                </label>
+                                <input id="temp-slider" type="range" min="0.4" max="8.0" step="0.05" value="2.5" class="mt-2 w-full">
+                            </div>
+                            <div>
+                                <label class="flex items-center justify-between text-sm font-bold text-slate-700">
+                                    <span>\( \Delta E_0 = E_{0,P} - E_{0,R} \)</span>
+                                    <span id="delta-value" class="mono text-blue-700">2.20</span>
+                                </label>
+                                <input id="delta-slider" type="range" min="-3" max="8" step="0.05" value="2.2" class="mt-2 w-full">
+                            </div>
+                            <div>
+                                <label class="flex items-center justify-between text-sm font-bold text-slate-700">
+                                    <span>R의 준위 간격 \( \varepsilon_R \)</span>
+                                    <span id="epsr-value" class="mono text-blue-700">1.60</span>
+                                </label>
+                                <input id="epsr-slider" type="range" min="0.2" max="4.0" step="0.05" value="1.6" class="mt-2 w-full">
+                            </div>
+                            <div>
+                                <label class="flex items-center justify-between text-sm font-bold text-slate-700">
+                                    <span>P의 준위 간격 \( \varepsilon_P \)</span>
+                                    <span id="epsp-value" class="mono text-blue-700">1.45</span>
+                                </label>
+                                <input id="epsp-slider" type="range" min="0.2" max="4.0" step="0.05" value="1.45" class="mt-2 w-full">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="flex items-center justify-between text-sm font-bold text-slate-700">
+                                    <span>샘플 분자 수</span>
+                                    <span id="molecules-value" class="mono text-blue-700">160</span>
+                                </label>
+                                <input id="molecules-slider" type="range" min="40" max="260" step="10" value="160" class="mt-2 w-full">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="control-card rounded-2xl p-4">
+                            <div class="text-[11px] font-black tracking-[0.18em] uppercase text-slate-500">분배함수</div>
+                            <div class="mt-3 space-y-3 text-sm">
+                                <div class="rounded-xl bg-emerald-50 px-3 py-3">
+                                    <div class="font-bold text-emerald-900">반응물 R</div>
+                                    <div class="mt-1 text-slate-700 mono">\( q_R = \sum_v e^{-v\varepsilon_R/T} \)</div>
+                                    <div id="qR-text" class="mt-2 mono text-lg font-bold text-emerald-800">1.00</div>
+                                </div>
+                                <div class="rounded-xl bg-amber-50 px-3 py-3">
+                                    <div class="font-bold text-amber-900">생성물 P</div>
+                                    <div class="mt-1 text-slate-700 mono">\( q_P = \sum_v e^{-v\varepsilon_P/T} \)</div>
+                                    <div id="qP-text" class="mt-2 mono text-lg font-bold text-amber-800">1.00</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="control-card rounded-2xl p-4">
+                            <div class="text-[11px] font-black tracking-[0.18em] uppercase text-slate-500">평형상수</div>
+                            <div class="mt-3 rounded-2xl bg-slate-900 px-4 py-4 text-slate-100">
+                                <div class="text-sm text-slate-300">\( K = \dfrac{N_P}{N_R} = \dfrac{q_P}{q_R} e^{-\Delta E_0/T} \)</div>
+                                <div id="k-text" class="mt-3 text-3xl font-black tracking-tight text-white mono">1.000</div>
+                                <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                    <div class="rounded-xl bg-slate-800 px-3 py-3">
+                                        <div class="text-slate-400">에너지 인자</div>
+                                        <div id="energy-factor" class="mt-1 mono text-lg font-bold text-rose-300">1.000</div>
+                                    </div>
+                                    <div class="rounded-xl bg-slate-800 px-3 py-3">
+                                        <div class="text-slate-400">상태 수 인자</div>
+                                        <div id="state-factor" class="mt-1 mono text-lg font-bold text-cyan-300">1.000</div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 rounded-xl bg-white/10 px-3 py-3 text-sm">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-300">예상 평형 조성 \(x_P\)</span>
+                                        <span id="xp-theory" class="mono font-bold text-white">0.500</span>
+                                    </div>
+                                    <div class="mt-2 h-3 overflow-hidden rounded-full bg-slate-700">
+                                        <div id="xp-bar" class="h-full rounded-full bg-gradient-to-r from-teal-500 to-amber-500" style="width: 50%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="explanation-box" class="control-card rounded-2xl p-4 text-sm leading-relaxed text-slate-700">
+                        현재 조건을 해석하는 설명이 여기에 표시됩니다.
+                    </div>
+                </div>
+                <div id="right-column" class="space-y-5">
+                    <div class="panel rounded-3xl overflow-hidden">
+                        <div class="border-b border-stone-200 bg-slate-900 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-100">
+                            실시간 에너지 준위 샘플링
+                        </div>
+                        <div class="p-4 md:p-5">
+                            <div class="relative h-[420px] rounded-2xl border border-stone-200 bg-white">
+                                <canvas id="ladder-canvas"></canvas>
+                            </div>
+                            <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                                <div class="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3">
+                                    <div class="font-bold text-teal-900">현재 \(N_R\)</div>
+                                    <div id="nr-live" class="mt-1 mono text-2xl font-bold text-teal-800">80</div>
+                                </div>
+                                <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                    <div class="font-bold text-amber-900">현재 \(N_P\)</div>
+                                    <div id="np-live" class="mt-1 mono text-2xl font-bold text-amber-800">80</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-[1.05fr_0.95fr] gap-5">
+                        <div class="panel rounded-3xl overflow-hidden">
+                            <div class="border-b border-stone-200 bg-slate-900 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-100">
+                                \(K(T)\) 곡선
+                            </div>
+                            <div class="p-4 md:p-5">
+                                <svg id="kt-plot" class="h-[280px] w-full rounded-2xl border border-stone-200 bg-white" viewBox="0 0 520 280" preserveAspectRatio="none"></svg>
+                            </div>
+                        </div>
+
+                        <div class="panel rounded-3xl overflow-hidden">
+                            <div class="border-b border-stone-200 bg-slate-900 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-100">
+                                관찰 포인트
+                            </div>
+                            <div class="p-4 md:p-5 space-y-4 text-sm leading-relaxed text-slate-700">
+                                <div class="rounded-2xl bg-slate-50 p-4">
+                                    <div class="font-bold text-slate-900">1. 바닥 에너지 차이</div>
+                                    <p class="mt-1">\( \Delta E_0 > 0 \) 이면 P가 에너지적으로 불리합니다. 저온에서는 이 항이 평형을 강하게 끕니다.</p>
+                                </div>
+                                <div class="rounded-2xl bg-slate-50 p-4">
+                                    <div class="font-bold text-slate-900">2. 준위 간격이 만드는 상태 수</div>
+                                    <p class="mt-1">\( \varepsilon_P \) 가 작으면 같은 온도에서 접근 가능한 상태가 많아져 \( q_P \) 가 커집니다.</p>
+                                </div>
+                                <div class="rounded-2xl bg-slate-50 p-4">
+                                    <div class="font-bold text-slate-900">3. 평형은 두 효과의 곱</div>
+                                    <p class="mt-1">에너지 벌점 \( e^{-\Delta E_0/T} \) 과 상태 수 이점 \( q_P/q_R \) 이 곱해져 최종 \(K\) 가 정해집니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const state = {
+            T: 2.5,
+            deltaE0: 2.2,
+            epsR: 1.6,
+            epsP: 1.45,
+            molecules: 160,
+            auto: false,
+            preset: 'similar'
+        };
+
+        const refs = {
+            tempSlider: document.getElementById('temp-slider'),
+            deltaSlider: document.getElementById('delta-slider'),
+            epsRSlider: document.getElementById('epsr-slider'),
+            epsPSlider: document.getElementById('epsp-slider'),
+            moleculesSlider: document.getElementById('molecules-slider'),
+            tempValue: document.getElementById('temp-value'),
+            deltaValue: document.getElementById('delta-value'),
+            epsRValue: document.getElementById('epsr-value'),
+            epsPValue: document.getElementById('epsp-value'),
+            moleculesValue: document.getElementById('molecules-value'),
+            qRText: document.getElementById('qR-text'),
+            qPText: document.getElementById('qP-text'),
+            kText: document.getElementById('k-text'),
+            energyFactor: document.getElementById('energy-factor'),
+            stateFactor: document.getElementById('state-factor'),
+            xpTheory: document.getElementById('xp-theory'),
+            xpBar: document.getElementById('xp-bar'),
+            nrLive: document.getElementById('nr-live'),
+            npLive: document.getElementById('np-live'),
+            runState: document.getElementById('run-state'),
+            explanation: document.getElementById('explanation-box'),
+            ladderCanvas: document.getElementById('ladder-canvas'),
+            ktPlot: document.getElementById('kt-plot'),
+            presetSimilar: document.getElementById('preset-similar'),
+            presetDense: document.getElementById('preset-dense'),
+            presetExtreme: document.getElementById('preset-extreme'),
+            stepBtn: document.getElementById('step-btn'),
+            runBtn: document.getElementById('run-btn'),
+            pauseBtn: document.getElementById('pause-btn')
+        };
+
+        const ladderCtx = refs.ladderCanvas.getContext('2d');
+        let samplePool = [];
+        let rafId = null;
+        let derived = null;
+
+        function buildSpeciesLevels(base, spacing, temperature) {
+            const levels = [];
+            const maxTerms = 48;
+            const cutoff = 1e-5;
+            for (let v = 0; v < maxTerms; v += 1) {
+                const internal = v * spacing;
+                const total = base + internal;
+                const weight = Math.exp(-total / temperature);
+                levels.push({ v, internal, total, weight });
+                if (v > 12 && weight < cutoff) break;
+            }
+            return levels;
+        }
+
+        function computeDerived(tempOverride = state.T) {
+            const R = buildSpeciesLevels(0, state.epsR, tempOverride);
+            const P = buildSpeciesLevels(state.deltaE0, state.epsP, tempOverride);
+            const qR = R.reduce((sum, level) => sum + Math.exp(-level.internal / tempOverride), 0);
+            const qP = P.reduce((sum, level) => sum + Math.exp(-level.internal / tempOverride), 0);
+            const energyFactor = Math.exp(-state.deltaE0 / tempOverride);
+            const stateFactor = qP / qR;
+            const K = stateFactor * energyFactor;
+            const xP = K / (1 + K);
+
+            const combined = [];
+            let totalWeight = 0;
+            for (const level of R) {
+                combined.push({ species: 'R', v: level.v, total: level.total, weight: level.weight });
+                totalWeight += level.weight;
+            }
+            for (const level of P) {
+                combined.push({ species: 'P', v: level.v, total: level.total, weight: level.weight });
+                totalWeight += level.weight;
+            }
+
+            let cumulative = 0;
+            for (const item of combined) {
+                cumulative += item.weight / totalWeight;
+                item.cdf = cumulative;
+            }
+
+            return { R, P, qR, qP, energyFactor, stateFactor, K, xP, combined };
+        }
+
+        function sampleOneMolecule() {
+            const u = Math.random();
+            const picked = derived.combined.find(item => u <= item.cdf) || derived.combined[derived.combined.length - 1];
+            return { species: picked.species, v: picked.v };
+        }
+
+        function resetSamples() {
+            samplePool = Array.from({ length: state.molecules }, () => sampleOneMolecule());
+        }
+
+        function stepSamples() {
+            const updates = Math.max(1, Math.ceil(state.molecules * 0.08));
+            for (let i = 0; i < updates; i += 1) {
+                const idx = Math.floor(Math.random() * samplePool.length);
+                samplePool[idx] = sampleOneMolecule();
+            }
+        }
+
+        function tallySpecies(levelCountR, levelCountP) {
+            const countsR = new Array(levelCountR).fill(0);
+            const countsP = new Array(levelCountP).fill(0);
+            let NR = 0;
+            let NP = 0;
+
+            for (const mol of samplePool) {
+                if (mol.species === 'R') {
+                    NR += 1;
+                    if (mol.v < countsR.length) countsR[mol.v] += 1;
+                } else {
+                    NP += 1;
+                    if (mol.v < countsP.length) countsP[mol.v] += 1;
+                }
+            }
+            return { countsR, countsP, NR, NP };
+        }
+
+        function resizeCanvas() {
+            refs.ladderCanvas.width = refs.ladderCanvas.clientWidth * 2;
+            refs.ladderCanvas.height = refs.ladderCanvas.clientHeight * 2;
+        }
+
+        function drawLadderColumn(xCenter, title, titleColor, levels, counts, minEnergy, maxEnergy, maxCount) {
+            const h = refs.ladderCanvas.height;
+            const top = 70;
+            const bottom = h - 50;
+            const usableH = bottom - top;
+            const range = Math.max(1e-9, maxEnergy - minEnergy);
+
+            ladderCtx.textAlign = 'center';
+            ladderCtx.fillStyle = titleColor;
+            ladderCtx.font = '700 34px Manrope';
+            ladderCtx.fillText(title, xCenter, 36);
+
+            for (let i = 0; i < levels.length; i += 1) {
+                const level = levels[i];
+                const y = bottom - ((level.total - minEnergy) / range) * usableH;
+                const count = counts[i] || 0;
+                const lineHalf = 130;
+                const barMax = 120;
+                const barLen = maxCount > 0 ? (count / maxCount) * barMax : 0;
+
+                ladderCtx.strokeStyle = 'rgba(71, 85, 105, 0.55)';
+                ladderCtx.lineWidth = 2;
+                ladderCtx.beginPath();
+                ladderCtx.moveTo(xCenter - lineHalf, y);
+                ladderCtx.lineTo(xCenter + lineHalf, y);
+                ladderCtx.stroke();
+
+                if (barLen > 0) {
+                    ladderCtx.strokeStyle = '#be185d';
+                    ladderCtx.lineWidth = 8;
+                    ladderCtx.beginPath();
+                    ladderCtx.moveTo(xCenter - lineHalf, y);
+                    ladderCtx.lineTo(xCenter - lineHalf + barLen, y);
+                    ladderCtx.stroke();
+                }
+
+                if (i < 10) {
+                    ladderCtx.fillStyle = '#64748b';
+                    ladderCtx.font = '500 18px JetBrains Mono';
+                    ladderCtx.textAlign = 'right';
+                    ladderCtx.fillText(level.total.toFixed(1), xCenter - lineHalf - 14, y + 6);
+                }
+            }
+        }
+
+        function drawDeltaArrow(minEnergy, maxEnergy) {
+            const w = refs.ladderCanvas.width;
+            const h = refs.ladderCanvas.height;
+            const top = 70;
+            const bottom = h - 50;
+            const usableH = bottom - top;
+            const range = Math.max(1e-9, maxEnergy - minEnergy);
+            const x = w / 2;
+            const yR = bottom - ((0 - minEnergy) / range) * usableH;
+            const yP = bottom - ((state.deltaE0 - minEnergy) / range) * usableH;
+
+            ladderCtx.strokeStyle = '#1d4ed8';
+            ladderCtx.lineWidth = 3;
+            ladderCtx.beginPath();
+            ladderCtx.moveTo(x, yR);
+            ladderCtx.lineTo(x, yP);
+            ladderCtx.stroke();
+
+            ladderCtx.beginPath();
+            if (yP <= yR) {
+                ladderCtx.moveTo(x - 10, yP + 14);
+                ladderCtx.lineTo(x, yP);
+                ladderCtx.lineTo(x + 10, yP + 14);
+            } else {
+                ladderCtx.moveTo(x - 10, yP - 14);
+                ladderCtx.lineTo(x, yP);
+                ladderCtx.lineTo(x + 10, yP - 14);
+            }
+            ladderCtx.stroke();
+
+            ladderCtx.fillStyle = '#1d4ed8';
+            ladderCtx.textAlign = 'center';
+            ladderCtx.font = '700 24px JetBrains Mono';
+            ladderCtx.fillText(`ΔE₀ = ${state.deltaE0.toFixed(2)}`, x, (yR + yP) / 2 - 10);
+        }
+
+        function drawLadder() {
+            resizeCanvas();
+            const w = refs.ladderCanvas.width;
+            const h = refs.ladderCanvas.height;
+            ladderCtx.clearRect(0, 0, w, h);
+
+            const levelsR = derived.R.slice(0, 15);
+            const levelsP = derived.P.slice(0, 15);
+            const tallies = tallySpecies(levelsR.length, levelsP.length);
+            const minEnergy = Math.min(0, levelsR[0].total, levelsP[0].total) - 0.2;
+            const maxEnergy = Math.max(
+                levelsR[levelsR.length - 1].total,
+                levelsP[levelsP.length - 1].total,
+                0
+            ) + 0.6;
+            const maxCount = Math.max(...tallies.countsR, ...tallies.countsP, 1);
+
+            ladderCtx.fillStyle = '#334155';
+            ladderCtx.font = '700 22px Manrope';
+            ladderCtx.textAlign = 'left';
+            ladderCtx.fillText('Energy', 34, 42);
+
+            drawLadderColumn(w * 0.28, 'R', '#0f766e', levelsR, tallies.countsR, minEnergy, maxEnergy, maxCount);
+            drawLadderColumn(w * 0.72, 'P', '#b45309', levelsP, tallies.countsP, minEnergy, maxEnergy, maxCount);
+            drawDeltaArrow(minEnergy, maxEnergy);
+
+            refs.nrLive.textContent = `${tallies.NR}`;
+            refs.npLive.textContent = `${tallies.NP}`;
+        }
+
+        function updateReadouts() {
+            refs.tempValue.textContent = state.T.toFixed(2);
+            refs.deltaValue.textContent = state.deltaE0.toFixed(2);
+            refs.epsRValue.textContent = state.epsR.toFixed(2);
+            refs.epsPValue.textContent = state.epsP.toFixed(2);
+            refs.moleculesValue.textContent = `${state.molecules}`;
+
+            refs.qRText.textContent = derived.qR.toFixed(3);
+            refs.qPText.textContent = derived.qP.toFixed(3);
+            refs.energyFactor.textContent = derived.energyFactor.toFixed(3);
+            refs.stateFactor.textContent = derived.stateFactor.toFixed(3);
+            refs.kText.textContent = derived.K.toFixed(3);
+            refs.xpTheory.textContent = derived.xP.toFixed(3);
+            refs.xpBar.style.width = `${Math.max(2, Math.min(98, derived.xP * 100))}%`;
+        }
+
+        function updateExplanation() {
+            const delta = state.deltaE0.toFixed(2);
+            const epsR = state.epsR.toFixed(2);
+            const epsP = state.epsP.toFixed(2);
+            let message = '';
+
+            if (derived.K > 1.2) {
+                message = `현재는 P가 우세합니다. 에너지 벌점 \\(e^{-\\Delta E_0/T}\\) 보다 상태 수 이점 \\(q_P/q_R\\) 이 더 큽니다. 특히 \\(\\varepsilon_P=${epsP}\\) 가 작아 P 쪽 준위가 더 촘촘합니다.`;
+            } else if (derived.K < 0.8) {
+                message = `현재는 R이 우세합니다. \\(\\Delta E_0=${delta}\\) 의 에너지 벌점이 아직 상태 수 증가보다 큽니다. 저온에서는 이 경향이 더 강합니다.`;
+            } else {
+                message = `현재는 R과 P가 비슷한 비율입니다. 에너지 차이와 상태 수 증가가 거의 균형입니다. \\(\\varepsilon_R=${epsR}\\), \\(\\varepsilon_P=${epsP}\\) 를 바꾸면 평형이 빠르게 이동합니다.`;
+            }
+
+            refs.explanation.innerHTML = message;
+        }
+
+        function drawKTPlot() {
+            const svg = refs.ktPlot;
+            const width = 520;
+            const height = 280;
+            const pad = { l: 52, r: 18, t: 18, b: 42 };
+            const innerW = width - pad.l - pad.r;
+            const innerH = height - pad.t - pad.b;
+            const tMin = 0.4;
+            const tMax = 8.0;
+            const points = [];
+            let maxK = 0;
+
+            for (let i = 0; i <= 160; i += 1) {
+                const T = tMin + (i / 160) * (tMax - tMin);
+                const data = computeDerived(T);
+                if (data.K > maxK) maxK = data.K;
+                points.push({ T, K: data.K });
+            }
+
+            maxK = Math.max(1.2, maxK * 1.08);
+            const xOf = t => pad.l + ((t - tMin) / (tMax - tMin)) * innerW;
+            const yOf = k => height - pad.b - (k / maxK) * innerH;
+            const polyline = points.map(p => `${xOf(p.T).toFixed(2)},${yOf(p.K).toFixed(2)}`).join(' ');
+            const currentY = yOf(derived.K);
+            const currentX = xOf(state.T);
+
+            svg.innerHTML = `
+                <rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"></rect>
+                <g stroke="#e7e5e4" stroke-width="1">
+                    <line x1="${pad.l}" y1="${height - pad.b}" x2="${width - pad.r}" y2="${height - pad.b}"></line>
+                    <line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height - pad.b}"></line>
+                    <line x1="${pad.l}" y1="${yOf(1)}" x2="${width - pad.r}" y2="${yOf(1)}" stroke-dasharray="5 5"></line>
+                </g>
+                <polyline fill="none" stroke="#1d4ed8" stroke-width="3" points="${polyline}"></polyline>
+                <line x1="${currentX}" y1="${pad.t}" x2="${currentX}" y2="${height - pad.b}" stroke="#94a3b8" stroke-dasharray="4 4"></line>
+                <circle cx="${currentX}" cy="${currentY}" r="6" fill="#b45309"></circle>
+                <text x="${pad.l}" y="${pad.t + 14}" fill="#64748b" font-size="12" font-family="Manrope" font-weight="700">K</text>
+                <text x="${width / 2}" y="${height - 10}" fill="#64748b" font-size="12" font-family="Manrope" font-weight="700">Temperature T</text>
+                <text x="${width - 76}" y="${yOf(1) - 8}" fill="#b45309" font-size="12" font-family="JetBrains Mono" font-weight="700">K = 1</text>
+                <text x="${pad.l - 14}" y="${height - pad.b + 4}" text-anchor="end" fill="#64748b" font-size="11" font-family="JetBrains Mono">0</text>
+                <text x="${pad.l - 14}" y="${yOf(maxK) + 4}" text-anchor="end" fill="#64748b" font-size="11" font-family="JetBrains Mono">${maxK.toFixed(1)}</text>
+                <text x="${xOf(tMin)}" y="${height - pad.b + 22}" text-anchor="middle" fill="#64748b" font-size="11" font-family="JetBrains Mono">${tMin.toFixed(1)}</text>
+                <text x="${xOf(tMax)}" y="${height - pad.b + 22}" text-anchor="middle" fill="#64748b" font-size="11" font-family="JetBrains Mono">${tMax.toFixed(1)}</text>
+            `;
+        }
+
+        function typesetDynamicMath(targets) {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                if (window.MathJax.typesetClear && Array.isArray(targets) && targets.length > 0) {
+                    window.MathJax.typesetClear(targets);
+                }
+                window.MathJax.typesetPromise(targets);
+            }
+        }
+
+        function render() {
+            derived = computeDerived();
+            updateReadouts();
+            drawLadder();
+            drawKTPlot();
+        }
+
+        function tick() {
+            if (!state.auto) return;
+            stepSamples();
+            render();
+            rafId = requestAnimationFrame(tick);
+        }
+
+        function setRunButtons() {
+            refs.runState.textContent = state.auto ? '자동 샘플링' : '정지';
+            refs.runBtn.disabled = state.auto;
+            refs.pauseBtn.disabled = !state.auto;
+            refs.stepBtn.disabled = state.auto;
+        }
+
+        function restartSampling() {
+            derived = computeDerived();
+            resetSamples();
+            updateExplanation();
+            render();
+            typesetDynamicMath([refs.explanation]);
+        }
+
+        function setPreset(name) {
+            state.preset = name;
+            if (name === 'similar') {
+                state.T = 2.5;
+                state.deltaE0 = 2.2;
+                state.epsR = 1.6;
+                state.epsP = 1.45;
+            } else if (name === 'dense') {
+                state.T = 2.7;
+                state.deltaE0 = 2.0;
+                state.epsR = 1.9;
+                state.epsP = 0.85;
+            } else {
+                state.T = 2.0;
+                state.deltaE0 = 2.4;
+                state.epsR = 4.0;
+                state.epsP = 0.45;
+            }
+
+            refs.tempSlider.value = state.T;
+            refs.deltaSlider.value = state.deltaE0;
+            refs.epsRSlider.value = state.epsR;
+            refs.epsPSlider.value = state.epsP;
+            refs.presetSimilar.classList.toggle('active-preset', name === 'similar');
+            refs.presetDense.classList.toggle('active-preset', name === 'dense');
+            refs.presetExtreme.classList.toggle('active-preset', name === 'extreme');
+            restartSampling();
+        }
+
+        refs.tempSlider.addEventListener('input', e => {
+            state.T = parseFloat(e.target.value);
+            restartSampling();
+        });
+        refs.deltaSlider.addEventListener('input', e => {
+            state.deltaE0 = parseFloat(e.target.value);
+            restartSampling();
+        });
+        refs.epsRSlider.addEventListener('input', e => {
+            state.epsR = parseFloat(e.target.value);
+            restartSampling();
+        });
+        refs.epsPSlider.addEventListener('input', e => {
+            state.epsP = parseFloat(e.target.value);
+            restartSampling();
+        });
+        refs.moleculesSlider.addEventListener('input', e => {
+            state.molecules = parseInt(e.target.value, 10);
+            restartSampling();
+        });
+
+        refs.stepBtn.addEventListener('click', () => {
+            stepSamples();
+            render();
+        });
+        refs.runBtn.addEventListener('click', () => {
+            if (state.auto) return;
+            state.auto = true;
+            setRunButtons();
+            rafId = requestAnimationFrame(tick);
+        });
+        refs.pauseBtn.addEventListener('click', () => {
+            state.auto = false;
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = null;
+            setRunButtons();
+        });
+
+        refs.presetSimilar.addEventListener('click', () => setPreset('similar'));
+        refs.presetDense.addEventListener('click', () => setPreset('dense'));
+        refs.presetExtreme.addEventListener('click', () => setPreset('extreme'));
+
+        window.addEventListener('resize', render);
+
+        setRunButtons();
+        restartSampling();
+        rafId = requestAnimationFrame(tick);
+    </script>
+</body>
+</html>
