@@ -1,0 +1,514 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>14A.7 분자간 퍼텐셜 에너지 모델</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --bg-a: #f7fbff;
+            --bg-b: #eef4fb;
+            --panel: rgba(255, 255, 255, 0.92);
+            --stroke: rgba(203, 213, 225, 0.95);
+            --text: #0f172a;
+            --navy: #0f172a;
+            --blue: #3b82f6;
+            --red: #ef4444;
+            --emerald: #10b981;
+            --slate: #64748b;
+        }
+
+        body {
+            font-family: 'Manrope', 'Noto Sans KR', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.10), transparent 24%),
+                radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 20%),
+                linear-gradient(180deg, var(--bg-a) 0%, var(--bg-b) 100%);
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            box-shadow: 0 18px 60px -34px rgba(15, 23, 42, 0.42);
+            border-radius: 1.75rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tab-btn {
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+        }
+
+        .tab-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .tab-btn:not(.active):hover {
+            transform: translateY(-1px);
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+
+        input[type="range"] {
+            accent-color: #0f172a;
+        }
+
+        .grid-bg {
+            background-image:
+                linear-gradient(rgba(148, 163, 184, 0.10) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.10) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 lg:p-8">
+    <main class="mx-auto max-w-[1520px]">
+        <header class="mb-6 md:mb-8 lg:mb-10">
+            <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-sky-800">
+                14A.7 Intermolecular Potentials
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">분자간 퍼텐셜 에너지 모델</h1>
+            <p class="mt-3 max-w-5xl text-sm leading-relaxed text-slate-600 md:text-base">
+                분자 사이 거리 \(r\)에 따라 퍼텐셜이 어떻게 바뀌는지 비교합니다.
+                강체구, Lennard-Jones, Mie, Buckingham(exp-6) 모델을 같은 화면에서 살펴보며
+                가까운 거리의 <strong>전자구름 반발</strong>과 먼 거리의 <strong>분산 인력</strong>이 어떻게 균형을 이루는지 시각적으로 확인할 수 있습니다.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:gap-7">
+            <aside class="space-y-5 xl:sticky xl:top-6">
+                <div class="panel rounded-3xl p-5 lg:p-6">
+                    <h2 class="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">퍼텐셜 모델</h2>
+                    <div class="flex flex-col gap-1.5">
+                        <button id="btn-hard" class="tab-btn active rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">1. 강체구 (Hard Sphere)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">무한대 반발벽, 인력 없음</div>
+                        </button>
+                        <button id="btn-lj" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">2. Lennard-Jones (12-6)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">전자구름 반발과 분산 인력의 표준 모델</div>
+                        </button>
+                        <button id="btn-mie" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">3. Mie 퍼텐셜</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">반발 지수와 인력 지수를 분리한 일반화 모델</div>
+                        </button>
+                        <button id="btn-exp" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">4. exp-6 (Buckingham)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">지수형 반발과 \(r^{-6}\) 인력을 결합한 모델</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel rounded-3xl p-5 lg:p-6">
+                    <h2 class="mb-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">모델 변수 제어</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">분자 간 거리 \(r\)</label>
+                                <span id="r-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.12</span>
+                            </div>
+                            <input type="range" id="r-slider" min="0.8" max="3.0" step="0.01" value="1.12" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">충돌 지름 \(\sigma\) 또는 \(d\)</label>
+                                <span id="sigma-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.00</span>
+                            </div>
+                            <input type="range" id="sigma-slider" min="0.8" max="1.5" step="0.05" value="1.0" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">우물 깊이 \(\epsilon\)</label>
+                                <span id="eps-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.0</span>
+                            </div>
+                            <input type="range" id="eps-slider" min="0.1" max="3.5" step="0.1" value="1.0" class="w-full">
+                        </div>
+
+                        <div id="mie-controls" class="hidden space-y-3 border-t border-slate-200 pt-3">
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-purple-700">반발 지수 \(n\)</label>
+                                <span id="n-val" class="mono rounded bg-purple-100 px-2 py-0.5 text-sm font-bold text-purple-900">12</span>
+                            </div>
+                            <input type="range" id="n-slider" min="7" max="24" step="1" value="12" class="w-full">
+                        </div>
+
+                        <div id="exp-controls" class="hidden space-y-3 border-t border-slate-200 pt-3">
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-emerald-700">반발 파라미터 \(\alpha\)</label>
+                                <span id="alpha-val" class="mono rounded bg-emerald-100 px-2 py-0.5 text-sm font-bold text-emerald-900">13.5</span>
+                            </div>
+                            <input type="range" id="alpha-slider" min="10" max="16" step="0.5" value="13.5" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel rounded-3xl bg-slate-900 p-5 text-white lg:p-6">
+                    <h2 class="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">퍼텐셜 에너지 \(V(r)\)</h2>
+                    <div class="mb-4 flex items-end gap-2">
+                        <span id="energy-val" class="mono text-4xl font-black text-white">-1.000</span>
+                        <span class="mb-1 text-xs text-slate-400 opacity-80">(전체)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs font-mono">
+                        <div class="flex flex-col">
+                            <span class="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">반발</span>
+                            <span id="v-rep-val" class="text-base font-bold text-red-400">+0.000</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">인력</span>
+                            <span id="v-attr-val" class="text-base font-bold text-blue-400">-1.000</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="min-w-0 space-y-6">
+                <div class="panel relative flex h-[340px] flex-col overflow-hidden rounded-3xl xl:h-[380px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">입자 모델 시각화</span>
+                    </div>
+                    <div class="grid-bg relative h-full w-full flex-1 bg-white p-3 md:p-4">
+                        <canvas id="particle-canvas" class="absolute inset-0 h-full w-full"></canvas>
+                    </div>
+                </div>
+
+                <div class="panel flex min-h-[430px] flex-1 flex-col overflow-hidden rounded-3xl xl:min-h-[450px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">퍼텐셜 에너지 곡선</span>
+                    </div>
+                    <div class="relative flex-1 w-full bg-white p-4 md:p-5">
+                        <svg id="plot-svg" class="h-full w-full" viewBox="0 0 700 360"></svg>
+                        <div class="absolute right-5 top-5 space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-3 text-[10px] font-bold shadow-sm backdrop-blur pointer-events-none">
+                            <div class="flex items-center gap-2"><div class="h-1 w-4 rounded-full bg-slate-900"></div> 전체 에너지</div>
+                            <div class="flex items-center gap-2"><div class="h-0.5 w-4 rounded-full bg-red-500"></div> 반발 성분</div>
+                            <div class="flex items-center gap-2"><div class="h-0.5 w-4 rounded-full bg-blue-500"></div> 인력 성분</div>
+                            <div class="pt-1 text-slate-400 italic font-medium">\(\epsilon\)과 \(\sigma\)를 바꿔 곡선 모양이 어떻게 달라지는지 확인하세요.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel flex flex-col overflow-hidden rounded-3xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">모델 해설</span>
+                    </div>
+                    <div id="theory-box" class="bg-white p-6 text-sm leading-relaxed text-slate-700 min-h-[180px]"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const state = {
+            mode: 'lj',
+            r: 1.12,
+            sigma: 1.0,
+            eps: 1.0,
+            nMie: 12,
+            mMie: 6,
+            alpha: 13.5
+        };
+
+        const els = {
+            rSlider: document.getElementById('r-slider'),
+            sigmaSlider: document.getElementById('sigma-slider'),
+            epsSlider: document.getElementById('eps-slider'),
+            nSlider: document.getElementById('n-slider'),
+            alphaSlider: document.getElementById('alpha-slider'),
+            rVal: document.getElementById('r-val'),
+            sigmaVal: document.getElementById('sigma-val'),
+            epsVal: document.getElementById('eps-val'),
+            nVal: document.getElementById('n-val'),
+            alphaVal: document.getElementById('alpha-val'),
+            energyVal: document.getElementById('energy-val'),
+            vRepVal: document.getElementById('v-rep-val'),
+            vAttrVal: document.getElementById('v-attr-val'),
+            canvas: document.getElementById('particle-canvas'),
+            plot: document.getElementById('plot-svg'),
+            theoryBox: document.getElementById('theory-box'),
+            mieControls: document.getElementById('mie-controls'),
+            expControls: document.getElementById('exp-controls')
+        };
+
+        const ctx = els.canvas.getContext('2d');
+
+        function calcV(mode, r) {
+            const s = state.sigma;
+            const e = state.eps;
+            let rep = 0;
+            let attr = 0;
+
+            if (mode === 'hard') {
+                if (r <= s) return { total: Infinity, rep: Infinity, attr: 0 };
+                return { total: 0, rep: 0, attr: 0 };
+            } else if (mode === 'lj') {
+                rep = 4 * e * Math.pow(s / r, 12);
+                attr = -4 * e * Math.pow(s / r, 6);
+            } else if (mode === 'mie') {
+                const n = state.nMie;
+                const m = state.mMie;
+                const C = (n / (n - m)) * Math.pow(n / m, m / (n - m));
+                rep = C * e * Math.pow(s / r, n);
+                attr = -C * e * Math.pow(s / r, m);
+            } else if (mode === 'exp') {
+                const alpha = state.alpha;
+                const rm = s * Math.pow(2, 1 / 6);
+                const factor = e / (1 - 6 / alpha);
+                rep = factor * (6 / alpha) * Math.exp(alpha * (1 - r / rm));
+                attr = -factor * Math.pow(rm / r, 6);
+            }
+
+            return { total: rep + attr, rep, attr };
+        }
+
+        const theoryInfo = {
+            hard: {
+                title: '강체구 (Hard Sphere) 모델',
+                formula: '$$ V(r) = \\begin{cases} \\infty & (r \\le d) \\\\ 0 & (r > d) \\end{cases} $$',
+                desc: '가장 단순한 모델입니다. 분자는 서로 겹칠 수 없는 단단한 공으로 취급되며, 인력은 무시합니다. 배제 부피(excluded volume)를 설명할 때 자주 쓰입니다.'
+            },
+            lj: {
+                title: 'Lennard-Jones (12-6) 퍼텐셜',
+                formula: '$$ V(r) = 4\\epsilon \\left[ \\left(\\frac{\\sigma}{r}\\right)^{12} - \\left(\\frac{\\sigma}{r}\\right)^6 \\right] $$',
+                desc: '가장 널리 쓰이는 경험적 분자간 퍼텐셜입니다. \\(r^{-12}\\) 항은 가까운 거리의 급격한 전자구름 반발을, \\(r^{-6}\\) 항은 London 분산 인력을 나타냅니다.'
+            },
+            mie: {
+                title: 'Mie 퍼텐셜',
+                formula: '$$ V(r) = C\\epsilon \\left[ \\left(\\frac{\\sigma}{r}\\right)^n - \\left(\\frac{\\sigma}{r}\\right)^m \\right] $$',
+                desc: 'Lennard-Jones 퍼텐셜의 일반화 형태입니다. 반발 지수 \\(n\\)과 인력 지수 \\(m\\)를 독립적으로 조절해, 더 다양한 분자쌍의 곡선 모양을 근사할 수 있습니다.'
+            },
+            exp: {
+                title: 'exp-6 (Buckingham) 퍼텐셜',
+                formula: '$$ V(r) = \\frac{\\epsilon}{1-6/\\alpha} \\left[ \\frac{6}{\\alpha} e^{\\alpha(1-r/r_m)} - (r_m/r)^6 \\right] $$',
+                desc: '짧은 거리 반발을 지수함수 형태로 표현해 Lennard-Jones보다 더 물리적인 전자구름 겹침 효과를 반영하려는 모델입니다.'
+            }
+        };
+
+        function drawScene() {
+            const w = els.canvas.clientWidth;
+            const h = els.canvas.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+            els.canvas.width = w * dpr;
+            els.canvas.height = h * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+            const scale = 120;
+            const rPx = state.r * scale;
+            const sPx = state.sigma * scale;
+
+            const drawParticle = (x, y, radius, color, label) => {
+                if (state.mode === 'hard') {
+                    const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(1, color);
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                } else {
+                    const cloudGrad = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius * 1.6);
+                    cloudGrad.addColorStop(0, `${color}77`);
+                    cloudGrad.addColorStop(0.5, `${color}22`);
+                    cloudGrad.addColorStop(1, `${color}00`);
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius * 1.6, 0, Math.PI * 2);
+                    ctx.fillStyle = cloudGrad;
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = `${color}44`;
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.font = 'bold 12px Manrope';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, x, y + radius + 25);
+            };
+
+            drawParticle(cx - rPx / 2, cy, sPx / 2, '#94a3b8', '입자 A');
+            drawParticle(cx + rPx / 2, cy, sPx / 2, '#3b82f6', '입자 B');
+
+            ctx.beginPath();
+            ctx.moveTo(cx - rPx / 2, cy + 50);
+            ctx.lineTo(cx + rPx / 2, cy + 50);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 14px JetBrains Mono';
+            ctx.fillText(`r = ${state.r.toFixed(2)}`, cx, cy + 70);
+        }
+
+        function renderPlot() {
+            const w = 700;
+            const h = 360;
+            const padX = 70;
+            const padY = 30;
+            const innerW = w - padX - 20;
+            const innerH = h - padY * 2;
+            const minR = 0.8;
+            const maxR = 3.0;
+            const maxY = 4.5;
+            const minY = -4.5;
+
+            const getX = (r) => padX + ((r - minR) / (maxR - minR)) * innerW;
+            const getY = (v) => {
+                if (v === Infinity || v > 50) return -100;
+                return padY + innerH - ((v - minY) / (maxY - minY)) * innerH;
+            };
+
+            const yZero = getY(0);
+            let pathTot = '';
+            let pathRep = '';
+            let pathAttr = '';
+
+            for (let r = minR; r <= maxR; r += 0.01) {
+                const res = calcV(state.mode, r);
+                const px = getX(r);
+                const yT = Math.max(-1000, Math.min(2000, getY(res.total)));
+                if (r === minR) pathTot += `M ${px},${yT} `;
+                else pathTot += `L ${px},${yT} `;
+
+                if (state.mode !== 'hard') {
+                    const yR = Math.max(-1000, Math.min(2000, getY(res.rep)));
+                    const yA = Math.max(-1000, Math.min(2000, getY(res.attr)));
+                    if (r === minR) {
+                        pathRep += `M ${px},${yR} `;
+                        pathAttr += `M ${px},${yA} `;
+                    } else {
+                        pathRep += `L ${px},${yR} `;
+                        pathAttr += `L ${px},${yA} `;
+                    }
+                }
+            }
+
+            const current = calcV(state.mode, state.r);
+            const cx = getX(state.r);
+            const cy = Math.max(padY, Math.min(h - padY, getY(current.total)));
+
+            els.plot.innerHTML = `
+                <defs>
+                    <clipPath id="plot-clip"><rect x="${padX}" y="${padY}" width="${innerW}" height="${innerH}" /></clipPath>
+                </defs>
+                <line x1="${padX}" y1="${yZero}" x2="${w - 10}" y2="${yZero}" stroke="#cbd5e1" stroke-width="1.5" />
+                <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${h - padY}" stroke="#cbd5e1" stroke-width="1.5" />
+                <text x="${w - 10}" y="${yZero + 15}" font-size="12" fill="#64748b" text-anchor="end" font-family="Manrope" font-weight="bold">r</text>
+                <text x="${padX - 10}" y="${padY + 10}" font-size="12" fill="#64748b" text-anchor="end" font-family="Manrope" font-weight="bold">V(r)</text>
+                <text x="${padX - 8}" y="${yZero + 4}" font-size="11" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">0</text>
+                <text x="${padX - 8}" y="${padY + 10}" font-size="11" fill="#cbd5e1" text-anchor="end" font-family="JetBrains Mono">+${maxY.toFixed(1)}</text>
+                <text x="${padX - 8}" y="${h - padY}" font-size="11" fill="#cbd5e1" text-anchor="end" font-family="JetBrains Mono">-${maxY.toFixed(1)}</text>
+
+                <path d="${pathRep}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7" clip-path="url(#plot-clip)" />
+                <path d="${pathAttr}" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7" clip-path="url(#plot-clip)" />
+                <path d="${pathTot}" fill="none" stroke="#0f172a" stroke-width="4" clip-path="url(#plot-clip)" />
+
+                <line x1="${cx}" y1="${padY}" x2="${cx}" y2="${h - padY}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 2" />
+                <circle cx="${cx}" cy="${cy}" r="6" fill="#0f172a" />
+                <text x="${cx}" y="${cy - 12}" text-anchor="middle" fill="#0f172a" font-size="11" font-family="JetBrains Mono" font-weight="bold">CURRENT</text>
+            `;
+        }
+
+        function updateUI() {
+            const info = theoryInfo[state.mode];
+            const energy = calcV(state.mode, state.r);
+
+            els.mieControls.classList.toggle('hidden', state.mode !== 'mie');
+            els.expControls.classList.toggle('hidden', state.mode !== 'exp');
+
+            els.rVal.textContent = state.r.toFixed(2);
+            els.sigmaVal.textContent = state.sigma.toFixed(2);
+            els.epsVal.textContent = state.eps.toFixed(1);
+            els.nVal.textContent = state.nMie;
+            els.alphaVal.textContent = state.alpha.toFixed(1);
+
+            const formatVal = (v) => {
+                if (v === Infinity || v > 1000) return '∞';
+                return `${v >= 0 ? '+' : ''}${v.toFixed(3)}`;
+            };
+            els.energyVal.textContent = formatVal(energy.total);
+            els.vRepVal.textContent = formatVal(energy.rep);
+            els.vAttrVal.textContent = formatVal(energy.attr);
+
+            els.theoryBox.innerHTML = `
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <div class="text-lg font-bold text-slate-900">${info.title}</div>
+                    <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Model Note</span>
+                </div>
+                <div class="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">${info.formula}</div>
+                <p class="text-sm leading-relaxed text-slate-600">${info.desc}</p>
+            `;
+
+            if (window.MathJax?.typesetPromise) {
+                window.MathJax.typesetPromise([els.theoryBox]).catch(() => {});
+            }
+            drawScene();
+            renderPlot();
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            document.querySelectorAll('.tab-btn').forEach((button) => button.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            updateUI();
+        }
+
+        els.rSlider.addEventListener('input', (event) => { state.r = parseFloat(event.target.value); updateUI(); });
+        els.sigmaSlider.addEventListener('input', (event) => { state.sigma = parseFloat(event.target.value); updateUI(); });
+        els.epsSlider.addEventListener('input', (event) => { state.eps = parseFloat(event.target.value); updateUI(); });
+        els.nSlider.addEventListener('input', (event) => { state.nMie = parseInt(event.target.value, 10); updateUI(); });
+        els.alphaSlider.addEventListener('input', (event) => { state.alpha = parseFloat(event.target.value); updateUI(); });
+
+        ['hard', 'lj', 'mie', 'exp'].forEach((mode) => {
+            document.getElementById(`btn-${mode}`).addEventListener('click', () => setMode(mode));
+        });
+
+        window.addEventListener('resize', () => {
+            drawScene();
+            renderPlot();
+        });
+
+        updateUI();
+    </script>
+</body>
+</html>

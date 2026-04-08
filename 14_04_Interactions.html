@@ -1,0 +1,858 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>14A.4 분자간 상호작용 시각화</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --bg-a: #f7fbff;
+            --bg-b: #eef4fb;
+            --panel: rgba(255, 255, 255, 0.92);
+            --stroke: rgba(203, 213, 225, 0.95);
+            --text: #0f172a;
+            --navy: #0f172a;
+            --blue: #3b82f6;
+            --red: #ef4444;
+            --slate: #64748b;
+        }
+
+        body {
+            font-family: 'Manrope', 'Noto Sans KR', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.10), transparent 24%),
+                radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 20%),
+                linear-gradient(180deg, var(--bg-a) 0%, var(--bg-b) 100%);
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            box-shadow: 0 18px 60px -34px rgba(15, 23, 42, 0.42);
+            border-radius: 1.75rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .tab-btn {
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+        }
+        .tab-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+        .tab-btn:not(.active):hover {
+            transform: translateY(-1px);
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+
+        input[type="range"] {
+            accent-color: #0f172a;
+        }
+
+        .grid-bg {
+            background-image:
+                linear-gradient(rgba(148, 163, 184, 0.10) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.10) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 lg:p-8">
+    <main class="mx-auto max-w-[1520px]">
+        <header class="mb-6 md:mb-8 lg:mb-10">
+            <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-sky-800">
+                14A.4 Interactions
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">분자간 상호작용: 인력과 척력의 균형</h1>
+            <p class="mt-3 max-w-5xl text-sm leading-relaxed text-slate-600 md:text-base">
+                두 입자 사이의 상호작용은 보통 <strong>인력</strong>과 <strong>척력</strong>의 합으로 이해할 수 있습니다.
+                이 페이지는 이온-이온, 이온-쌍극자, 쌍극자-쌍극자, Debye, London 분산력까지의 대표적인 거리 의존성을
+                같은 시각 언어 안에서 비교하도록 정리한 강의용 시뮬레이션입니다.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:gap-7">
+            <aside class="space-y-5 xl:sticky xl:top-6">
+                <div class="panel rounded-3xl p-5 lg:p-6">
+                    <h2 class="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">상호작용 종류 선택</h2>
+                    <div class="flex flex-col gap-1.5">
+                        <button id="btn-ion-ion" class="tab-btn active rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">1. 이온 - 이온</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">쿨롱 인력/척력 (\(V \propto -1/r\))</div>
+                        </button>
+                        <button id="btn-ion-dipole" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">2. 이온 - 쌍극자</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">인력과 척력의 상쇄 (\(V \propto -1/r^2\))</div>
+                        </button>
+                        <button id="btn-dd-collinear" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">3. 쌍극자 - 쌍극자(일직선)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">2개 인력 + 2개 척력 (\(V \propto -2/r^3\))</div>
+                        </button>
+                        <button id="btn-dd-parallel" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">4. 쌍극자 - 쌍극자(각도 변화)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">각도에 따라 인력/척력 전환 (\(V \propto 1-3\cos^2\Theta\))</div>
+                        </button>
+                        <button id="btn-dd-rotate" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">5. 쌍극자 - 쌍극자(자유 회전)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">Keesom 평균 인력 (\(V \propto -1/(Tr^6)\))</div>
+                        </button>
+                        <button id="btn-dipole-induced" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">6. 쌍극자 - 유도 쌍극자</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">Debye 상호작용 (\(V \propto -\mu^2\alpha/r^6\))</div>
+                        </button>
+                        <button id="btn-dispersion" class="tab-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">7. 유도 쌍극자 - 유도 쌍극자</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">London 분산력 (\(V \propto -\alpha^2/r^6\))</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel rounded-3xl p-5 lg:p-6">
+                    <h2 class="mb-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">변수 제어</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">중심 간 거리 \(r\)</label>
+                                <span id="r-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">2.0</span>
+                            </div>
+                            <input type="range" id="r-slider" min="0.8" max="5.0" step="0.05" value="2.0" class="w-full">
+                        </div>
+
+                        <div id="mu-container" class="hidden transition-opacity duration-300">
+                            <div class="mb-1 mt-3 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">영구 쌍극자 모멘트 \(\mu\)</label>
+                                <span id="mu-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.0</span>
+                            </div>
+                            <input type="range" id="mu-slider" min="0.5" max="2.5" step="0.1" value="1.0" class="w-full">
+                        </div>
+
+                        <div id="alpha-container" class="hidden transition-opacity duration-300">
+                            <div class="mb-1 mt-3 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">편극도 \(\alpha\)</label>
+                                <span id="alpha-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.0</span>
+                            </div>
+                            <input type="range" id="alpha-slider" min="0.5" max="2.5" step="0.1" value="1.0" class="w-full">
+                        </div>
+
+                        <div id="theta-container" class="hidden transition-opacity duration-300">
+                            <div class="mb-1 mt-3 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">배향 각도 \(\Theta\)</label>
+                                <span id="theta-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">30°</span>
+                            </div>
+                            <input type="range" id="theta-slider" min="0" max="90" step="1" value="30" class="w-full">
+                        </div>
+
+                        <div id="t-container" class="hidden transition-opacity duration-300">
+                            <div class="mb-1 mt-3 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">온도 \(T\)</label>
+                                <span id="t-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.0</span>
+                            </div>
+                            <input type="range" id="t-slider" min="0.5" max="5.0" step="0.1" value="1.0" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel rounded-3xl bg-slate-900 p-5 text-white lg:p-6">
+                    <h2 class="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">포텐셜 에너지 \(V(r)\)</h2>
+                    <div class="mb-4 flex items-end gap-2">
+                        <span id="energy-val" class="mono text-4xl font-black text-white">-0.50</span>
+                        <span class="mb-1 text-xs text-slate-400 opacity-80">(Total)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs font-mono">
+                        <div class="flex flex-col">
+                            <span class="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">인력</span>
+                            <span id="attr-val" class="text-base font-bold text-blue-400">-0.50</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">척력</span>
+                            <span id="rep-val" class="text-base font-bold text-red-400">+0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="min-w-0 space-y-6">
+                <div class="panel relative flex h-[360px] flex-col overflow-hidden rounded-3xl xl:h-[390px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">미시적 상호작용 시각화</span>
+                    </div>
+                    <div class="grid-bg relative h-full w-full flex-1 bg-white p-3 md:p-4">
+                        <canvas id="particle-canvas" class="absolute inset-0 h-full w-full"></canvas>
+                    </div>
+                </div>
+
+                <div class="panel flex h-[390px] flex-col overflow-hidden rounded-3xl xl:h-[420px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">에너지 곡선</span>
+                    </div>
+                    <div class="relative flex-1 w-full bg-white p-4 md:p-5">
+                        <svg id="plot-svg" class="h-full w-full" viewBox="0 0 700 300"></svg>
+                        <div class="absolute right-5 top-5 space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-3 text-[10px] font-bold shadow-sm backdrop-blur">
+                            <div class="flex items-center gap-2"><div class="h-1 w-4 rounded-full bg-slate-900"></div> 전체 에너지</div>
+                            <div class="flex items-center gap-2"><div class="h-0.5 w-4 rounded-full bg-blue-500"></div> 인력 성분</div>
+                            <div class="flex items-center gap-2"><div class="h-0.5 w-4 rounded-full bg-red-500"></div> 척력 성분</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel flex flex-col overflow-hidden rounded-3xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">물리적 의미와 식</span>
+                    </div>
+                    <div id="theory-box" class="bg-white p-5 text-sm leading-relaxed text-slate-700 md:p-6"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        // State
+        const state = {
+            mode: 'ion-ion', // 'ion-ion', 'ion-dipole', 'dd-collinear', 'dd-parallel', 'dd-rotate', 'dipole-induced', 'dispersion'
+            r: 2.5,
+            mu: 1.0,
+            alpha: 1.0,
+            t: 1.0, 
+            theta: 30
+        };
+
+        // DOM Elements
+        const els = {
+            btnIonIon: document.getElementById('btn-ion-ion'),
+            btnIonDipole: document.getElementById('btn-ion-dipole'),
+            btnDdCollinear: document.getElementById('btn-dd-collinear'),
+            btnDdParallel: document.getElementById('btn-dd-parallel'),
+            btnDdRotate: document.getElementById('btn-dd-rotate'),
+            btnDipoleInduced: document.getElementById('btn-dipole-induced'),
+            btnDispersion: document.getElementById('btn-dispersion'),
+            
+            rSlider: document.getElementById('r-slider'),
+            rVal: document.getElementById('r-val'),
+            muContainer: document.getElementById('mu-container'),
+            muSlider: document.getElementById('mu-slider'),
+            muVal: document.getElementById('mu-val'),
+            alphaContainer: document.getElementById('alpha-container'),
+            alphaSlider: document.getElementById('alpha-slider'),
+            alphaVal: document.getElementById('alpha-val'),
+            thetaContainer: document.getElementById('theta-container'),
+            thetaSlider: document.getElementById('theta-slider'),
+            thetaVal: document.getElementById('theta-val'),
+            tContainer: document.getElementById('t-container'),
+            tSlider: document.getElementById('t-slider'),
+            tVal: document.getElementById('t-val'),
+            
+            energyVal: document.getElementById('energy-val'),
+            attrVal: document.getElementById('attr-val'),
+            repVal: document.getElementById('rep-val'),
+            
+            canvas: document.getElementById('particle-canvas'),
+            plot: document.getElementById('plot-svg'),
+            theoryBox: document.getElementById('theory-box')
+        };
+
+        const ctx = els.canvas.getContext('2d');
+        let animationTime = 0;
+
+        // Math Theory Templates
+        const theoryContent = {
+            'ion-ion': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4">
+                    <p class="font-bold text-slate-900 mb-2">이온-이온 상호작용</p>
+                    $$ V_{tot} = -\\frac{1}{4\\pi\\varepsilon_0} \\frac{Q^2}{r} $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-blue-500">
+                    <li>서로 반대 부호의 이온 사이에 작용하는 가장 기본적인 쿨롱 인력입니다.</li>
+                    <li>이 경우 척력 성분은 따로 두지 않고, 전체 에너지가 곧 인력 곡선이 됩니다.</li>
+                    <li>거리 의존성은 \\(1/r\\)로 비교적 완만한 장거리 상호작용입니다.</li>
+                </ul>
+            `,
+            'ion-dipole': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4 overflow-x-auto">
+                    <p class="font-bold text-slate-900 mb-2">이온-쌍극자 상호작용</p>
+                    $$ V_{tot} \\approx -\\frac{\\mu Q}{4\\pi\\varepsilon_0 r^2} $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-800">
+                    <li>이온은 쌍극자의 가까운 극과는 인력, 먼 극과는 척력을 동시에 만듭니다.</li>
+                    <li>가까운 쪽 상호작용이 더 강하므로 전체적으로는 인력이 남습니다.</li>
+                    <li>순에너지는 \\(1/r^2\\) 스케일로 줄어들어 이온-이온보다 더 빠르게 약해집니다.</li>
+                </ul>
+            `,
+            'dd-collinear': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4 overflow-x-auto">
+                    <p class="font-bold text-slate-900 mb-2">쌍극자-쌍극자: 일직선 정렬</p>
+                    $$ V_{tot} \\approx -\\frac{2\\mu^2}{4\\pi\\varepsilon_0 r^3} $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-800">
+                    <li>네 개의 부분전하가 교차 작용해 인력 두 개와 척력 두 개를 만듭니다.</li>
+                    <li>가까운 이웃 극 사이의 인력이 더 커서 전체적으로는 안정한 인력 배치가 됩니다.</li>
+                    <li>거리 의존성은 \\(1/r^3\\)로, 이온-쌍극자보다 더 가파르게 약해집니다.</li>
+                </ul>
+            `,
+            'dd-parallel': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4 overflow-x-auto">
+                    <p class="font-bold text-slate-900 mb-2">쌍극자-쌍극자: 각도 의존성</p>
+                    $$ V_{tot} \\approx \\frac{\\mu^2}{4\\pi\\varepsilon_0 r^3}(1 - 3\\cos^2\\Theta) $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-800">
+                    <li>두 쌍극자의 상대 방향에 따라 인력이 될 수도, 척력이 될 수도 있습니다.</li>
+                    <li>\\(\\Theta = 0^\\circ\\)에서는 인력이 우세하고, \\(\\Theta = 90^\\circ\\)에서는 척력이 우세합니다.</li>
+                    <li>슬라이더로 각도를 바꾸며 에너지 곡선이 어떻게 뒤집히는지 확인할 수 있습니다.</li>
+                </ul>
+            `,
+            'dd-rotate': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4">
+                    <p class="font-bold text-slate-900 mb-2">쌍극자-쌍극자 평균 상호작용: Keesom 인력</p>
+                    $$ \\langle V \\rangle = -\\frac{2\\mu^4}{3(4\\pi\\varepsilon_0)^2 k T r^6} $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-800">
+                    <li>회전하는 극성 분자들의 시간 평균에서도 순인력이 남습니다.</li>
+                    <li>온도가 높아질수록 무작위 회전이 강해져 평균 인력은 약해집니다.</li>
+                    <li>이 평균화 결과가 \\(1/(Tr^6)\\) 형태의 Keesom 상호작용입니다.</li>
+                </ul>
+            `,
+            'dipole-induced': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4">
+                    <p class="font-bold text-slate-900 mb-2">쌍극자-유도 쌍극자: Debye 인력</p>
+                    $$ V = -\\frac{C}{r^6}, \\quad C \\propto \\mu^2\\alpha $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-800">
+                    <li>영구 쌍극자가 이웃 분자의 전자구름을 일그러뜨려 유도 쌍극자를 만듭니다.</li>
+                    <li>유도된 쌍극자는 원래 쌍극자에 끌리는 방향으로 정렬되므로 항상 인력입니다.</li>
+                    <li>편극도 \\(\\alpha\\)가 클수록 유도 효과가 커지고 상호작용도 강해집니다.</li>
+                </ul>
+            `,
+            'dispersion': `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 mb-4">
+                    <p class="font-bold text-slate-900 mb-2">유도 쌍극자-유도 쌍극자: London 분산력</p>
+                    $$ V = -\\frac{C}{r^6}, \\quad C \\propto \\alpha_1 \\alpha_2 $$
+                </div>
+                <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-800">
+                    <li>순간적인 전자구름 요동이 일시적 쌍극자를 만들고, 이것이 서로를 유도합니다.</li>
+                    <li>모든 분자 사이에 존재하는 가장 보편적인 인력입니다.</li>
+                    <li>전자구름이 클수록, 즉 편극도가 클수록 분산력도 강해집니다.</li>
+                </ul>
+            `
+        };
+        function getEnergies(mode, r) {
+            const l = 0.4 * state.mu; 
+            const safeDist = (d) => Math.max(0.1, Math.abs(d));
+
+            let attr = 0;
+            let rep = 0;
+
+            if (mode === 'ion-ion') {
+                attr = -1.0 / r; 
+                rep = 0;
+            } 
+            else if (mode === 'ion-dipole') {
+                attr = -1.0 / safeDist(r - l/2);
+                rep = 1.0 / safeDist(r + l/2);
+            } 
+            else if (mode === 'dd-collinear') {
+                attr = -1.0 / safeDist(r - l) - 1.0 / safeDist(r + l);
+                rep = 1.0 / safeDist(r) + 1.0 / safeDist(r); // = 2/r
+            } 
+            else if (mode === 'dd-parallel') {
+                const thetaRad = state.theta * Math.PI / 180;
+                const p1Pos = {x: -l/2, y: 0};
+                const p1Neg = {x: l/2, y: 0};
+                const p2Pos = {x: r * Math.cos(thetaRad) - l/2, y: r * Math.sin(thetaRad)};
+                const p2Neg = {x: r * Math.cos(thetaRad) + l/2, y: r * Math.sin(thetaRad)};
+                const dist = (pA, pB) => safeDist(Math.hypot(pA.x - pB.x, pA.y - pB.y));
+
+                attr = -1.0 / dist(p1Pos, p2Neg) - 1.0 / dist(p1Neg, p2Pos);
+                rep = 1.0 / dist(p1Pos, p2Pos) + 1.0 / dist(p1Neg, p2Neg);
+            } 
+            else if (mode === 'dd-rotate') {
+                const total = -1.2 * Math.pow(l, 4) / (state.t * Math.pow(r, 6));
+                attr = total;
+                rep = 0;
+            }
+            else if (mode === 'dipole-induced') {
+                // V proportional to -mu^2 * alpha / r^6
+                const total = -1.5 * (Math.pow(state.mu, 2) * state.alpha) / Math.pow(r, 6);
+                attr = total;
+                rep = 0;
+            }
+            else if (mode === 'dispersion') {
+                // V proportional to -alpha^2 / r^6
+                const total = -2.0 * (Math.pow(state.alpha, 2)) / Math.pow(r, 6);
+                attr = total;
+                rep = 0;
+            }
+
+            return { attr, rep, total: attr + rep };
+        }
+
+        // Draw Helpers
+        function drawDipole(cx, cy, angle, mu) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+
+            const maxPx = 300;
+            const l_px = (0.4 * mu / 5.0) * maxPx;
+            const d = l_px / 2;
+            const rBase = 12;
+
+            ctx.beginPath(); ctx.moveTo(-d, 0); ctx.lineTo(d, 0);
+            ctx.lineWidth = 4; ctx.strokeStyle = '#94a3b8'; ctx.stroke();
+
+            // Positive Pole (Left)
+            ctx.beginPath(); ctx.arc(-d, 0, rBase, 0, Math.PI * 2);
+            ctx.fillStyle = '#ef4444'; ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Manrope';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('+', -d, 0);
+
+            // Negative Pole (Right)
+            ctx.beginPath(); ctx.arc(d, 0, rBase, 0, Math.PI * 2);
+            ctx.fillStyle = '#3b82f6'; ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.fillText('-', d, 0);
+
+            ctx.restore();
+        }
+        
+        function drawDipoleReversed(cx, cy, angle, mu) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+
+            const maxPx = 300;
+            const l_px = (0.4 * mu / 5.0) * maxPx;
+            const d = l_px / 2;
+            const rBase = 12;
+
+            ctx.beginPath(); ctx.moveTo(-d, 0); ctx.lineTo(d, 0);
+            ctx.lineWidth = 4; ctx.strokeStyle = '#94a3b8'; ctx.stroke();
+
+            // Negative Pole (Left)
+            ctx.beginPath(); ctx.arc(-d, 0, rBase, 0, Math.PI * 2);
+            ctx.fillStyle = '#3b82f6'; ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Manrope';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('-', -d, 0);
+
+            // Positive Pole (Right)
+            ctx.beginPath(); ctx.arc(d, 0, rBase, 0, Math.PI * 2);
+            ctx.fillStyle = '#ef4444'; ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.fillText('+', d, 0);
+
+            ctx.restore();
+        }
+
+        function drawIon(cx, cy, isPositive) {
+            const rBase = 16;
+            const color = isPositive ? '#ef4444' : '#3b82f6';
+            const sign = isPositive ? '+' : '-';
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, rBase, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Manrope';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(sign, cx, cy);
+        }
+
+        function drawInducedDipole(cx, cy, strength, angle) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+
+            // Cap visual strength
+            const s = Math.max(-1.5, Math.min(1.5, strength));
+            const absS = Math.abs(s);
+            
+            // Sphere stretches horizontally based on induction
+            const rBaseX = 18 + 12 * absS;
+            const rBaseY = 18 - 4 * absS;
+
+            const grad = ctx.createLinearGradient(-rBaseX, 0, rBaseX, 0);
+            if (s > 0) {
+                // Positive induction (Right becomes Negative/Blue)
+                grad.addColorStop(0, `rgba(239, 68, 68, ${0.2 + 0.6 * absS})`); 
+                grad.addColorStop(0.5, '#cbd5e1'); 
+                grad.addColorStop(1, `rgba(59, 130, 246, ${0.2 + 0.6 * absS})`); 
+            } else if (s < 0) {
+                // Negative induction (Right becomes Positive/Red)
+                grad.addColorStop(0, `rgba(59, 130, 246, ${0.2 + 0.6 * absS})`); 
+                grad.addColorStop(0.5, '#cbd5e1'); 
+                grad.addColorStop(1, `rgba(239, 68, 68, ${0.2 + 0.6 * absS})`); 
+            } else {
+                grad.addColorStop(0, '#cbd5e1');
+                grad.addColorStop(1, '#cbd5e1');
+            }
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, rBaseX, rBaseY, 0, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Inner Arrow to show dipole direction
+            if (absS > 0.05) {
+                const arrLen = 12 * absS;
+                const sign = Math.sign(s); 
+                
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(-arrLen * sign, 0);
+                ctx.lineTo(arrLen * sign, 0);
+                ctx.lineTo(arrLen * sign - 5 * sign, -5);
+                ctx.moveTo(arrLen * sign, 0);
+                ctx.lineTo(arrLen * sign - 5 * sign, 5);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Render Canvas
+        function renderParticles(t) {
+            const w = els.canvas.clientWidth;
+            const h = els.canvas.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+            els.canvas.width = w * dpr;
+            els.canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+
+            const centerY = h / 2;
+            const centerX = w / 2;
+            
+            const maxPx = 300;
+            const pxDist = (state.r / 5.0) * maxPx;
+
+            const p1x = centerX - pxDist / 2;
+            const p2x = centerX + pxDist / 2;
+
+            if (state.mode !== 'dd-parallel') {
+                ctx.beginPath();
+                ctx.moveTo(p1x, centerY + 50);
+                ctx.lineTo(p2x, centerY + 50);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(p1x + 5, centerY + 45);
+                ctx.lineTo(p1x, centerY + 50);
+                ctx.lineTo(p1x + 5, centerY + 55);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(p2x - 5, centerY + 45);
+                ctx.lineTo(p2x, centerY + 50);
+                ctx.lineTo(p2x - 5, centerY + 55);
+                ctx.stroke();
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = 'italic 600 14px Manrope';
+                ctx.textAlign = 'center';
+                ctx.fillText('r = ' + state.r.toFixed(2), centerX, centerY + 65);
+            }
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 16px Manrope';
+
+            if (state.mode === 'ion-ion') {
+                drawIon(p1x, centerY, true); 
+                drawIon(p2x, centerY, false); 
+                ctx.fillText('Q₁', p1x, centerY - 35);
+                ctx.fillText('Q₂', p2x, centerY - 35);
+
+            } else if (state.mode === 'ion-dipole') {
+                drawIon(p1x, centerY, true); 
+                drawDipoleReversed(p2x, centerY, 0, state.mu); 
+                ctx.fillText('Q₁', p1x, centerY - 35);
+                ctx.fillText('μ₂', p2x, centerY - 35);
+
+            } else if (state.mode === 'dd-collinear') {
+                drawDipole(p1x, centerY, 0, state.mu); 
+                drawDipole(p2x, centerY, 0, state.mu); 
+                ctx.fillText('μ₁', p1x, centerY - 35);
+                ctx.fillText('μ₂', p2x, centerY - 35);
+
+            } else if (state.mode === 'dd-parallel') {
+                const thetaRad = state.theta * Math.PI / 180;
+                
+                const dx = pxDist * Math.cos(thetaRad);
+                const dy = pxDist * Math.sin(thetaRad); 
+                
+                const dP1x = centerX - dx / 2;
+                const dP1y = centerY + dy / 2; 
+                const dP2x = centerX + dx / 2;
+                const dP2y = centerY - dy / 2;
+
+                ctx.beginPath();
+                ctx.moveTo(dP1x, dP1y);
+                ctx.lineTo(dP2x, dP2y);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#64748b';
+                ctx.font = 'italic 600 14px Manrope';
+                ctx.textAlign = 'center';
+                const nx = Math.sin(thetaRad);
+                const ny = Math.cos(thetaRad);
+                ctx.fillText('r = ' + state.r.toFixed(2), centerX - nx * 20, centerY - ny * 20 + 5);
+
+                if (state.theta > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(dP1x, dP1y);
+                    ctx.lineTo(dP1x + 40, dP1y);
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(dP1x, dP1y, 25, 0, -thetaRad, true);
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = 'bold 12px Manrope';
+                    ctx.fillText('Θ', dP1x + 35 * Math.cos(-thetaRad/2), dP1y + 35 * Math.sin(-thetaRad/2) + 4);
+                }
+                
+                drawDipole(dP1x, dP1y, 0, state.mu); 
+                drawDipole(dP2x, dP2y, 0, state.mu); 
+                
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 16px Manrope';
+                ctx.fillText('μ₁', dP1x, dP1y - 25);
+                ctx.fillText('μ₂', dP2x, dP2y - 25);
+
+            } else if (state.mode === 'dd-rotate') {
+                ctx.globalAlpha = 0.3;
+                for(let i=0; i<3; i++) {
+                    drawDipole(p1x, centerY, t * 2.1 + i*0.5, state.mu);
+                    drawDipole(p2x, centerY, t * -1.7 - i*0.5, state.mu);
+                }
+                ctx.globalAlpha = 1.0;
+                drawDipole(p1x, centerY, t * 2.1, state.mu);
+                drawDipole(p2x, centerY, t * -1.7, state.mu);
+                
+                ctx.fillText('μ₁ (회전)', p1x, centerY - 45);
+                ctx.fillText('μ₂ (회전)', p2x, centerY - 45);
+                
+            } else if (state.mode === 'dipole-induced') {
+                drawDipole(p1x, centerY, 0, state.mu); 
+                
+                // Strength grows as 1/r^3. Add a scalar to make it visible
+                const strength = 1.5 * (state.mu * state.alpha) / Math.pow(state.r, 3);
+                drawInducedDipole(p2x, centerY, strength, 0);
+
+                ctx.fillText('μ₁', p1x, centerY - 35);
+                ctx.fillText('유발 쌍극자', p2x, centerY - 35);
+
+            } else if (state.mode === 'dispersion') {
+                // Strength grows as 1/r^3
+                const baseStrength = 1.8 * (state.alpha * state.alpha) / Math.pow(state.r, 3);
+                const fluctuation = Math.sin(t * 3); // Oscillates back and forth
+                
+                // Both fluctuate synchronously in the same direction to maintain net attraction
+                drawInducedDipole(p1x, centerY, baseStrength * fluctuation, 0);
+                drawInducedDipole(p2x, centerY, baseStrength * fluctuation, 0);
+
+                ctx.fillText('유발 쌍극자', p1x, centerY - 35);
+                ctx.fillText('유발 쌍극자', p2x, centerY - 35);
+            }
+        }
+
+        // Render Plot with 3 Lines
+        function renderPlot() {
+            const w = 700;
+            const h = 300;
+            const padX = 50;
+            const padY = 20;
+            const innerW = w - padX - 20;
+            const innerH = h - padY * 2;
+            const yZero = h / 2;
+
+            const maxR = 5.0;
+            const minR = 0.8;
+            
+            const ex = getEnergies(state.mode, minR);
+            let maxV = Math.max(1.0, Math.abs(ex.total) * 1.2, Math.abs(ex.attr) * 1.05, Math.abs(ex.rep) * 1.05);
+            maxV = Math.min(maxV, 15.0); // Clamp scale to prevent flattening on huge singularities
+
+            const getX = (r) => padX + ((r - minR) / (maxR - minR)) * innerW;
+            const getY = (v) => yZero - (v / maxV) * (innerH / 2);
+
+            let pathAttr = '';
+            let pathRep = '';
+            let pathTot = '';
+
+            for (let r = minR; r <= maxR; r += 0.02) {
+                const e = getEnergies(state.mode, r);
+                const xPx = getX(r);
+                const yA = getY(e.attr);
+                const yR = getY(e.rep);
+                const yT = getY(e.total);
+
+                if (r === minR) {
+                    pathAttr += `M ${xPx},${yA} `;
+                    pathRep += `M ${xPx},${yR} `;
+                    pathTot += `M ${xPx},${yT} `;
+                } else {
+                    pathAttr += `L ${xPx},${yA} `;
+                    pathRep += `L ${xPx},${yR} `;
+                    pathTot += `L ${xPx},${yT} `;
+                }
+            }
+
+            const curr = getEnergies(state.mode, state.r);
+            const cx = getX(state.r);
+            const cyA = getY(curr.attr);
+            const cyR = getY(curr.rep);
+            const cyT = getY(curr.total);
+
+            els.plot.innerHTML = `
+                <defs>
+                    <clipPath id="plot-clip">
+                        <rect x="${padX}" y="${padY - 10}" width="${innerW + 15}" height="${innerH + 20}" />
+                    </clipPath>
+                </defs>
+
+                <!-- Axes -->
+                <line x1="${padX}" y1="${yZero}" x2="${w-10}" y2="${yZero}" stroke="#cbd5e1" stroke-width="1.5" />
+                <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${h-padY}" stroke="#cbd5e1" stroke-width="1.5" />
+                
+                <text x="${w-10}" y="${yZero + 15}" font-size="10" fill="#64748b" text-anchor="end" font-family="Manrope">r</text>
+                <text x="${padX - 10}" y="${padY + 10}" font-size="10" fill="#64748b" text-anchor="end" font-family="Manrope">V(r)</text>
+                <text x="${padX - 5}" y="${yZero + 4}" font-size="10" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">0</text>
+                
+                <text x="${padX - 5}" y="${h - padY + 4}" font-size="10" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">-${maxV.toFixed(1)}</text>
+                <text x="${padX - 5}" y="${padY + 4}" font-size="10" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">+${maxV.toFixed(1)}</text>
+
+                <!-- Curves -->
+                <path d="${pathAttr}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="4 4" clip-path="url(#plot-clip)" opacity="0.8" />
+                <path d="${pathRep}" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="4 4" clip-path="url(#plot-clip)" opacity="0.8" />
+                <path d="${pathTot}" fill="none" stroke="#0f172a" stroke-width="4" clip-path="url(#plot-clip)" />
+
+                <!-- Current Markers -->
+                <line x1="${cx}" y1="${Math.min(yZero, cyA, cyT, cyR)}" x2="${cx}" y2="${Math.max(yZero, cyA, cyT, cyR)}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 2" clip-path="url(#plot-clip)" />
+                <circle cx="${cx}" cy="${cyA}" r="4.5" fill="#3b82f6" clip-path="url(#plot-clip)" />
+                <circle cx="${cx}" cy="${cyR}" r="4.5" fill="#ef4444" clip-path="url(#plot-clip)" />
+                <circle cx="${cx}" cy="${cyT}" r="6" fill="#0f172a" clip-path="url(#plot-clip)" />
+            `;
+        }
+
+        function updateUI() {
+            // Update Sidebar Buttons
+            const buttons = [
+                els.btnIonIon, els.btnIonDipole, els.btnDdCollinear, 
+                els.btnDdParallel, els.btnDdRotate, els.btnDipoleInduced, els.btnDispersion
+            ];
+            buttons.forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + state.mode).classList.add('active');
+
+            // Update Numbers
+            els.rVal.textContent = state.r.toFixed(2);
+            els.muVal.textContent = state.mu.toFixed(1);
+            els.alphaVal.textContent = state.alpha.toFixed(1);
+            els.thetaVal.textContent = state.theta + "°";
+            els.tVal.textContent = state.t.toFixed(1);
+
+            // Handle UI Enable/Disable States
+            const hide = (el) => { el.classList.add('hidden'); el.classList.add('opacity-40', 'pointer-events-none'); };
+            const show = (el) => { el.classList.remove('hidden'); el.classList.remove('opacity-40', 'pointer-events-none'); };
+
+            hide(els.thetaContainer);
+            hide(els.tContainer);
+            hide(els.alphaContainer);
+            hide(els.muContainer);
+
+            if (state.mode === 'ion-ion') {
+                // none
+            } else if (state.mode === 'dd-parallel') {
+                show(els.muContainer);
+                show(els.thetaContainer);
+            } else if (state.mode === 'dd-rotate') {
+                show(els.muContainer);
+                show(els.tContainer);
+            } else if (state.mode === 'dipole-induced') {
+                show(els.muContainer);
+                show(els.alphaContainer);
+            } else if (state.mode === 'dispersion') {
+                show(els.alphaContainer);
+            } else {
+                // ion-dipole, dd-collinear
+                show(els.muContainer);
+            }
+            
+            // Math and Values
+            const e = getEnergies(state.mode, state.r);
+            els.energyVal.textContent = (e.total >= 0 && e.total !== 0 ? "+" : "") + e.total.toFixed(2);
+            els.energyVal.style.color = e.total > 0 ? 'var(--red)' : (e.total < 0 ? 'var(--blue)' : 'inherit');
+            
+            els.attrVal.textContent = e.attr.toFixed(2);
+            els.repVal.textContent = (e.rep >= 0 ? "+" : "") + e.rep.toFixed(2);
+
+            els.theoryBox.innerHTML = theoryContent[state.mode];
+            if (window.MathJax?.typesetPromise) {
+                window.MathJax.typesetPromise([els.theoryBox]).catch(() => {});
+            }
+
+            renderPlot();
+        }
+
+        // Main Animation Loop
+        function animate() {
+            animationTime += 0.04;
+            renderParticles(animationTime);
+            requestAnimationFrame(animate);
+        }
+
+        // Events
+        ['ion-ion', 'ion-dipole', 'dd-collinear', 'dd-parallel', 'dd-rotate', 'dipole-induced', 'dispersion'].forEach(m => {
+            document.getElementById('btn-' + m).addEventListener('click', () => {
+                if(state.mode !== m) {
+                    state.mode = m;
+                    updateUI();
+                }
+            });
+        });
+
+        els.rSlider.addEventListener('input', (e) => { state.r = parseFloat(e.target.value); updateUI(); });
+        els.muSlider.addEventListener('input', (e) => { state.mu = parseFloat(e.target.value); updateUI(); });
+        els.alphaSlider.addEventListener('input', (e) => { state.alpha = parseFloat(e.target.value); updateUI(); });
+        els.thetaSlider.addEventListener('input', (e) => { state.theta = parseInt(e.target.value); updateUI(); });
+        els.tSlider.addEventListener('input', (e) => { state.t = parseFloat(e.target.value); updateUI(); });
+
+        window.addEventListener('resize', () => renderParticles(animationTime));
+
+        // Boot
+        updateUI();
+        animate(); 
+    </script>
+</body>
+</html>
+
+

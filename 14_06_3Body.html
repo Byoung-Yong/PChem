@@ -1,0 +1,704 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>14A.6 장거리 3체 분산 상호작용</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        :root {
+            --bg-a: #f7fbff;
+            --bg-b: #eef4fb;
+            --panel: rgba(255, 255, 255, 0.92);
+            --stroke: rgba(203, 213, 225, 0.95);
+            --text: #0f172a;
+            --navy: #0f172a;
+            --blue: #2563eb;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+            --slate: #64748b;
+        }
+
+        body {
+            font-family: 'Manrope', 'Noto Sans KR', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.10), transparent 24%),
+                radial-gradient(circle at top right, rgba(139, 92, 246, 0.08), transparent 20%),
+                linear-gradient(180deg, var(--bg-a) 0%, var(--bg-b) 100%);
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--stroke);
+            box-shadow: 0 18px 60px -34px rgba(15, 23, 42, 0.42);
+            border-radius: 1.75rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .preset-btn {
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+        }
+
+        .preset-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .preset-btn:not(.active):hover {
+            transform: translateY(-1px);
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+
+        input[type="range"] {
+            accent-color: #0f172a;
+        }
+
+        .grid-bg {
+            background-image:
+                linear-gradient(rgba(148, 163, 184, 0.10) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.10) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 lg:p-8">
+    <main class="mx-auto max-w-[1520px]">
+        <header class="mb-6 md:mb-8 lg:mb-10">
+            <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-purple-300 bg-purple-50 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.18em] text-purple-800">
+                14A.6 Many-Body Dispersion
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">장거리 3체 분산 상호작용 (Axilrod-Teller-Muto)</h1>
+            <p class="mt-3 max-w-5xl text-sm leading-relaxed text-slate-600 md:text-base">
+                이 페이지는 <strong>등방성으로 편극되는 입자</strong>에 대한 장거리 3체 분산 근사를 시각화합니다.
+                기본적인 쌍별 van der Waals 항 \( -C_6/r^6 \)에 더해, 세 입자가 동시에 있을 때 생기는
+                <strong>Axilrod-Teller-Muto 3체항</strong>이 배열 각도에 따라 추가 척력 또는 추가 인력으로 바뀌는 모습을 보여줍니다.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[390px_minmax(0,1fr)] xl:gap-7">
+            <aside class="space-y-5 xl:sticky xl:top-6">
+                <div class="panel rounded-3xl p-5 lg:p-6">
+                    <h2 class="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">배열 프리셋</h2>
+                    <div class="flex flex-col gap-2">
+                        <button id="btn-equilateral" class="preset-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">정삼각형 배열 (60°)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">ATM 3체항이 가장 강한 <strong>척력(+)</strong>으로 작용</div>
+                        </button>
+                        <button id="btn-right" class="preset-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">직각삼각형 배열 (90°)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">3체항 척력이 약해지며 부호 전환에 가까워짐</div>
+                        </button>
+                        <button id="btn-linear" class="preset-btn rounded-xl border border-slate-300 px-4 py-2.5 text-left">
+                            <div class="text-sm font-bold">선형 배열 (180°)</div>
+                            <div class="mt-0.5 text-[10px] opacity-80">ATM 3체항이 강한 <strong>인력(-)</strong>으로 작용</div>
+                        </button>
+                    </div>
+                    <div class="mt-3 rounded-lg bg-slate-50 p-2 text-center text-[11px] font-bold text-slate-500">
+                        캔버스에서 입자를 직접 드래그해 자유롭게 배열을 바꿀 수 있습니다.
+                    </div>
+                </div>
+
+                <div class="panel rounded-3xl p-5 lg:p-6">
+                    <h2 class="mb-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">모델 계수 제어</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">대표 거리 \(\bar r\)</label>
+                                <span id="dist-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">2.2</span>
+                            </div>
+                            <input type="range" id="dist-slider" min="0.9" max="4.2" step="0.05" value="2.2" class="w-full">
+                            <p class="mt-1 text-[10px] text-slate-500">centroid 기준으로 전체 배열을 동일 비율로 확대/축소합니다.</p>
+                        </div>
+
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700">쌍별 분산 계수 \(C_6\)</label>
+                                <span id="c6-val" class="mono rounded bg-slate-100 px-2 py-0.5 text-sm font-bold text-slate-900">1.0</span>
+                            </div>
+                            <input type="range" id="c6-slider" min="0.2" max="3.0" step="0.1" value="1.0" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="mb-1 mt-3 flex items-center justify-between">
+                                <label class="text-xs font-bold text-purple-700">3체 ATM 계수 \(C_9^{\mathrm{eff}}\)</label>
+                                <span id="c9-val" class="mono rounded bg-purple-100 px-2 py-0.5 text-sm font-bold text-purple-900">12.0</span>
+                            </div>
+                            <input type="range" id="c9-slider" min="0.0" max="24.0" step="0.2" value="12.0" class="w-full">
+                        </div>
+                    </div>
+                    <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-500">
+                        모델에는 가까운 거리의 비물리적 붕괴를 막기 위해 \(+A/r^{12}\) 척력과 ATM damping을 넣었습니다.
+                        실제 물질에서는 3체항이 쌍별항보다 훨씬 작습니다. 여기서는 숨겨진 배율 없이, 교육용으로 조정한 \(C_9^{\mathrm{eff}}\) 자체를 직접 슬라이더로 제어합니다.
+                    </div>
+                </div>
+
+                <div class="panel rounded-3xl bg-slate-900 p-5 text-white lg:p-6">
+                    <h2 class="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">포텐셜 에너지 분해</h2>
+                    <div class="mb-4 flex items-end gap-2">
+                        <span id="energy-val" class="mono text-4xl font-black text-white">-0.50</span>
+                        <span class="mb-1 text-xs text-slate-400 opacity-80">(Total)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs font-mono">
+                        <div class="flex flex-col">
+                            <span class="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">Attraction</span>
+                            <span id="attr-val" class="text-base font-bold text-blue-400">-0.50</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="mb-0.5 text-[10px] uppercase tracking-wider text-slate-400">Repulsion</span>
+                            <span id="rep-val" class="text-base font-bold text-red-400">+0.00</span>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-[11px] text-slate-400">
+                        현재 3체항:
+                        <span id="atm-term-val" class="mono font-bold text-purple-300">+0.00</span>
+                        <span id="atm-term-note" class="ml-1 text-purple-200">ATM 척력</span>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="min-w-0 space-y-6">
+                <div class="panel relative flex h-[360px] flex-col overflow-hidden rounded-3xl xl:h-[390px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">세 입자 배열</span>
+                    </div>
+                    <div class="grid-bg relative h-full w-full flex-1 bg-white p-3 md:p-4">
+                        <canvas id="particle-canvas" class="absolute inset-0 h-full w-full"></canvas>
+                    </div>
+                </div>
+
+                <div class="panel flex h-[390px] flex-col overflow-hidden rounded-3xl xl:h-[420px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+                        <span class="text-sm font-black uppercase tracking-[0.18em] text-slate-100">각도에 따른 퍼텐셜: 인력 / 척력 / 전체</span>
+                    </div>
+                    <div class="relative flex-1 w-full bg-white p-4 md:p-5">
+                        <svg id="plot-svg" class="h-full w-full" viewBox="0 0 700 280"></svg>
+                        <div class="absolute right-5 top-5 space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-3 text-[10px] font-bold shadow-sm backdrop-blur">
+                            <div class="flex items-center gap-2"><div class="h-1 w-4 rounded-full bg-slate-900"></div> 전체 에너지</div>
+                            <div class="flex items-center gap-2"><div class="h-0.5 w-4 rounded-full bg-blue-500"></div> 인력 성분</div>
+                            <div class="flex items-center gap-2"><div class="h-0.5 w-4 rounded-full bg-red-500"></div> 척력 성분</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const MODEL = {
+            pairEq: 1.45,
+            atmDamp: 1.15,
+            pixelsPerUnit: 80
+        };
+
+        const state = {
+            c6: 1.0,
+            c9: 12.0,
+            nodes: {
+                A: { x: 220, y: 230 },
+                B: { x: 350, y: 100 },
+                C: { x: 480, y: 230 }
+            },
+            dragging: null
+        };
+
+        const els = {
+            distSlider: document.getElementById('dist-slider'),
+            c6Slider: document.getElementById('c6-slider'),
+            c9Slider: document.getElementById('c9-slider'),
+            distVal: document.getElementById('dist-val'),
+            c6Val: document.getElementById('c6-val'),
+            c9Val: document.getElementById('c9-val'),
+            energyVal: document.getElementById('energy-val'),
+            attrVal: document.getElementById('attr-val'),
+            repVal: document.getElementById('rep-val'),
+            atmTermVal: document.getElementById('atm-term-val'),
+            atmTermNote: document.getElementById('atm-term-note'),
+            canvas: document.getElementById('particle-canvas'),
+            plot: document.getElementById('plot-svg'),
+            btnEq: document.getElementById('btn-equilateral'),
+            btnRight: document.getElementById('btn-right'),
+            btnLinear: document.getElementById('btn-linear')
+        };
+
+        const ctx = els.canvas.getContext('2d');
+
+        function dist(p1, p2) {
+            return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        }
+
+        function clampDistance(r) {
+            return Math.max(0.45, r);
+        }
+
+        function formatEnergy(value) {
+            const abs = Math.abs(value);
+            if (abs < 1e-12) return '0';
+            if (abs >= 100) return value.toExponential(2);
+            if (abs >= 10) return value.toFixed(1);
+            if (abs >= 1) return value.toFixed(2);
+            if (abs >= 0.1) return value.toFixed(3);
+            if (abs >= 0.01) return value.toFixed(4);
+            return value.toExponential(2);
+        }
+
+        function getContactThetaDegrees(rAB, rBC, cutoff) {
+            const lower = Math.abs(rAB - rBC);
+            const upper = rAB + rBC;
+            if (cutoff <= lower) return 0;
+            if (cutoff >= upper) return 180;
+            const cosTheta = (rAB * rAB + rBC * rBC - cutoff * cutoff) / (2 * rAB * rBC);
+            return Math.acos(Math.max(-1, Math.min(1, cosTheta))) * 180 / Math.PI;
+        }
+
+        function getMeanDistance(geom) {
+            return (geom.rAB + geom.rBC + geom.rCA) / 3;
+        }
+
+        function getGeometry(A, B, C) {
+            const a = dist(B, C);
+            const b = dist(A, C);
+            const c = dist(A, B);
+            const safeAcos = (value) => Math.acos(Math.max(-1, Math.min(1, value)));
+
+            return {
+                thetaA: safeAcos((b * b + c * c - a * a) / (2 * b * c)),
+                thetaB: safeAcos((a * a + c * c - b * b) / (2 * a * c)),
+                thetaC: safeAcos((a * a + b * b - c * c) / (2 * a * b)),
+                rAB: clampDistance(c / MODEL.pixelsPerUnit),
+                rBC: clampDistance(a / MODEL.pixelsPerUnit),
+                rCA: clampDistance(b / MODEL.pixelsPerUnit)
+            };
+        }
+
+        function calcEnergies(geom, overrides = {}) {
+            const c6 = overrides.c6 ?? state.c6;
+            const c9 = overrides.c9 ?? state.c9;
+            const { rAB, rBC, rCA, thetaA, thetaB, thetaC } = geom;
+            const pairRepCoeff = 0.5 * c6 * Math.pow(MODEL.pairEq, 6);
+            const inv6 = (r) => 1 / Math.pow(r, 6);
+            const inv12 = (r) => 1 / Math.pow(r, 12);
+
+            const pairAttraction = -c6 * (inv6(rAB) + inv6(rBC) + inv6(rCA));
+            const pairRepulsion = pairRepCoeff * (inv12(rAB) + inv12(rBC) + inv12(rCA));
+
+            const cosProduct = Math.cos(thetaA) * Math.cos(thetaB) * Math.cos(thetaC);
+            const angleFactor = 1 + 3 * cosProduct;
+            const rMin = Math.min(rAB, rBC, rCA);
+            const damping3 = 1 - Math.exp(-Math.pow(rMin / MODEL.atmDamp, 3));
+            const atm = damping3 * c9 * angleFactor / Math.pow(rAB * rBC * rCA, 3);
+
+            const attraction = pairAttraction + Math.min(atm, 0);
+            const repulsion = pairRepulsion + Math.max(atm, 0);
+            const total = attraction + repulsion;
+
+            return {
+                pairAttraction,
+                pairRepulsion,
+                attraction,
+                repulsion,
+                atm,
+                total,
+                angleFactor,
+                damping3
+            };
+        }
+
+        function getNodeCentroid() {
+            return {
+                x: (state.nodes.A.x + state.nodes.B.x + state.nodes.C.x) / 3,
+                y: (state.nodes.A.y + state.nodes.B.y + state.nodes.C.y) / 3
+            };
+        }
+
+        function fitNodesInCanvas(margin = 28) {
+            const rect = els.canvas.getBoundingClientRect();
+            const width = rect.width || 700;
+            const height = rect.height || 360;
+            const xs = [state.nodes.A.x, state.nodes.B.x, state.nodes.C.x];
+            const ys = [state.nodes.A.y, state.nodes.B.y, state.nodes.C.y];
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            let dx = 0;
+            let dy = 0;
+
+            if (minX < margin) dx = margin - minX;
+            if (maxX + dx > width - margin) dx = width - margin - maxX;
+            if (minY < margin) dy = margin - minY;
+            if (maxY + dy > height - margin) dy = height - margin - maxY;
+
+            if (dx !== 0 || dy !== 0) {
+                for (const key of ['A', 'B', 'C']) {
+                    state.nodes[key].x += dx;
+                    state.nodes[key].y += dy;
+                }
+            }
+        }
+
+        function scaleNodesToMeanDistance(targetMean) {
+            const geom = getGeometry(state.nodes.A, state.nodes.B, state.nodes.C);
+            const currentMean = getMeanDistance(geom);
+            if (!Number.isFinite(currentMean) || currentMean <= 0.001) return;
+
+            const scale = targetMean / currentMean;
+            const centroid = getNodeCentroid();
+
+            for (const key of ['A', 'B', 'C']) {
+                const node = state.nodes[key];
+                node.x = centroid.x + (node.x - centroid.x) * scale;
+                node.y = centroid.y + (node.y - centroid.y) * scale;
+            }
+
+            fitNodesInCanvas();
+        }
+
+        function resizeCanvas() {
+            const rect = els.canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            els.canvas.width = Math.round(rect.width * dpr);
+            els.canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            return { w: rect.width, h: rect.height };
+        }
+
+        function drawAngleArc(center, p1, p2, angleRad) {
+            const angleDeg = angleRad * 180 / Math.PI;
+            const start = Math.atan2(p1.y - center.y, p1.x - center.x);
+            const end = Math.atan2(p2.y - center.y, p2.x - center.x);
+            const radius = 28;
+
+            if (angleDeg < 5 || angleDeg > 175) {
+                ctx.fillStyle = '#8b5cf6';
+                ctx.font = 'bold 12px JetBrains Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${Math.round(angleDeg)}°`, center.x, center.y - 24);
+                return;
+            }
+
+            let a1 = start;
+            let a2 = end;
+            let sweep = (a2 - a1 + Math.PI * 2) % (Math.PI * 2);
+            if (sweep > Math.PI) {
+                [a1, a2] = [a2, a1];
+                sweep = (a2 - a1 + Math.PI * 2) % (Math.PI * 2);
+            }
+
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, radius, a1, a1 + sweep);
+            ctx.strokeStyle = '#8b5cf6';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            const mid = a1 + sweep / 2;
+            ctx.fillStyle = '#8b5cf6';
+            ctx.font = 'bold 12px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${Math.round(angleDeg)}°`, center.x + 42 * Math.cos(mid), center.y + 42 * Math.sin(mid) + 4);
+        }
+
+        function drawNode(node, label) {
+            const active = state.dragging === label;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, active ? 18 : 16, 0, Math.PI * 2);
+            ctx.fillStyle = active ? '#e11d48' : '#2563eb';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 16px Manrope';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, node.x, node.y);
+        }
+
+        function drawScene() {
+            const { w, h } = resizeCanvas();
+            ctx.clearRect(0, 0, w, h);
+
+            const A = state.nodes.A;
+            const B = state.nodes.B;
+            const C = state.nodes.C;
+            const geom = getGeometry(A, B, C);
+
+            ctx.beginPath();
+            ctx.moveTo(A.x, A.y);
+            ctx.lineTo(B.x, B.y);
+            ctx.lineTo(C.x, C.y);
+            ctx.closePath();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            drawAngleArc(A, B, C, geom.thetaA);
+            drawAngleArc(B, A, C, geom.thetaB);
+            drawAngleArc(C, A, B, geom.thetaC);
+
+            ctx.fillStyle = '#64748b';
+            ctx.font = 'italic 12px Manrope';
+            ctx.textAlign = 'center';
+            ctx.fillText(`rAB = ${geom.rAB.toFixed(2)}`, (A.x + B.x) / 2, (A.y + B.y) / 2 - 10);
+            ctx.fillText(`rBC = ${geom.rBC.toFixed(2)}`, (B.x + C.x) / 2 + 16, (B.y + C.y) / 2 - 10);
+            ctx.fillText(`rCA = ${geom.rCA.toFixed(2)}`, (C.x + A.x) / 2, (C.y + A.y) / 2 + 20);
+
+            drawNode(A, 'A');
+            drawNode(B, 'B');
+            drawNode(C, 'C');
+        }
+
+        function renderPlot() {
+            const w = 700;
+            const h = 280;
+            const padX = 55;
+            const padY = 24;
+            const innerW = w - padX - 20;
+            const innerH = h - padY * 2;
+            const yZero = h / 2;
+
+            const geom = getGeometry(state.nodes.A, state.nodes.B, state.nodes.C);
+            const currentThetaB = geom.thetaB * 180 / Math.PI;
+            const fixedRAB = geom.rAB;
+            const fixedRBC = geom.rBC;
+            const plotContactCutoff = MODEL.pairEq * 1.05;
+            const minTheta = Math.min(120, Math.max(10, getContactThetaDegrees(fixedRAB, fixedRBC, plotContactCutoff) + 2));
+            const maxTheta = 180;
+
+            const curveData = [];
+            let actualMaxAbs = 0.1;
+            let pairReferenceMaxAbs = 0.1;
+            let displayMaxAbs = 0.1;
+
+            for (let theta = minTheta; theta <= maxTheta; theta += 2) {
+                const thRad = theta * Math.PI / 180;
+                const B = { x: 0, y: 0 };
+                const A = { x: fixedRAB * MODEL.pixelsPerUnit, y: 0 };
+                const C = {
+                    x: fixedRBC * MODEL.pixelsPerUnit * Math.cos(thRad),
+                    y: fixedRBC * MODEL.pixelsPerUnit * Math.sin(thRad)
+                };
+                const virtualGeom = getGeometry(A, B, C);
+                const e = calcEnergies(virtualGeom);
+                const minSep = Math.min(virtualGeom.rAB, virtualGeom.rBC, virtualGeom.rCA);
+                curveData.push({ theta, attr: e.attraction, rep: e.repulsion, total: e.total, minSep });
+                actualMaxAbs = Math.max(actualMaxAbs, Math.abs(e.attraction), Math.abs(e.repulsion), Math.abs(e.total));
+                const pairOnly = calcEnergies(virtualGeom, { c6: state.c6, c9: 0 });
+                pairReferenceMaxAbs = Math.max(pairReferenceMaxAbs, Math.abs(pairOnly.attraction), Math.abs(pairOnly.repulsion), Math.abs(pairOnly.total));
+                displayMaxAbs = Math.max(displayMaxAbs, Math.abs(e.attraction), Math.abs(e.repulsion), Math.abs(e.total));
+            }
+
+            const plotScale = Math.max(pairReferenceMaxAbs * 1.15, displayMaxAbs * 1.08, 0.005);
+
+            const getX = (theta) => padX + ((theta - minTheta) / (maxTheta - minTheta)) * innerW;
+            const getY = (value) => yZero - (value / plotScale) * (innerH / 2);
+
+            let pathAttr = '';
+            let pathRep = '';
+            let pathTotal = '';
+            curveData.forEach((pt, index) => {
+                const x = getX(pt.theta);
+                const yA = getY(pt.attr);
+                const yR = getY(pt.rep);
+                const yT = getY(pt.total);
+                if (index === 0) {
+                    pathAttr += `M ${x},${yA} `;
+                    pathRep += `M ${x},${yR} `;
+                    pathTotal += `M ${x},${yT} `;
+                } else {
+                    pathAttr += `L ${x},${yA} `;
+                    pathRep += `L ${x},${yR} `;
+                    pathTotal += `L ${x},${yT} `;
+                }
+            });
+
+            const currentE = calcEnergies(geom);
+            const cx = getX(Math.max(minTheta, Math.min(maxTheta, currentThetaB)));
+            const cyA = getY(currentE.attraction);
+            const cyR = getY(currentE.repulsion);
+            const cyT = getY(currentE.total);
+
+            els.plot.innerHTML = `
+                <defs>
+                    <clipPath id="plot-clip">
+                        <rect x="${padX}" y="${padY - 8}" width="${innerW + 10}" height="${innerH + 16}" />
+                    </clipPath>
+                </defs>
+                <line x1="${padX}" y1="${yZero}" x2="${w - 12}" y2="${yZero}" stroke="#cbd5e1" stroke-width="1.5" />
+                <line x1="${padX}" y1="${padY}" x2="${padX}" y2="${h - padY}" stroke="#cbd5e1" stroke-width="1.5" />
+                <text x="${w - 10}" y="${yZero + 18}" font-size="12" fill="#64748b" text-anchor="end" font-family="Manrope" font-weight="bold">θ_B (°)</text>
+                <text x="${padX - 10}" y="${padY + 10}" font-size="12" fill="#64748b" text-anchor="end" font-family="Manrope" font-weight="bold">V</text>
+                <text x="${padX - 6}" y="${yZero + 4}" font-size="11" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">0</text>
+                <text x="${padX - 6}" y="${padY + 8}" font-size="10" fill="#cbd5e1" text-anchor="end" font-family="JetBrains Mono">+${formatEnergy(plotScale)}</text>
+                <text x="${padX - 6}" y="${h - padY}" font-size="10" fill="#cbd5e1" text-anchor="end" font-family="JetBrains Mono">-${formatEnergy(plotScale)}</text>
+                <text x="${padX + 6}" y="${padY + 18}" font-size="10" fill="#ef4444" font-family="Manrope" font-weight="bold" opacity="0.75">contact-safe region only</text>
+
+                <path d="${pathAttr}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="4 4" clip-path="url(#plot-clip)" opacity="0.92" />
+                <path d="${pathRep}" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="4 4" clip-path="url(#plot-clip)" opacity="0.92" />
+                <path d="${pathTotal}" fill="none" stroke="#0f172a" stroke-width="4" clip-path="url(#plot-clip)" />
+
+                <line x1="${cx}" y1="${Math.min(cyA, cyR, cyT, yZero)}" x2="${cx}" y2="${Math.max(cyA, cyR, cyT, yZero)}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" clip-path="url(#plot-clip)" />
+                <circle cx="${cx}" cy="${cyA}" r="4.5" fill="#2563eb" clip-path="url(#plot-clip)" />
+                <circle cx="${cx}" cy="${cyR}" r="4.5" fill="#ef4444" clip-path="url(#plot-clip)" />
+                <circle cx="${cx}" cy="${cyT}" r="6" fill="#0f172a" clip-path="url(#plot-clip)" />
+            `;
+        }
+
+        function updateUI() {
+            const geom = getGeometry(state.nodes.A, state.nodes.B, state.nodes.C);
+            const e = calcEnergies(geom);
+            const meanDistance = getMeanDistance(geom);
+
+            els.distVal.textContent = meanDistance.toFixed(2);
+            els.distSlider.value = Math.max(parseFloat(els.distSlider.min), Math.min(parseFloat(els.distSlider.max), meanDistance)).toFixed(2);
+            els.c6Val.textContent = state.c6.toFixed(1);
+            els.c9Val.textContent = state.c9.toFixed(1);
+            els.energyVal.textContent = `${e.total >= 0 && e.total !== 0 ? '+' : ''}${formatEnergy(e.total)}`;
+            els.energyVal.style.color = e.total > 0 ? 'var(--red)' : (e.total < 0 ? 'var(--blue)' : '#ffffff');
+            els.attrVal.textContent = formatEnergy(e.attraction);
+            els.repVal.textContent = `${e.repulsion >= 0 ? '+' : ''}${formatEnergy(e.repulsion)}`;
+            els.atmTermVal.textContent = `${e.atm >= 0 && e.atm !== 0 ? '+' : ''}${formatEnergy(e.atm)}`;
+            els.atmTermNote.textContent = e.atm > 0.001 ? 'ATM 척력' : (e.atm < -0.001 ? 'ATM 인력' : 'ATM 거의 없음');
+
+            drawScene();
+            renderPlot();
+        }
+
+        function getPointerPosition(event) {
+            const rect = els.canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        els.canvas.addEventListener('mousedown', (event) => {
+            const pos = getPointerPosition(event);
+            let closest = null;
+            let minDist = 30;
+            for (const key of ['A', 'B', 'C']) {
+                const d = Math.hypot(state.nodes[key].x - pos.x, state.nodes[key].y - pos.y);
+                if (d < minDist) {
+                    minDist = d;
+                    closest = key;
+                }
+            }
+            if (closest) {
+                state.dragging = closest;
+                document.querySelectorAll('.preset-btn').forEach((btn) => btn.classList.remove('active'));
+                updateUI();
+            }
+        });
+
+        window.addEventListener('mousemove', (event) => {
+            if (!state.dragging) return;
+            const pos = getPointerPosition(event);
+            state.nodes[state.dragging].x = pos.x;
+            state.nodes[state.dragging].y = pos.y;
+            updateUI();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (state.dragging) {
+                state.dragging = null;
+                updateUI();
+            }
+        });
+
+        els.c6Slider.addEventListener('input', (event) => {
+            state.c6 = parseFloat(event.target.value);
+            updateUI();
+        });
+
+        els.distSlider.addEventListener('input', (event) => {
+            scaleNodesToMeanDistance(parseFloat(event.target.value));
+            updateUI();
+        });
+
+        els.c9Slider.addEventListener('input', (event) => {
+            state.c9 = parseFloat(event.target.value);
+            updateUI();
+        });
+
+        function setPreset(buttonId, A, B, C) {
+            document.querySelectorAll('.preset-btn').forEach((btn) => btn.classList.remove('active'));
+            document.getElementById(buttonId).classList.add('active');
+            state.nodes.A = { ...A };
+            state.nodes.B = { ...B };
+            state.nodes.C = { ...C };
+            updateUI();
+        }
+
+        els.btnEq.addEventListener('click', () => {
+            const cx = 350;
+            const cy = 210;
+            const r = 105;
+            setPreset(
+                'btn-equilateral',
+                { x: cx - r, y: cy + r * 0.52 },
+                { x: cx, y: cy - r * 0.86 + r * 0.52 },
+                { x: cx + r, y: cy + r * 0.52 }
+            );
+        });
+
+        els.btnRight.addEventListener('click', () => {
+            const cx = 250;
+            const cy = 230;
+            const r = 145;
+            setPreset(
+                'btn-right',
+                { x: cx, y: cy },
+                { x: cx, y: cy - r },
+                { x: cx + r, y: cy }
+            );
+        });
+
+        els.btnLinear.addEventListener('click', () => {
+            const cx = 350;
+            const cy = 180;
+            const r = 122;
+            setPreset(
+                'btn-linear',
+                { x: cx - r, y: cy },
+                { x: cx, y: cy },
+                { x: cx + r, y: cy }
+            );
+        });
+
+        window.addEventListener('resize', updateUI);
+
+        updateUI();
+    </script>
+</body>
+</html>
