@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NH3 Unimolecular Reaction And Transition State</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+            transition: all 0.2s ease;
+        }
+        .slider-thumb::-webkit-slider-thumb:active { transform: scale(1.15); }
+
+        .glow { filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4)); }
+
+        .aspect-ratio-box {
+            position: relative;
+            width: 100%;
+            padding-top: 45%; 
+        }
+        .aspect-ratio-box svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="py-10 px-4">
+
+<div class="max-w-4xl mx-auto">
+    <header class="text-center mb-8">
+        <div class="unified-module-badge">17A.15 - Unimolecular Process</div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">NH<sub>3</sub> Unimolecular Reaction</h1>
+        <p class="mt-3 text-sm md:text-base leading-relaxed text-slate-600">단일 분자 반응에서 에너지 장벽을 넘는 과정과 전이 상태의 기하 구조를 분석하세요.</p>
+        
+        <!-- Reaction Selector -->
+        <div class="mt-8">
+            <select id="reaction-selector" class="px-6 py-3 bg-white shadow-md rounded-2xl border border-slate-200 text-lg font-bold text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                <option value="ammonia">1. 암모니아 반전 (Inversion)</option>
+                <option value="ring">2. 고리 열림 반응 (Ring-Opening)</option>
+                <option value="cistrans">3. 시스-트랜스 이성질화</option>
+            </select>
+        </div>
+        
+        <div class="mt-6 inline-flex items-center px-10 py-3 bg-white/70 rounded-3xl shadow-sm border border-white">
+            <span class="text-xl font-bold text-blue-600 tracking-wide" id="reaction-eq">Loading...</span>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 gap-8">
+        <!-- Molecular Simulation Card -->
+        <div class="glass-card rounded-[2.5rem] overflow-hidden p-8 md:p-10">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                <div>
+                    <h2 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Molecular View</h2>
+                    <p id="state-desc" class="text-lg md:text-xl font-bold text-slate-700 h-8">진행도를 조절하세요</p>
+                </div>
+                <div class="flex items-center gap-4 text-xl font-bold text-blue-600">
+                    <span class="text-sm font-semibold text-slate-400 uppercase tracking-widest" id="angle-label">각도:</span>
+                    <span id="angle-display" class="w-24 text-right">0.0°</span>
+                </div>
+            </div>
+
+            <!-- Simulation View -->
+            <div class="relative h-64 w-full flex items-center justify-center overflow-hidden mb-8 bg-slate-50/50 rounded-3xl shadow-inner border border-slate-100">
+                <svg id="viz-svg" viewBox="0 0 600 240" class="w-full h-full">
+                    <defs>
+                        <radialGradient id="grad-n" cx="40%" cy="40%" r="60%"><stop offset="0%" style="stop-color:#93c5fd" /><stop offset="100%" style="stop-color:#1e40af" /></radialGradient>
+                        <radialGradient id="grad-h" cx="40%" cy="40%" r="60%"><stop offset="0%" style="stop-color:#ffffff" /><stop offset="100%" style="stop-color:#94a3b8" /></radialGradient>
+                        <radialGradient id="grad-c" cx="40%" cy="40%" r="60%"><stop offset="0%" style="stop-color:#64748b" /><stop offset="100%" style="stop-color:#1e293b" /></radialGradient>
+                        <radialGradient id="grad-group" cx="40%" cy="40%" r="60%"><stop offset="0%" style="stop-color:#fca5a5" /><stop offset="100%" style="stop-color:#b91c1c" /></radialGradient>
+                    </defs>
+
+                    <g id="ammonia-viz" style="display: none;"></g>
+                    <g id="ring-viz" style="display: none;"></g>
+                    <g id="cistrans-viz" style="display: none;"></g>
+                </svg>
+            </div>
+
+            <!-- Controls -->
+            <div class="space-y-4">
+                <label id="slider-label" class="block text-xs font-bold text-slate-400 uppercase tracking-widest">반응 좌표 (Reaction Coordinate)</label>
+                <input type="range" id="main-slider" min="0" max="1000" value="0" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none slider-thumb cursor-pointer">
+                <div class="flex justify-between text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-tighter" id="slider-labels">
+                    <span>반응물</span>
+                    <span class="text-rose-400">전이 상태</span>
+                    <span>생성물</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Energy Graph -->
+        <div class="glass-card rounded-[2.5rem] p-8 md:p-10">
+            <h2 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-6">Potential Energy Surface</h2>
+            <div class="aspect-ratio-box">
+                <svg id="graph-svg" viewBox="0 0 600 300">
+                    <g stroke="#f1f5f9" stroke-width="1.5" stroke-dasharray="4">
+                        <line x1="50" y1="80" x2="550" y2="80" />
+                        <line x1="50" y1="240" x2="550" y2="240" />
+                    </g>
+                    <g stroke="#94a3b8" stroke-width="2">
+                        <line x1="50" y1="20" x2="50" y2="260" />
+                        <path d="M 45,30 L 50,20 L 55,30" fill="none" />
+                    </g>
+                    <text x="15" y="140" transform="rotate(-90 15,140)" font-size="11" fill="#64748b" font-weight="600">포텐셜 에너지 (V)</text>
+                    <line x1="50" y1="260" x2="550" y2="260" stroke="#94a3b8" stroke-width="2" />
+                    <text x="300" y="285" text-anchor="middle" font-size="11" fill="#64748b" font-weight="600">반응 좌표 (Reaction Coordinate)</text>
+
+                    <path id="curve" d="" fill="none" stroke="#f43f5e" stroke-width="5" stroke-linecap="round" />
+                    <circle id="graph-marker" cx="50" cy="240" r="9" fill="#10b981" class="glow" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Info Panels -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="info-panels"></div>
+    </div>
+</div>
+
+<script>
+    const selector = document.getElementById('reaction-selector');
+    const slider = document.getElementById('main-slider');
+    const angleDisplay = document.getElementById('angle-display');
+    const stateDesc = document.getElementById('state-desc');
+    const curvePath = document.getElementById('curve');
+    const graphMarker = document.getElementById('graph-marker');
+    const vizSVG = document.getElementById('viz-svg');
+
+    const REACTION_CONFIG = {
+        ammonia: {
+            eq: "NH₃ (피라미드) ⇌ NH₃ (평면) ⇌ NH₃ (역전)",
+            label: "반전 좌표 (Inversion Coordinate)",
+            angleName: "H-N-H 각도:",
+            points: ["피라미드형", "평면 구조 (120°)", "반전된 피라미드"],
+            panels: [
+                { color: 'emerald', title: '안정 상태', val: '107.0°', desc: '바닥 상태의 암모니아는 삼각 피라미드 구조를 가지며 에너지가 가장 낮습니다.' },
+                { color: 'rose', title: '전이 상태', val: '120.0°', desc: '질소 원자가 수소 평면을 지나는 순간 평면 구조를 형성하며 에너지 장벽의 정점에 도달합니다.' },
+                { color: 'blue', title: '양자 효과', val: '양자 터널링', desc: '암모니아는 에너지 장벽을 직접 넘지 않고 터널링을 통해 반전되기도 합니다.' }
+            ]
+        },
+        ring: {
+            eq: "사이클로프로판 (고리형) → 프로펜 (사슬형)",
+            label: "고리 열림 진행도",
+            angleName: "C-C-C 각도:",
+            points: ["60° (고리 변형)", "결합 파괴", "120° (안정화)"],
+            panels: [
+                { color: 'rose', title: '고리 변형', val: '60.0°', desc: '사이클로프로판은 압축된 결합 각도로 인해 매우 높은 변형 에너지를 가집니다.' },
+                { color: 'amber', title: '활성화', val: 'Ea 장벽', desc: '고리를 열기 위해 탄소-탄소 결합을 끊는 활성화 에너지가 필요합니다.' },
+                { color: 'emerald', title: '구조 완화', val: '120.0° (sp²)', desc: '고리가 열리면서 결합 각도가 넓어지고 시스템이 더 안정해집니다.' }
+            ]
+        },
+        cistrans: {
+            eq: "시스 이성질체 (변형) ⇌ 트랜스 이성질체 (안정)",
+            label: "비틀림 좌표 (Torsion)",
+            angleName: "비틀림 각도:",
+            points: ["시스 (0°)", "90° (π 결합 파괴)", "트랜스 (180°)"],
+            panels: [
+                { color: 'amber', title: '입체 충돌', val: '시스(Cis)', desc: '시스 형태에서는 곁사슬 그룹들이 서로 가까워 입체적 반발이 큽니다.' },
+                { color: 'rose', title: '전이 상태', val: '90° 비틀림', desc: '이중 결합이 90도 비틀릴 때 π 결합이 완전히 끊어지며 에너지가 최대가 됩니다.' },
+                { color: 'emerald', title: '최종 안정성', val: '트랜스(Trans)', desc: '트랜스 형태는 그룹들을 멀리 배치하여 입체 반발을 최소화합니다.' }
+            ]
+        }
+    };
+
+    function drawGraph(mode) {
+        let d = "M ";
+        if (mode === 'ammonia') {
+            for(let q = -1; q <= 1; q += 0.05) {
+                let x = 300 + q * 250;
+                let y = 240 - Math.pow(1 - q*q, 2) * 160;
+                d += `${x},${y} ` + (q === -1 ? "" : "L ");
+            }
+        } else if (mode === 'ring') {
+            for(let p = 0; p <= 1; p += 0.05) {
+                let x = 50 + p * 500;
+                let y = (p < 0.2) ? 240 - (p/0.2 * 100) : 140 + (100) * Math.cos((p-0.2)/0.8 * Math.PI/2);
+                d += `${x},${y} ` + (p === 0 ? "" : "L ");
+            }
+        } else if (mode === 'cistrans') {
+            for(let p = 0; p <= 1; p += 0.05) {
+                let x = 50 + p * 500;
+                let y = (220 - p * 40) - 140 * Math.sin(p * Math.PI);
+                d += `${x},${y} ` + (p === 0 ? "" : "L ");
+            }
+        }
+        curvePath.setAttribute('d', d.trim());
+    }
+
+    function initViz() {
+        const mode = selector.value;
+        const config = REACTION_CONFIG[mode];
+
+        document.getElementById('reaction-eq').textContent = config.eq;
+        document.getElementById('slider-label').textContent = config.label;
+        document.getElementById('angle-label').textContent = config.angleName;
+        document.getElementById('slider-labels').innerHTML = config.points.map(p => `<span>${p}</span>`).join('');
+        
+        // Updated info panels: background fill, light border, no top edge color
+        let panelHTML = config.panels.map(p => `
+            <div class="rounded-3xl p-8 text-center bg-${p.color}-50 border border-${p.color}-100 shadow-sm transition-all hover:shadow-md">
+                <h3 class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">${p.title}</h3>
+                <p class="text-${p.color}-600 font-bold text-lg mb-2">${p.val}</p>
+                <p class="text-xs text-slate-500 leading-relaxed font-medium">${p.desc}</p>
+            </div>
+        `).join('');
+        document.getElementById('info-panels').innerHTML = panelHTML;
+
+        ['ammonia', 'ring', 'cistrans'].forEach(m => {
+            const vizGroup = document.getElementById(`${m}-viz`);
+            if (vizGroup) vizGroup.style.display = 'none';
+        });
+
+        const activeGroup = document.getElementById(`${mode}-viz`);
+        if (activeGroup) activeGroup.style.display = 'block';
+
+        drawGraph(mode);
+        update();
+    }
+
+    function update() {
+        const mode = selector.value;
+        const p = slider.value / 1000;
+        let mx, my, angle, state;
+
+        if (mode === 'ammonia') {
+            const q = (p * 2) - 1; 
+            angle = 120 - 13 * q * q;
+            mx = 300 + q * 250;
+            my = 240 - Math.pow(1 - q*q, 2) * 160;
+            state = Math.abs(q) < 0.15 ? "전이 상태: 평면 기하 구조" : "안정 상태: 피라미드 기하 구조";
+
+            const hOffset = q * 60;
+            document.getElementById('ammonia-viz').innerHTML = `
+                <ellipse cx="300" cy="90" rx="15" ry="30" fill="#fbbf24" opacity="${q < 0 ? Math.abs(q)*0.4 : 0}" filter="blur(4px)" />
+                <ellipse cx="300" cy="150" rx="15" ry="30" fill="#fbbf24" opacity="${q > 0 ? Math.abs(q)*0.4 : 0}" filter="blur(4px)" />
+                <line x1="300" y1="120" x2="300" y2="${120 + hOffset - 40}" stroke="#cbd5e1" stroke-width="5" stroke-linecap="round" />
+                <circle cx="300" cy="${120 + hOffset - 40}" r="14" fill="url(#grad-h)" />
+                <circle cx="300" cy="120" r="24" fill="url(#grad-n)" />
+                <line x1="300" y1="120" x2="230" y2="${120 + hOffset + 20}" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+                <line x1="300" y1="120" x2="370" y2="${120 + hOffset + 20}" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+                <circle cx="230" cy="${120 + hOffset + 20}" r="16" fill="url(#grad-h)" />
+                <circle cx="370" cy="${120 + hOffset + 20}" r="16" fill="url(#grad-h)" />
+            `;
+        } else if (mode === 'ring') {
+            angle = 60 + p * 60;
+            mx = 50 + p * 500;
+            my = (p < 0.2) ? 240 - (p/0.2 * 100) : 140 + (100) * Math.cos((p-0.2)/0.8 * Math.PI/2);
+            state = p < 0.2 ? "결합 파괴: 고리가 열리기 시작합니다" : "생성물 완화: 안정적인 구조로 변화합니다";
+
+            const rad = (angle/2) * Math.PI/180;
+            const dist = 80;
+            const lx = 300 - Math.sin(rad)*dist;
+            const ly = 100 + Math.cos(rad)*dist;
+            const rx = 300 + Math.sin(rad)*dist;
+            const ry = 100 + Math.cos(rad)*dist;
+
+            document.getElementById('ring-viz').innerHTML = `
+                ${p < 0.25 ? `<line x1="${lx}" y1="${ly}" x2="${rx}" y2="${ry}" stroke="#f43f5e" stroke-width="4" stroke-dasharray="4" opacity="${1-p/0.25}" />` : ''}
+                <line x1="300" y1="100" x2="${lx}" y2="${ly}" stroke="#94a3b8" stroke-width="7" stroke-linecap="round" />
+                <line x1="300" y1="100" x2="${rx}" y2="${ry}" stroke="#94a3b8" stroke-width="7" stroke-linecap="round" />
+                <circle cx="300" cy="100" r="20" fill="url(#grad-c)" />
+                <circle cx="${lx}" cy="${ly}" r="20" fill="url(#grad-c)" />
+                <circle cx="${rx}" cy="${ry}" r="20" fill="url(#grad-c)" />
+            `;
+        } else if (mode === 'cistrans') {
+            angle = p * 180;
+            mx = 50 + p * 500;
+            my = (220 - p * 40) - 140 * Math.sin(p * Math.PI);
+            state = Math.abs(angle - 90) < 25 ? "전이 상태: 비틀린 기하 구조" : (angle < 45 ? "시스(Cis) 이성질체" : "트랜스(Trans) 이성질체");
+
+            const rad = angle * Math.PI / 180;
+            const depth = 1 - 0.4 * Math.sin(rad);
+            const yOff = -60 * Math.cos(rad);
+
+            document.getElementById('cistrans-viz').innerHTML = `
+                <line x1="250" y1="120" x2="350" y2="120" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" />
+                <line x1="250" y1="112" x2="350" y2="112" stroke="#3b82f6" stroke-width="4" stroke-dasharray="8,4" opacity="${Math.abs(Math.cos(rad))}" />
+                <line x1="250" y1="120" x2="200" y2="60" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+                <circle cx="250" cy="120" r="18" fill="url(#grad-c)" />
+                <circle cx="200" cy="60" r="22" fill="url(#grad-group)" />
+                <line x1="350" y1="120" x2="400" y2="${120 + yOff}" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+                <circle cx="350" cy="120" r="18" fill="url(#grad-c)" />
+                <circle cx="400" cy="${120 + yOff}" r="${22 * depth}" fill="url(#grad-group)" opacity="${0.6 + 0.4*depth}" />
+            `;
+        }
+
+        graphMarker.setAttribute('cx', mx);
+        graphMarker.setAttribute('cy', my);
+        graphMarker.setAttribute('fill', my < 100 ? '#f43f5e' : (mx > 400 ? '#10b981' : '#3b82f6'));
+        angleDisplay.textContent = `${angle.toFixed(1)}°`;
+        stateDesc.textContent = state;
+        
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    selector.addEventListener('change', initViz);
+    slider.addEventListener('input', update);
+    window.onload = initViz;
+</script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maxwell-Boltzmann Speed Distribution</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX equations -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Chart.js for velocity distribution graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e2e8f0;
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #f1f5f9;
+            color: #475569;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* [No Edges] Plain box style with uniform border only - Strictly Followed */
+        .math-box {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 1.5rem;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { image-rendering: auto; display: block; touch-action: none; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="text-center mb-8 shrink-0">
+        <div class="unified-module-badge lab-font">16A.4 - Speed Distribution</div>
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-left">
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Maxwell-Boltzmann Speed Distribution</h1>
+                <p class="mt-2 text-sm text-slate-500 font-medium italic">입자 충돌 시뮬레이션을 통한 평형 속력 분포의 물리적 거동 관찰</p>
+            </div>
+            <div class="flex gap-3 shrink-0">
+                <button id="resetBtn" class="bg-white hover:bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-bold shadow-sm border border-slate-200 uppercase tracking-widest text-[10px] lab-font">Reset Engine</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden w-full max-w-7xl mx-auto gap-8">
+        
+        <!-- Left Panel: Simulation & Controls -->
+        <div class="w-full lg:w-7/12 flex flex-col gap-6 min-h-0">
+            
+            <!-- Main Canvas Viewport -->
+            <div id="simContainer" class="relative flex-[1.4] bg-slate-950 rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl">
+                <canvas id="simCanvas" class="w-full h-full"></canvas>
+                
+                <div class="absolute top-6 left-6 flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-slate-700">
+                    <span class="w-2 h-2 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1] animate-pulse"></span>
+                    <span class="text-[9px] text-slate-200 font-black tracking-widest lab-font">3D Gas Chamber (FPS: <span id="fpsDisplay">0</span>)</span>
+                </div>
+                
+                <!-- Legend Overlay - Corrected Capitalization -->
+                <div class="absolute bottom-6 right-6 flex flex-col gap-2 bg-slate-900/60 backdrop-blur-md px-4 py-3 rounded-2xl border border-slate-700 text-[9px] text-slate-300 font-bold lab-font">
+                    <div class="flex items-center gap-2 tracking-wide"><span class="w-2 h-2 rounded-full bg-blue-500"></span> 저속 입자 (Cold / Slow)</div>
+                    <div class="flex items-center gap-2 tracking-wide"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> 평균 속력 (Average)</div>
+                    <div class="flex items-center gap-2 tracking-wide"><span class="w-2 h-2 rounded-full bg-rose-500"></span> 고속 입자 (Hot / Fast)</div>
+                </div>
+
+                <!-- Metrics Dashboard - Corrected Capitalization -->
+                <div class="absolute bottom-6 left-6 grid grid-cols-2 gap-4">
+                    <div class="bg-slate-900/80 backdrop-blur-md p-3 rounded-2xl border border-white/5 text-center min-w-[130px]">
+                        <p class="text-[9px] text-slate-400 font-bold mb-1 tracking-wide">Measured \(v_{\text{mean}}\)</p>
+                        <p id="measuredV" class="text-xl font-black text-indigo-400 lab-font">0.00</p>
+                    </div>
+                    <div class="bg-indigo-900/80 backdrop-blur-md p-3 rounded-2xl border border-indigo-400/30 text-center shadow-lg min-w-[130px]">
+                        <p class="text-[9px] text-indigo-200 font-bold mb-1 tracking-wide">Theory \(v_{\text{mean}}\)</p>
+                        <p id="theoryV" class="text-xl font-black text-white lab-font">0.00</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Physical Parameters -->
+            <div class="glass-panel p-6 rounded-[2.5rem] shadow-xl shrink-0">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5 lab-font border-b border-slate-100 pb-2">Thermodynamic Controllers</h3>
+                <div class="grid grid-cols-2 gap-8">
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 mb-2">
+                            <span class="uppercase tracking-widest">Temperature (\(T\))</span>
+                            <span id="tempValue" class="text-indigo-600 font-black lab-font">300 K</span>
+                        </label>
+                        <input type="range" id="tempSlider" min="100" max="1000" step="10" value="300" class="w-full">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 mb-2">
+                            <span class="uppercase tracking-widest">Molar Mass (\(M\))</span>
+                            <span id="massValue" class="text-indigo-600 font-black lab-font">20 g/mol</span>
+                        </label>
+                        <input type="range" id="massSlider" min="4" max="100" step="1" value="20" class="w-full">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Theoretical Context -->
+        <div class="w-full lg:w-5/12 p-8 overflow-y-auto bg-white border border-slate-200 rounded-[2.5rem] shadow-xl">
+            <div class="space-y-8">
+                <header class="border-b border-slate-100 pb-4">
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Kinetic Theory Analysis</h2>
+                    <p class="text-slate-500 text-xs font-medium leading-relaxed mt-2 text-justify">
+                        3차원 몬테카를로 충돌이 거시적으로 어떠한 평형 속력 분포(\(f(v)\))를 형성하는지 분석합니다.
+                    </p>
+                </header>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black lab-font border border-slate-200">01</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">맥스웰-볼츠만 속력 분포</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-3 text-justify">
+                        확률 밀도 함수 \(f(v)\)는 온도(\(T\))와 몰 질량(\(M\))에 의해 결정됩니다. 실시간 측정값(막대)이 이론 곡선(파란 선)에 수렴하는지 확인하세요.
+                    </p>
+                    <div class="h-48 w-full bg-slate-50 rounded-2xl border border-slate-200 p-3 mb-4">
+                        <canvas id="speedChart"></canvas>
+                    </div>
+                    <div class="math-box text-center">
+                        <span class="text-sm font-black text-slate-800">
+                            \[ f(v) = 4\pi \left(\frac{M}{2\pi RT}\right)^{3/2} v^2 e^{-\frac{Mv^2}{2RT}} \]
+                        </span>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black lab-font border border-slate-200">02</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">평균 속력 (\(v_{\text{mean}}\))</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-3 text-justify">
+                        분포가 비대칭적이기 때문에 가장 확률이 높은 속력(\(v_{\text{mp}}\))과 평균 속력(\(v_{\text{mean}}\))은 차이가 납니다.
+                    </p>
+                    <div class="math-box text-center">
+                        <span class="text-lg font-black text-slate-800">
+                            \[ v_{\text{mean}} = \int_{0}^{\infty} v f(v) dv = \left( \frac{8RT}{\pi M} \right)^{1/2} \]
+                        </span>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const R_const = 1; 
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const tempSlider = document.getElementById('tempSlider');
+        const massSlider = document.getElementById('massSlider');
+        const resetBtn = document.getElementById('resetBtn');
+        const measuredVEl = document.getElementById('measuredV');
+        const theoryVEl = document.getElementById('theoryV');
+        const fpsDisplay = document.getElementById('fpsDisplay');
+
+        let T, M;
+        const N = 1000; 
+        let particles = [];
+        let canvasDepth = 1000; 
+
+        function resizeCanvas() {
+            const container = document.getElementById('simContainer');
+            if (!container || container.clientWidth === 0) return;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        class Particle3D {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.z = Math.random() * canvasDepth;
+                this.assignVelocity();
+            }
+
+            assignVelocity() {
+                const v_rms = Math.sqrt((3 * R_const * T) / M);
+                let theta = Math.acos(2 * Math.random() - 1);
+                let phi = 2 * Math.PI * Math.random();
+                this.vx = v_rms * Math.sin(theta) * Math.cos(phi);
+                this.vy = v_rms * Math.sin(theta) * Math.sin(phi);
+                this.vz = v_rms * Math.cos(theta);
+            }
+
+            getSpeed() { return Math.sqrt(this.vx**2 + this.vy**2 + this.vz**2); }
+
+            move() {
+                this.x += this.vx; this.y += this.vy; this.z += this.vz;
+                if (this.x < 0) { this.x = 0; this.vx *= -1; }
+                if (this.x > canvas.width) { this.x = canvas.width; this.vx *= -1; }
+                if (this.y < 0) { this.y = 0; this.vy *= -1; }
+                if (this.y > canvas.height) { this.y = canvas.height; this.vy *= -1; }
+                if (this.z < 0) { this.z = 0; this.vz *= -1; }
+                if (this.z > canvasDepth) { this.z = canvasDepth; this.vz *= -1; }
+            }
+
+            draw() {
+                const zRatio = this.z / canvasDepth; 
+                const radius = 3.5 - (2.0 * zRatio); 
+                const alpha = 0.4 + (0.6 * (1 - zRatio)); 
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, Math.max(0.5, radius), 0, Math.PI * 2);
+                const speed = this.getSpeed();
+                const theoryV = Math.sqrt((8 * R_const * T) / (Math.PI * M));
+                let r, g, b;
+                if (speed < theoryV * 0.7) { r = 59; g = 130; b = 246; }
+                else if (speed > theoryV * 1.4) { r = 244; g = 63; b = 94; }
+                else { r = 16; g = 185; b = 129; }
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                ctx.fill();
+            }
+        }
+
+        function initSimulation() {
+            resizeCanvas();
+            T = parseInt(tempSlider.value);
+            M = parseInt(massSlider.value);
+            particles = [];
+            for (let i = 0; i < N; i++) particles.push(new Particle3D());
+            updateUI();
+            updateChart();
+        }
+
+        function updateUI() {
+            document.getElementById('tempValue').textContent = T + ' K';
+            document.getElementById('massValue').textContent = M + ' g/mol';
+        }
+
+        tempSlider.addEventListener('input', () => { 
+            const newT = parseInt(tempSlider.value);
+            const scale = Math.sqrt(newT / T);
+            particles.forEach(p => { p.vx *= scale; p.vy *= scale; p.vz *= scale; });
+            T = newT; updateUI(); updateChart(); 
+        });
+
+        massSlider.addEventListener('input', () => { 
+            const newM = parseInt(massSlider.value);
+            const scale = Math.sqrt(M / newM);
+            particles.forEach(p => { p.vx *= scale; p.vy *= scale; p.vz *= scale; });
+            M = newM; updateUI(); updateChart(); 
+        });
+        
+        resetBtn.addEventListener('click', () => particles.forEach(p => p.assignVelocity()));
+
+        const chartCtx = document.getElementById('speedChart').getContext('2d');
+        Chart.defaults.font.family = "'JetBrains Mono', monospace";
+        let speedChart = new Chart(chartCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [
+                { type: 'line', label: 'Theory f(v)', data: [], borderColor: '#6366f1', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.4 },
+                { type: 'bar', label: 'Measured', data: [], backgroundColor: 'rgba(148, 163, 184, 0.4)', borderColor: 'rgba(148, 163, 184, 0.8)', borderWidth: 1, barPercentage: 1.0, categoryPercentage: 1.0 }
+            ]},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: 'v', font: { size: 10, weight: 'bold' } }, grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 9 } } },
+                    y: { display: false }
+                },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { duration: 0 }
+            }
+        });
+
+        function updateChart() {
+            const max_possible_v = Math.sqrt((8 * R_const * 1000) / (Math.PI * 4)) * 2.5; 
+            const bins = 40;
+            const binWidth = max_possible_v / bins;
+            const counts = new Array(bins).fill(0);
+            particles.forEach(p => {
+                const v = p.getSpeed();
+                const binIdx = Math.floor(v / binWidth);
+                if (binIdx >= 0 && binIdx < bins) counts[binIdx]++;
+            });
+            const theoryData = []; const labels = [];
+            const a = M / (2 * Math.PI * R_const * T);
+            const prefactor = 4 * Math.PI * Math.pow(a, 1.5);
+            for (let i = 0; i < bins; i++) {
+                const v = (i + 0.5) * binWidth;
+                labels.push(v.toFixed(1));
+                const probDensity = prefactor * v * v * Math.exp(-M * v * v / (2 * R_const * T));
+                theoryData.push(probDensity * N * binWidth);
+            }
+            speedChart.data.labels = labels;
+            speedChart.data.datasets[1].data = counts;
+            speedChart.data.datasets[0].data = theoryData;
+            speedChart.update();
+        }
+
+        function performMonteCarloCollisions() {
+            const numCollisions = Math.floor(N * 0.15); 
+            for(let i=0; i<numCollisions; i++) {
+                let idx1 = Math.floor(Math.random() * N);
+                let idx2 = Math.floor(Math.random() * N);
+                if(idx1 === idx2) continue;
+                let p1 = particles[idx1]; let p2 = particles[idx2];
+                let vcm_x = (p1.vx + p2.vx) / 2; let vcm_y = (p1.vy + p2.vy) / 2; let vcm_z = (p1.vz + p2.vz) / 2;
+                let vrel_mag = Math.sqrt((p1.vx-p2.vx)**2 + (p1.vy-p2.vy)**2 + (p1.vz-p2.vz)**2);
+                let theta = Math.acos(2 * Math.random() - 1);
+                let phi = 2 * Math.PI * Math.random();
+                let nx = Math.sin(theta) * Math.cos(phi);
+                let ny = Math.sin(theta) * Math.sin(phi);
+                let nz = Math.cos(theta);
+                p1.vx = vcm_x + (vrel_mag * nx) / 2; p1.vy = vcm_y + (vrel_mag * ny) / 2; p1.vz = vcm_z + (vrel_mag * nz) / 2;
+                p2.vx = vcm_x - (vrel_mag * nx) / 2; p2.vy = vcm_y - (vrel_mag * ny) / 2; p2.vz = vcm_z - (vrel_mag * nz) / 2;
+            }
+        }
+
+        let lastTime = 0; let frameCount = 0;
+        function gameLoop(now) {
+            if (!lastTime) lastTime = now;
+            const dt = now - lastTime; lastTime = now;
+            if (frameCount % 15 === 0) particles.sort((a, b) => b.z - a.z); 
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            performMonteCarloCollisions();
+            let sumV = 0;
+            particles.forEach(p => { p.move(); p.draw(); sumV += p.getSpeed(); });
+            if (frameCount % 4 === 0) {
+                measuredVEl.innerText = (sumV / N).toFixed(2);
+                theoryVEl.innerText = Math.sqrt((8 * R_const * T) / (Math.PI * M)).toFixed(2);
+                fpsDisplay.innerText = dt > 0 ? (1000/dt).toFixed(0) : 0;
+                updateChart(); 
+            }
+            frameCount++; requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('resize', () => { setTimeout(resizeCanvas, 100); });
+        initSimulation(); requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

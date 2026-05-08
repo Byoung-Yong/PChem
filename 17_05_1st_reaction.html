@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First-Order Reaction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .formula-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #6366f1;
+            padding: 1.25rem;
+            margin: 0.5rem 0;
+            font-family: 'Cambria', 'Cochin', Georgia, Times, 'Times New Roman', serif;
+            transition: all 0.4s ease-out;
+            opacity: 0;
+            transform: translateY(10px);
+            display: none;
+        }
+        .formula-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .step-label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #6366f1;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-6xl mx-auto p-6 md:p-10">
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <div class="unified-module-badge">17A.5 - Integrated Rate Laws</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">First-Order Reaction</h1>
+            <div class="h-1 w-20 bg-indigo-600 mx-auto mb-4"></div>
+            <p class="mt-3 text-sm md:text-base leading-relaxed">지수 함수적 감소와 로그 선형화를 통해 1차 반응의 특징을 확인하세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <!-- Left Column: Interactive Derivation -->
+            <div class="space-y-6">
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold mb-4 text-indigo-700 flex justify-between items-center">
+                        1. 적분 속도식 유도
+                        <button id="resetStepsBtn" class="text-xs font-normal text-slate-400 hover:text-indigo-600 underline">초기화</button>
+                    </h2>
+                    
+                    <div id="derivationContainer" class="space-y-4">
+                        <!-- Step 1 -->
+                        <div id="step1" class="formula-box">
+                            <div class="step-label">Step 1: 정의</div>
+                            <div class="text-xl text-center py-2">
+                                \[ v = - \frac{d[A]}{dt} = k [A]^1 = k[A] \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">반응 속도는 반응물 [A]의 농도에 비례합니다.</p>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div id="step2" class="formula-box">
+                            <div class="step-label">Step 2: 변수 분리</div>
+                            <div class="text-xl text-center py-2">
+                                \[ \frac{d[A]}{[A]} = -k \, dt \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">농도 항 \([A]\)와 시간 항 \(dt\)를 분리합니다.</p>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div id="step3" class="formula-box">
+                            <div class="step-label">Step 3: 적분</div>
+                            <div class="text-xl text-center py-2">
+                                \[ \int_{[A]_0}^{[A]} \frac{1}{[A]} d[A] = \int_{0}^{t} -k \, dt \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">\(1/x\)를 적분하면 \(\ln x\)가 됨을 이용합니다.</p>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div id="step4" class="formula-box">
+                            <div class="step-label">Step 4: 자연로그 형태</div>
+                            <div class="text-xl text-center py-2">
+                                \[ \ln[A] - \ln[A]_0 = -kt \]
+                                \[ \ln \frac{[A]}{[A]_0} = -kt \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">이 식은 \(\ln[A]\)가 시간에 대해 선형적임을 보여줍니다.</p>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div id="step5" class="formula-box border-l-amber-500 bg-amber-50">
+                            <div class="step-label text-amber-600">Step 5: 지수 함수 형태</div>
+                            <div class="text-2xl text-center font-bold text-slate-800 py-2">
+                                \[ [A] = [A]_0 e^{-kt} \]
+                            </div>
+                            <p class="text-sm text-slate-600 mt-2 font-medium">농도는 시간에 따라 지수 함수적으로 감소합니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button id="nextStepBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+                            <span>다음 단계 보기</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Visualization & Controls -->
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-6">시간-농도 시각화</h2>
+                    <div class="relative" style="height: 350px;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">반감기 (\(t_{1/2}\))</div>
+                            <div id="halfLifeDisplay" class="text-xl font-mono text-indigo-600 font-bold">13.86s</div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">at t=25 농도</div>
+                            <div id="finalConcDisplay" class="text-xl font-mono text-slate-800 font-bold">0.287</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4">그래프 컨트롤</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-1 text-sm font-medium">
+                                <span>Initial Concentration [A]₀</span>
+                                <span id="a0Val" class="text-indigo-600 font-bold">1.0</span>
+                            </div>
+                            <input type="range" id="inputA0" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-sm font-medium">
+                                <span>Rate Constant (k)</span>
+                                <span id="kVal" class="text-indigo-600 font-bold">0.05</span>
+                            </div>
+                            <input type="range" id="inputK" min="0.01" max="0.3" step="0.01" value="0.05" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        </div>
+                        <div class="flex gap-2 pt-2">
+                            <button id="addTraceBtn" class="flex-1 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors shadow-sm">비교 곡선 추가</button>
+                            <button id="clearTracesBtn" class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 text-slate-500 transition-colors">지우기</button>
+                        </div>
+                    </div>
+                </section>
+                
+                <div class="p-4 bg-indigo-50 rounded-xl text-sm border border-indigo-100 text-indigo-900 italic">
+                    "1차 반응에서 반감기는 초기 농도에 상관없이 일정합니다: \(t_{1/2} = \ln 2 / k\)."
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Steps Management
+        let currentStep = 0;
+        const totalSteps = 5;
+        const nextStepBtn = document.getElementById('nextStepBtn');
+        const resetStepsBtn = document.getElementById('resetStepsBtn');
+
+        function showNextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                const stepEl = document.getElementById(`step${currentStep}`);
+                stepEl.style.display = 'block';
+                setTimeout(() => {
+                    stepEl.classList.add('visible');
+                }, 10);
+                
+                if (window.MathJax) {
+                    MathJax.typesetPromise([stepEl]);
+                }
+                
+                if (currentStep === totalSteps) {
+                    nextStepBtn.innerHTML = '유도 완료';
+                    nextStepBtn.classList.replace('bg-indigo-600', 'bg-green-600');
+                    nextStepBtn.disabled = true;
+                }
+                
+                stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function resetSteps() {
+            for (let i = 1; i <= totalSteps; i++) {
+                const el = document.getElementById(`step${i}`);
+                el.classList.remove('visible');
+                el.style.display = 'none';
+            }
+            currentStep = 0;
+            nextStepBtn.innerHTML = '다음 단계 보기';
+            nextStepBtn.classList.replace('bg-green-600', 'bg-indigo-600');
+            nextStepBtn.disabled = false;
+        }
+
+        nextStepBtn.addEventListener('click', showNextStep);
+        resetStepsBtn.addEventListener('click', resetSteps);
+
+        // Chart & Data Logic
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const inputA0 = document.getElementById('inputA0');
+        const inputK = document.getElementById('inputK');
+        const a0ValText = document.getElementById('a0Val');
+        const kValText = document.getElementById('kVal');
+        const halfLifeDisplay = document.getElementById('halfLifeDisplay');
+        const finalConcDisplay = document.getElementById('finalConcDisplay');
+        const addTraceBtn = document.getElementById('addTraceBtn');
+        const clearTracesBtn = document.getElementById('clearTracesBtn');
+
+        let chart;
+        let traces = [];
+
+        function initChart() {
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Concentration [A]',
+                        data: [],
+                        borderColor: '#6366f1',
+                        borderWidth: 4,
+                        fill: false,
+                        pointRadius: 0,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { 
+                            type: 'linear', 
+                            position: 'bottom', 
+                            title: { display: true, text: 'Time (t)' }, 
+                            min: 0, 
+                            max: 25 
+                        },
+                        y: { 
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Concentration [A]' }, 
+                            max: 2.2 
+                        }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                boxWidth: 30,
+                                boxHeight: 3,
+                                padding: 15,
+                                font: { family: "'Segoe UI', sans-serif" }
+                            }
+                        } 
+                    }
+                }
+            });
+        }
+
+        function updateData() {
+            const a0 = parseFloat(inputA0.value);
+            const k = parseFloat(inputK.value);
+            
+            a0ValText.innerText = a0.toFixed(1);
+            kValText.innerText = k.toFixed(2);
+            
+            // 1st order half-life calculation: ln(2) / k
+            const thalf = Math.LN2 / k;
+            halfLifeDisplay.innerText = thalf.toFixed(2) + "s";
+
+            const liveData = [];
+            for (let t = 0; t <= 25; t += 0.2) {
+                const at = a0 * Math.exp(-k * t);
+                liveData.push({x: t, y: at});
+            }
+            
+            finalConcDisplay.innerText = liveData[liveData.length-1].y.toFixed(3);
+
+            chart.data.datasets = [
+                {
+                    label: 'Current Data',
+                    data: liveData,
+                    borderColor: '#6366f1',
+                    borderWidth: 4,
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.1
+                },
+                ...traces.map((t, i) => ({
+                    label: `k = ${t.k}`,
+                    data: t.data,
+                    borderColor: `rgba(148, 163, 184, ${0.7 - i*0.15})`,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    borderDash: [5, 5]
+                }))
+            ];
+
+            chart.update('none');
+        }
+
+        addTraceBtn.onclick = () => {
+            if (traces.length >= 4) traces.shift();
+            const a0 = parseFloat(inputA0.value);
+            const k = parseFloat(inputK.value);
+            const traceData = [];
+            for (let t = 0; t <= 25; t += 0.5) {
+                traceData.push({x: t, y: a0 * Math.exp(-k * t)});
+            }
+            traces.push({k: k.toFixed(2), data: traceData});
+            updateData();
+        };
+
+        clearTracesBtn.onclick = () => { traces = []; updateData(); };
+        [inputA0, inputK].forEach(el => el.oninput = updateData);
+
+        window.onload = () => {
+            initChart();
+            updateData();
+        };
+    </script>
+</body>
+</html>

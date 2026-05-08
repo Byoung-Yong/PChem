@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1D Random Walk And Diffusion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background-color: #f8fafc; 
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #0ea5e9;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { 
+            border-radius: 1rem; 
+            background: #ffffff;
+        }
+        
+        .tab-active {
+            background-color: #0ea5e9;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2);
+        }
+    </style>
+</head>
+<body class="p-6 md:p-10 min-h-screen">
+
+    <div class="max-w-7xl mx-auto flex flex-col h-full">
+        <!-- Header -->
+        <header class="text-center mb-10 shrink-0">
+            <div class="unified-module-badge lab-font">16A.14 - Diffusion Process</div>
+            <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">1D Random Walk And Diffusion</h1>
+            <p class="text-sm text-slate-500 mt-2 font-medium italic">1차원 무작위 행보를 통한 거시적 확산 현상의 이해</p>
+        </header>
+
+        <div class="flex-1 flex flex-col lg:flex-row gap-8 items-stretch">
+            <!-- Left: Control & Analysis Panel -->
+            <div class="w-full lg:w-96 flex flex-col gap-6 shrink-0">
+                <div class="glass-panel p-8 rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-col gap-8">
+                    <!-- Configuration -->
+                    <section>
+                        <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 lab-font">Configuration</h2>
+                        <div class="space-y-6">
+                            <div class="block">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase mb-3 block">Diffusion Mode</span>
+                                <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                                    <button id="mode-both" onclick="setMode('both')" class="flex-1 py-2 rounded-lg text-[10px] font-bold transition-all">Two-Sided</button>
+                                    <button id="mode-one" onclick="setMode('one')" class="flex-1 py-2 rounded-lg text-[10px] font-bold transition-all tab-active">One-Sided</button>
+                                </div>
+                            </div>
+                            <label class="block">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Particles (\(N\))</span>
+                                    <span id="v-particleCount" class="text-[10px] font-bold text-sky-600 lab-font">5,000</span>
+                                </div>
+                                <input type="range" id="particleCount" min="1000" max="10000" step="500" value="5000" class="w-full">
+                            </label>
+                            <label class="block">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Step Size (\(d\))</span>
+                                    <span id="v-stepSize" class="text-[10px] font-bold text-sky-600 lab-font">4 px</span>
+                                </div>
+                                <input type="range" id="stepSize" min="2" max="12" value="4" class="w-full">
+                            </label>
+                            <label class="block">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Interval (\(\tau\))</span>
+                                    <span id="v-tau" class="text-[10px] font-bold text-sky-600 lab-font">25 ms</span>
+                                </div>
+                                <input type="range" id="tau" min="1" max="100" value="25" class="w-full">
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Live Analysis -->
+                    <section class="bg-slate-50 p-6 rounded-3xl space-y-4 border border-slate-100">
+                        <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] lab-font mb-4 text-center">Live Kinetic Analysis</h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm">
+                                <p class="text-[8px] text-blue-500 font-black mb-1 uppercase tracking-wider">Theoretical \(D_{\text{theory}}\)</p>
+                                <p id="calc-D-theory" class="text-2xl font-black lab-font text-blue-600 tracking-tighter">0.0000</p>
+                            </div>
+                            <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
+                                <p class="text-[8px] text-emerald-500 font-black mb-1 uppercase tracking-wider">Measured \(D_{\text{meas}}\)</p>
+                                <p id="calc-D-measured" class="text-2xl font-black lab-font text-emerald-600 tracking-tighter">0.0000</p>
+                            </div>
+                        </div>
+                        <div class="pt-3 border-t border-slate-200 flex justify-between items-center">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase lab-font">Deviation Error</span>
+                            <span id="error-rate" class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg lab-font">0.0%</span>
+                        </div>
+                    </section>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col gap-3 mt-auto">
+                        <div class="flex gap-2">
+                            <button id="btn-step" class="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-2xl hover:bg-slate-200 transition-all font-bold text-xs lab-font border border-slate-200 uppercase tracking-widest">STEP</button>
+                            <button id="btn-run" class="flex-1 bg-sky-600 text-white py-3.5 rounded-2xl hover:bg-sky-700 shadow-lg shadow-sky-200 transition-all font-bold text-xs lab-font tracking-widest uppercase">RUN</button>
+                        </div>
+                        <button id="btn-reset" class="w-full text-slate-400 hover:text-red-500 py-2 transition-colors text-[9px] font-black uppercase tracking-[0.2em] lab-font">Reset Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Visualization Viewports -->
+            <div class="flex-1 flex flex-col gap-8 min-w-0">
+                <!-- Particle Canvas -->
+                <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                            Real-Time Particle Dynamics
+                        </h3>
+                    </div>
+                    <canvas id="particleCanvas" width="1600" height="240" class="w-full border border-slate-100"></canvas>
+                </div>
+
+                <!-- Histogram Canvas -->
+                <div class="flex-1 bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-col min-h-0">
+                    <div class="flex justify-between items-center mb-8 shrink-0">
+                        <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Concentration Profile (\(c(x,t)\))</h3>
+                        <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest">
+                            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-blue-400/40 rounded-sm"></div> Measured</span>
+                            <span class="flex items-center gap-2"><div class="w-4 h-0.5 bg-rose-500 rounded-full"></div> Gaussian Theory</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 min-h-0 relative">
+                        <canvas id="chartCanvas" width="1600" height="760" class="w-full h-full border border-slate-100"></canvas>
+                    </div>
+                    
+                    <!-- Analytics Footer -->
+                    <div class="mt-8 grid grid-cols-3 gap-6 border-t border-slate-100 pt-8 shrink-0">
+                        <div class="text-center">
+                            <p class="text-[9px] text-slate-400 font-black uppercase mb-1 tracking-widest">Total Steps (\(N_{\text{steps}}\))</p>
+                            <p id="v-totalSteps" class="text-2xl font-black lab-font text-slate-800">0</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-[9px] text-slate-500 font-black uppercase mb-1 tracking-widest">Elapsed Time (\(t\))</p>
+                            <p id="v-elapsedTime" class="text-2xl font-black lab-font text-slate-800">0.0 <span class="text-sm">ms</span></p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-[9px] text-slate-400 font-black uppercase mb-1 tracking-widest">RMS Displacement</p>
+                            <p id="v-rms" class="text-2xl font-black lab-font text-slate-800">0.0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pCanvas = document.getElementById('particleCanvas');
+        const cCanvas = document.getElementById('chartCanvas');
+        const pCtx = pCanvas.getContext('2d');
+        const cCtx = cCanvas.getContext('2d');
+        
+        const controls = {
+            particleCount: document.getElementById('particleCount'),
+            stepSize: document.getElementById('stepSize'),
+            tau: document.getElementById('tau'),
+            btnStep: document.getElementById('btn-step'),
+            btnRun: document.getElementById('btn-run'),
+            btnReset: document.getElementById('btn-reset'),
+            valParticleCount: document.getElementById('v-particleCount'),
+            valStepSize: document.getElementById('v-stepSize'),
+            valTau: document.getElementById('v-tau'),
+            valDTheory: document.getElementById('calc-D-theory'),
+            valDMeasured: document.getElementById('calc-D-measured'),
+            valSteps: document.getElementById('v-totalSteps'),
+            valTime: document.getElementById('v-elapsedTime'),
+            valRMS: document.getElementById('v-rms'),
+            valError: document.getElementById('error-rate')
+        };
+
+        let particles = [];
+        let totalSteps = 0;
+        let isRunning = false;
+        let mode = 'one'; 
+        let animationId = null;
+        let lastUpdateTime = 0;
+        
+        const FIXED_MAX_FRACTION = 0.55; 
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById('mode-one').className = (mode === 'one' ? 'flex-1 py-2 rounded-lg text-[10px] font-bold transition-all tab-active' : 'flex-1 py-2 rounded-lg text-[10px] font-bold transition-all');
+            document.getElementById('mode-both').className = (mode === 'both' ? 'flex-1 py-2 rounded-lg text-[10px] font-bold transition-all tab-active' : 'flex-1 py-2 rounded-lg text-[10px] font-bold transition-all');
+            stopSimulation();
+            initParticles();
+        }
+
+        function initParticles() {
+            const count = parseInt(controls.particleCount.value);
+            particles = new Array(count).fill(0);
+            totalSteps = 0;
+            updateStatsUI();
+            draw();
+        }
+
+        function updateStatsUI() {
+            const d = parseInt(controls.stepSize.value);
+            const tau = parseInt(controls.tau.value);
+            const t = totalSteps * tau;
+
+            const D_theory = (d * d) / (2 * tau);
+            const n = particles.length;
+            
+            const sumSq = particles.reduce((a, b) => a + b * b, 0);
+            const variance = sumSq / n;
+            const rms = Math.sqrt(variance);
+            
+            const D_measured = t > 0 ? variance / (2 * t) : 0;
+            
+            controls.valParticleCount.innerText = countFormat(n);
+            controls.valStepSize.innerText = d + " px";
+            controls.valTau.innerText = tau + " ms";
+            controls.valDTheory.innerText = D_theory.toFixed(4);
+            controls.valDMeasured.innerText = D_measured.toFixed(4);
+            controls.valSteps.innerText = totalSteps;
+            controls.valTime.innerText = t.toFixed(1);
+            controls.valRMS.innerText = rms.toFixed(1);
+
+            if (t > 0) {
+                const err = Math.min(100, Math.abs((D_measured - D_theory) / D_theory * 100));
+                controls.valError.innerText = `${err.toFixed(1)}%`;
+            } else {
+                controls.valError.innerText = `0.0%`;
+            }
+        }
+
+        function countFormat(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function moveParticles() {
+            const d = parseInt(controls.stepSize.value);
+            for(let i=0; i<particles.length; i++) {
+                let move = Math.random() < 0.5 ? -d : d;
+                particles[i] += move;
+                if (mode === 'one' && particles[i] < 0) {
+                    particles[i] = Math.abs(particles[i]);
+                }
+            }
+            totalSteps++;
+            updateStatsUI();
+        }
+
+        function draw() {
+            const pw = pCanvas.width, ph = pCanvas.height;
+            const cw = cCanvas.width, ch = cCanvas.height;
+            const originX = mode === 'one' ? 120 : cw / 2;
+            const groundY = ch - 60;
+
+            // 1. Particle Dynamics View
+            pCtx.clearRect(0, 0, pw, ph);
+            const pOriginX = mode === 'one' ? 120 : pw / 2;
+            pCtx.strokeStyle = "#e2e8f0";
+            pCtx.lineWidth = 2;
+            pCtx.beginPath(); pCtx.moveTo(pOriginX, 0); pCtx.lineTo(pOriginX, ph); pCtx.stroke();
+            
+            pCtx.fillStyle = "rgba(14, 165, 233, 0.25)";
+            particles.forEach(pos => {
+                pCtx.beginPath();
+                pCtx.arc(pOriginX + pos, ph/2 + (Math.random()-0.5)*100, 3, 0, Math.PI*2);
+                pCtx.fill();
+            });
+
+            // 2. Histogram Profile View
+            cCtx.clearRect(0, 0, cw, ch);
+            cCtx.strokeStyle = "#f1f5f9";
+            cCtx.lineWidth = 1;
+            for(let i=1; i<=5; i++) {
+                let y = groundY - (groundY * 0.2 * i);
+                cCtx.beginPath(); cCtx.moveTo(80, y); cCtx.lineTo(cw-80, y); cCtx.stroke();
+            }
+
+            cCtx.strokeStyle = "#cbd5e1";
+            cCtx.lineWidth = 2;
+            cCtx.beginPath(); cCtx.moveTo(80, groundY); cCtx.lineTo(cw - 80, groundY); cCtx.stroke(); // X axis
+            cCtx.beginPath(); cCtx.moveTo(originX, groundY); cCtx.lineTo(originX, 40); cCtx.stroke(); // Y axis
+
+            const d = parseInt(controls.stepSize.value);
+            const tau = parseInt(controls.tau.value);
+            const t = totalSteps * tau;
+            const D = (d * d) / (2 * tau);
+            const yScale = groundY / FIXED_MAX_FRACTION;
+
+            const bins = {};
+            particles.forEach(pos => {
+                const b = Math.round(pos / d) * d;
+                bins[b] = (bins[b] || 0) + 1;
+            });
+
+            cCtx.fillStyle = "rgba(14, 165, 233, 0.45)";
+            for (let b in bins) {
+                const x = originX + parseInt(b);
+                if (x < 80 || x > cw - 80) continue;
+                const fraction = bins[b] / particles.length;
+                const h = fraction * yScale;
+                cCtx.fillRect(x - d/2 + 1, groundY - h, d - 2, h);
+            }
+
+            // Gaussian Theory Line
+            if (totalSteps > 0) {
+                cCtx.strokeStyle = "#f43f5e";
+                cCtx.lineWidth = 4;
+                cCtx.lineJoin = "round";
+                cCtx.beginPath();
+                
+                let first = true;
+                const xStart = mode === 'one' ? 0 : -cw/2 + 80;
+                const xEnd = cw/2 - 80;
+                const ampCorrection = mode === 'one' ? 2 : 1; 
+                const parityCorrection = 2;
+
+                for (let x = xStart; x < xEnd; x += 1) {
+                    const probDensity = (1 / Math.sqrt(4 * Math.PI * D * t)) * Math.exp(-(x * x) / (4 * D * t));
+                    const theoreticalFraction = probDensity * ampCorrection * parityCorrection * d;
+                    const canvasX = originX + x;
+                    const canvasY = groundY - (theoreticalFraction * yScale);
+                    
+                    if (canvasX > cw - 80) break;
+                    if (first) { cCtx.moveTo(canvasX, canvasY); first = false; }
+                    else { cCtx.lineTo(canvasX, canvasY); }
+                }
+                cCtx.stroke();
+            } else {
+                cCtx.fillStyle = "#94a3b8";
+                cCtx.textAlign = "center";
+                cCtx.font = "bold 14px sans-serif";
+                cCtx.fillText("Laboratory Initialized. Press RUN to begin.", cw/2, groundY/2);
+            }
+        }
+
+        function stopSimulation() {
+            isRunning = false;
+            controls.btnRun.innerText = "RUN";
+            controls.btnRun.classList.replace('bg-amber-600', 'bg-sky-600');
+            cancelAnimationFrame(animationId);
+        }
+
+        controls.btnStep.onclick = () => {
+            if (isRunning) stopSimulation();
+            moveParticles();
+            draw();
+        };
+
+        controls.btnRun.onclick = () => {
+            isRunning = !isRunning;
+            if(isRunning) {
+                controls.btnRun.innerText = "PAUSE";
+                controls.btnRun.classList.replace('bg-sky-600', 'bg-amber-600');
+                const loop = (t) => {
+                    if (!isRunning) return;
+                    if (t - lastUpdateTime > parseInt(controls.tau.value)) { 
+                        moveParticles(); 
+                        draw(); 
+                        lastUpdateTime = t; 
+                    }
+                    animationId = requestAnimationFrame(loop);
+                };
+                animationId = requestAnimationFrame(loop);
+            } else stopSimulation();
+        };
+
+        controls.btnReset.onclick = () => { stopSimulation(); initParticles(); };
+        
+        [controls.particleCount, controls.stepSize, controls.tau].forEach(el => {
+            el.oninput = () => {
+                if (!isRunning) {
+                    if(el === controls.particleCount) initParticles();
+                    updateStatsUI();
+                    draw();
+                }
+            };
+        });
+
+        window.onload = initParticles;
+    </script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Random Walk And Diffusion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background-color: #f8fafc; /* Light slate background */
+            color: #0f172a;
+            overflow: hidden; 
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .toggle-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-btn:hover { background: rgba(241, 245, 249, 1); }
+        .toggle-btn.off { opacity: 0.4; filter: grayscale(0.8); }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #0ea5e9;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- UI Overlay -->
+    <div class="absolute inset-0 pointer-events-none z-10 flex flex-col p-6">
+        <!-- Header -->
+        <header class="text-center mb-6 shrink-0">
+            <div class="unified-module-badge lab-font">16A.15 - Diffusion Process</div>
+            <h1 class="text-2xl md:text-3xl font-black tracking-tight text-slate-900">3D Random Walk And Diffusion</h1>
+            <p class="text-xs text-slate-500 mt-1 font-medium italic">무작위 행보에 따른 입자 확산의 통계적 분석</p>
+        </header>
+
+        <div class="flex-1 flex gap-6 overflow-hidden">
+            <!-- Left: Control Panel -->
+            <div class="w-80 glass-panel p-6 rounded-[2rem] shadow-xl flex flex-col gap-6 pointer-events-auto border border-slate-200 shrink-0">
+                <section>
+                    <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 lab-font">Configuration</h2>
+                    <div class="space-y-5">
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Particles (N)</span>
+                                <span id="v-particleCount" class="text-[10px] font-bold text-sky-600 lab-font">8,000</span>
+                            </div>
+                            <input type="range" id="particleCount" min="1000" max="15000" step="1000" value="8000" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Step Size (d)</span>
+                                <span id="v-stepSize" class="text-[10px] font-bold text-sky-600 lab-font">3.0</span>
+                            </div>
+                            <input type="range" id="stepSize" min="1" max="10" step="0.5" value="3" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Interval (\(\tau\))</span>
+                                <span id="v-tau" class="text-[10px] font-bold text-sky-600 lab-font">25 ms</span>
+                            </div>
+                            <input type="range" id="tau" min="5" max="100" value="25" class="w-full">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Stats Display -->
+                <section class="bg-slate-50 p-5 rounded-2xl space-y-4 border border-slate-100">
+                    <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] lab-font mb-2 text-center">Statistical Analysis</h3>
+                    <div class="space-y-4">
+                        <div class="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <p class="text-[8px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Theoretical RMS (\(\sqrt{6Dt}\))</p>
+                            <p id="v-rms-theory" class="text-2xl font-black lab-font text-rose-600 tracking-tighter">0.00</p>
+                        </div>
+                        <div class="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <p class="text-[8px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Measured RMS (\(\sqrt{\langle r^2 \rangle}\))</p>
+                            <p id="v-rms" class="text-2xl font-black lab-font text-emerald-600 tracking-tighter">0.00</p>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase lab-font">Current Error</span>
+                        <span id="error-rate" class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg lab-font">0%</span>
+                    </div>
+                </section>
+
+                <div class="flex flex-col gap-3 mt-auto">
+                    <div class="flex gap-2">
+                        <button id="btn-step" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl hover:bg-slate-200 transition-all font-bold text-xs lab-font border border-slate-200">STEP</button>
+                        <button id="btn-run" class="flex-1 bg-sky-600 text-white py-3 rounded-xl hover:bg-sky-700 shadow-lg shadow-sky-200 transition-all font-bold text-xs lab-font tracking-widest">RUN</button>
+                    </div>
+                    <button id="btn-reset" class="w-full text-slate-400 hover:text-red-500 py-2 transition-colors text-[9px] font-black uppercase tracking-[0.2em] lab-font">Reset Simulation</button>
+                </div>
+            </div>
+
+            <!-- Main Viewport -->
+            <div class="flex-1 relative overflow-hidden rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl">
+                <div id="threejs-container" class="w-full h-full pointer-events-auto"></div>
+                
+                <!-- Visualization Toggles -->
+                <div class="absolute top-6 left-8 pointer-events-none space-y-2">
+                    <div id="toggle-theory" class="toggle-btn flex items-center gap-3 px-4 py-2.5 bg-white/80 rounded-full border border-slate-200 shadow-sm backdrop-blur-md pointer-events-auto">
+                        <div class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.3)]"></div>
+                        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Theoretical Boundary</span>
+                    </div>
+                    <div id="toggle-measured" class="toggle-btn flex items-center gap-3 px-4 py-2.5 bg-white/80 rounded-full border border-slate-200 shadow-sm backdrop-blur-md pointer-events-auto">
+                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"></div>
+                        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Simulated Boundary</span>
+                    </div>
+                    <div id="toggle-axes" class="toggle-btn flex items-center gap-3 px-4 py-2.5 bg-white/80 rounded-full border border-slate-200 shadow-sm backdrop-blur-md pointer-events-auto">
+                        <div class="w-4 h-0.5 bg-slate-400 rounded-full"></div>
+                        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Coordinate Axes</span>
+                    </div>
+                </div>
+
+                <!-- Live Readout -->
+                <div class="absolute bottom-6 left-8 text-left pointer-events-none bg-white/60 px-6 py-4 rounded-2xl backdrop-blur-md border border-slate-200 shadow-sm">
+                    <div class="grid grid-cols-2 gap-10">
+                        <div>
+                            <p class="text-[9px] text-slate-500 font-black uppercase mb-1 tracking-widest">Steps Completed</p>
+                            <p id="v-totalSteps" class="text-2xl font-black lab-font text-slate-800">0</p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] text-slate-500 font-black uppercase mb-1 tracking-widest">Time (ms)</p>
+                            <p id="v-elapsedTime" class="text-2xl font-black lab-font text-slate-800">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-6 right-8 text-right pointer-events-none opacity-40">
+                    <p class="text-[8px] font-bold text-slate-400 uppercase tracking-[0.5em] lab-font">Diffusion Engine v2.0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, particles, particlePositions;
+        let theorySphere, measuredSphere, axesGroup;
+        let count = 8000;
+        const container = document.getElementById('threejs-container');
+
+        let totalSteps = 0;
+        let isRunning = false;
+        let lastUpdateTime = 0;
+
+        let controls = {};
+
+        function initControls() {
+            controls = {
+                particleCount: document.getElementById('particleCount'),
+                stepSize: document.getElementById('stepSize'),
+                tau: document.getElementById('tau'),
+                btnStep: document.getElementById('btn-step'),
+                btnRun: document.getElementById('btn-run'),
+                btnReset: document.getElementById('btn-reset'),
+                valParticleCount: document.getElementById('v-particleCount'),
+                valStepSize: document.getElementById('v-stepSize'),
+                valTau: document.getElementById('v-tau'),
+                valSteps: document.getElementById('v-totalSteps'),
+                valTime: document.getElementById('v-elapsedTime'),
+                valRMS: document.getElementById('v-rms'),
+                valRMSTheroy: document.getElementById('v-rms-theory'),
+                valError: document.getElementById('error-rate'),
+                toggleTheory: document.getElementById('toggle-theory'),
+                toggleMeasured: document.getElementById('toggle-measured'),
+                toggleAxes: document.getElementById('toggle-axes')
+            };
+        }
+
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff); // White background
+            
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 1, 20000);
+            camera.position.set(500, 500, 800);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1000, 1000, 1000);
+            scene.add(directionalLight);
+
+            // Grid
+            const gridHelper = new THREE.GridHelper(1200, 24, 0xe2e8f0, 0xf1f5f9);
+            scene.add(gridHelper);
+
+            // Axes
+            axesGroup = new THREE.Group();
+            const axisLength = 600;
+            const axisThickness = 0.5;
+            const axisMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+            
+            const createAxis = (rotX, rotZ) => {
+                const geo = new THREE.CylinderGeometry(axisThickness, axisThickness, axisLength, 8);
+                const mesh = new THREE.Mesh(geo, axisMat);
+                mesh.rotation.x = rotX;
+                mesh.rotation.z = rotZ;
+                return mesh;
+            };
+            axesGroup.add(createAxis(0, Math.PI/2));
+            axesGroup.add(createAxis(0, 0));
+            axesGroup.add(createAxis(Math.PI/2, 0));
+            scene.add(axesGroup);
+
+            // Boundaries
+            const theoryGeo = new THREE.SphereGeometry(1, 48, 48);
+            const theoryMat = new THREE.MeshBasicMaterial({ 
+                color: 0xf43f5e, 
+                wireframe: true, 
+                transparent: true, 
+                opacity: 0.2 
+            });
+            theorySphere = new THREE.Mesh(theoryGeo, theoryMat);
+            scene.add(theorySphere);
+
+            const measuredGeo = new THREE.SphereGeometry(1, 48, 48);
+            const measuredMat = new THREE.MeshPhongMaterial({ 
+                color: 0x10b981, 
+                transparent: true, 
+                opacity: 0.15,
+                shininess: 30
+            });
+            measuredSphere = new THREE.Mesh(measuredGeo, measuredMat);
+            scene.add(measuredSphere);
+
+            createParticles();
+            setupInteraction();
+            window.addEventListener('resize', onWindowResize);
+            setupCameraControls();
+        }
+
+        function setupInteraction() {
+            controls.toggleTheory.onclick = () => {
+                const isOff = controls.toggleTheory.classList.toggle('off');
+                theorySphere.visible = !isOff;
+            };
+            controls.toggleMeasured.onclick = () => {
+                const isOff = controls.toggleMeasured.classList.toggle('off');
+                measuredSphere.visible = !isOff;
+            };
+            controls.toggleAxes.onclick = () => {
+                const isOff = controls.toggleAxes.classList.toggle('off');
+                axesGroup.visible = !isOff;
+            };
+        }
+
+        function createParticles() {
+            if (particles) scene.remove(particles);
+            const pCount = controls.particleCount ? parseInt(controls.particleCount.value) : 8000;
+            count = pCount;
+            const geometry = new THREE.BufferGeometry();
+            particlePositions = new Float32Array(count * 3); 
+            for (let i = 0; i < count; i++) {
+                particlePositions[i * 3] = 0;
+                particlePositions[i * 3 + 1] = 0;
+                particlePositions[i * 3 + 2] = 0;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            const material = new THREE.PointsMaterial({
+                color: 0x0ea5e9, // Bright sky blue for light theme
+                size: 2.8,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.NormalBlending
+            });
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        function initParticles() {
+            createParticles();
+            totalSteps = 0;
+            lastUpdateTime = 0;
+            if (theorySphere) theorySphere.scale.set(0.1, 0.1, 0.1);
+            if (measuredSphere) measuredSphere.scale.set(0.1, 0.1, 0.1);
+            updateStats();
+        }
+
+        function moveParticles() {
+            if (!particles) return;
+            const d = parseFloat(controls.stepSize.value);
+            const pos = particles.geometry.attributes.position.array;
+            let sumR2 = 0;
+            for (let i = 0; i < count; i++) {
+                pos[i * 3] += (Math.random() - 0.5) * 2 * d;
+                pos[i * 3 + 1] += (Math.random() - 0.5) * 2 * d;
+                pos[i * 3 + 2] += (Math.random() - 0.5) * 2 * d;
+                sumR2 += pos[i * 3] ** 2 + pos[i * 3 + 1] ** 2 + pos[i * 3 + 2] ** 2;
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+            totalSteps++;
+            updateStats(sumR2);
+        }
+
+        function updateStats(sumR2 = null) {
+            const d = parseFloat(controls.stepSize.value);
+            const tau = parseInt(controls.tau.value);
+            const t = totalSteps * tau;
+            
+            if (sumR2 === null) {
+                if (!particles) return;
+                const pos = particles.geometry.attributes.position.array;
+                sumR2 = 0;
+                for(let i=0; i<count; i++) {
+                    sumR2 += pos[i*3]**2 + pos[i*3+1]**2 + pos[i*3+2]**2;
+                }
+            }
+
+            const meanR2 = sumR2 / count;
+            const rmsMeasured = Math.sqrt(meanR2);
+            const rmsTheory = Math.sqrt(totalSteps * (d*d/3) * 3); 
+
+            if (theorySphere) {
+                const r = Math.max(0.1, rmsTheory);
+                theorySphere.scale.set(r, r, r);
+            }
+            if (measuredSphere) {
+                const r = Math.max(0.1, rmsMeasured);
+                measuredSphere.scale.set(r, r, r);
+            }
+
+            controls.valParticleCount.innerText = count.toLocaleString();
+            controls.valStepSize.innerText = d.toFixed(1);
+            controls.valTau.innerText = tau + " ms";
+            controls.valSteps.innerText = totalSteps;
+            controls.valTime.innerText = t.toLocaleString();
+            controls.valRMS.innerText = rmsMeasured.toFixed(2);
+            controls.valRMSTheroy.innerText = rmsTheory.toFixed(2);
+
+            if (rmsTheory > 0) {
+                const err = Math.abs((rmsMeasured - rmsTheory) / rmsTheory * 100);
+                controls.valError.innerText = `${err.toFixed(1)}%`;
+            }
+        }
+
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            if (isRunning) {
+                const tau = parseInt(controls.tau.value);
+                if (timestamp - lastUpdateTime > tau) {
+                    moveParticles();
+                    lastUpdateTime = timestamp;
+                }
+            }
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        let isDragging = false;
+        function setupCameraControls() {
+            container.addEventListener('mousedown', () => { isDragging = true; });
+            window.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const rotX = e.movementY * 0.005;
+                    const rotY = e.movementX * 0.005;
+                    const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), rotX);
+                    const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+                    camera.position.applyQuaternion(qX);
+                    camera.position.applyQuaternion(qY);
+                    camera.lookAt(0, 0, 0);
+                }
+            });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            container.addEventListener('wheel', (e) => {
+                const zoom = e.deltaY * 0.5;
+                camera.position.multiplyScalar(1 + zoom * 0.001);
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        function updateRunUI() {
+            if (isRunning) {
+                controls.btnRun.innerText = "PAUSE";
+                controls.btnRun.classList.replace('bg-sky-600', 'bg-amber-600');
+            } else {
+                controls.btnRun.innerText = "RUN";
+                controls.btnRun.classList.replace('bg-amber-600', 'bg-sky-600');
+            }
+        }
+
+        window.onload = () => {
+            initControls();
+            initThree();
+            initParticles();
+            
+            controls.btnStep.onclick = () => { isRunning = false; updateRunUI(); moveParticles(); };
+            controls.btnRun.onclick = () => { isRunning = !isRunning; updateRunUI(); };
+            controls.btnReset.onclick = () => { isRunning = false; updateRunUI(); initParticles(); };
+            
+            [controls.particleCount, controls.stepSize, controls.tau].forEach(el => {
+                el.oninput = () => {
+                    if (el === controls.particleCount && !isRunning) initParticles();
+                    updateStats();
+                };
+            });
+            animate(0);
+        };
+    </script>
+</body>
+</html>

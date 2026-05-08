@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Molecules: Mean Speed and Mean Free Path</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e2e8f0;
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #f1f5f9;
+            color: #475569;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* [No Edges] Plain box style with uniform border only - Strictly Followed */
+        .math-box {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 1.5rem;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        }
+
+        .stat-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 1.25rem;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { image-rendering: auto; display: block; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="text-center mb-8 shrink-0">
+        <div class="unified-module-badge lab-font">16A.1 - Transport Properties</div>
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-left">
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Gas Molecules: Motion and Collisions</h1>
+                <p class="mt-2 text-sm text-slate-500 font-medium italic">온도, 압력, 몰 질량 및 단면적이 기체 분자의 평균 속력과 자유 행로에 미치는 영향</p>
+            </div>
+            <div class="flex gap-3">
+                <button id="resetBtn" class="bg-white hover:bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-bold shadow-sm border border-slate-200 uppercase tracking-widest text-[10px] lab-font">Reset Stats</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden w-full max-w-7xl mx-auto gap-8">
+        
+        <!-- Left Panel: Controls & Calculated Values -->
+        <div class="w-full lg:w-4/12 flex flex-col gap-6 min-h-0">
+            
+            <!-- Parameters -->
+            <div class="glass-panel p-6 rounded-[2.5rem] shadow-xl shrink-0 overflow-y-auto">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 lab-font border-b border-slate-100 pb-2">Thermodynamic State</h3>
+                <div class="space-y-6">
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 mb-2">
+                            <span class="tracking-widest">TEMPERATURE (\(T\))</span>
+                            <span id="tVal" class="text-indigo-600 font-black lab-font">298 K</span>
+                        </label>
+                        <input type="range" id="tSlider" min="100" max="1000" step="10" value="298" class="w-full">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 mb-2">
+                            <span class="tracking-widest">PRESSURE (\(P\))</span>
+                            <span id="pVal" class="text-indigo-600 font-black lab-font">1.0 atm</span>
+                        </label>
+                        <input type="range" id="pSlider" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 mb-2">
+                            <span class="tracking-widest">MOLAR MASS (\(M\))</span>
+                            <span id="mVal" class="text-indigo-600 font-black lab-font">28.0 g/mol</span>
+                        </label>
+                        <input type="range" id="mSlider" min="2.0" max="150.0" step="1.0" value="28.0" class="w-full">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 mb-2">
+                            <span class="tracking-widest">CROSS SECTION (\(\sigma\))</span>
+                            <span id="sigmaVal" class="text-indigo-600 font-black lab-font">0.43 nm²</span>
+                        </label>
+                        <input type="range" id="sigmaSlider" min="0.1" max="1.5" step="0.01" value="0.43" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Dashboard -->
+            <div class="grid grid-cols-1 gap-4 shrink-0">
+                <div class="stat-card">
+                    <!-- Removed uppercase class to protect MathJax rendering -->
+                    <p class="text-[9px] text-slate-400 font-black tracking-widest mb-1 text-center">MEAN SPEED (\(v_{\text{mean}}\))</p>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span id="out-v" class="text-3xl font-black text-indigo-700 lab-font">0</span>
+                        <span class="text-xs font-bold text-slate-400">m/s</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <p class="text-[9px] text-slate-400 font-black tracking-widest mb-1 text-center">MEAN FREE PATH (\(\lambda\))</p>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span id="out-lambda" class="text-3xl font-black text-amber-600 lab-font">0.0</span>
+                        <span class="text-xs font-bold text-slate-400">nm</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Theoretical Reference -->
+            <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+                <div class="math-box">
+                    <p class="text-[10px] font-black text-indigo-400 tracking-widest mb-2">AVERAGE SPEED</p>
+                    <div class="text-center py-1">
+                        \[ v_{\text{mean}} = \left( \frac{8RT}{\pi M} \right)^{1/2} \]
+                    </div>
+                </div>
+                <div class="math-box">
+                    <p class="text-[10px] font-black text-amber-400 tracking-widest mb-2">MEAN FREE PATH</p>
+                    <div class="text-center py-1 text-sm font-bold">
+                        \[ \lambda = \frac{k_{\text{B}}T}{\sigma p} \]
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Visualizer & Histograms -->
+        <div class="w-full lg:w-8/12 flex flex-col gap-6 min-h-0">
+            
+            <!-- Chamber Viewport -->
+            <div id="canvasContainer" class="relative flex-[1.4] bg-slate-950 rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl">
+                <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                
+                <div class="absolute top-6 left-8 flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                    <span class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_8px_#818cf8]"></span>
+                    <span class="text-[9px] text-indigo-300 font-black tracking-widest uppercase lab-font">2D Collision Dynamics</span>
+                </div>
+
+                <div class="absolute bottom-6 right-8 flex flex-col gap-2">
+                    <div class="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_#f43f5e]"></span>
+                        <span class="text-[9px] text-slate-300 font-bold lab-font">Tracer Path</span>
+                    </div>
+                    <div class="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                        <span class="text-[9px] text-slate-300 font-bold lab-font">Gas Molecules</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistics Panel (Histograms) -->
+            <div class="flex-1 glass-panel rounded-[2.5rem] p-6 border border-slate-200 shadow-xl grid grid-cols-2 gap-6 overflow-hidden">
+                <!-- Speed Histogram -->
+                <div class="flex flex-col min-h-0">
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <span class="text-[10px] font-black text-slate-400 tracking-widest">MAXWELL-BOLTZMANN (\(v\))</span>
+                        <span id="hist-v-avg" class="text-[10px] font-bold text-indigo-600 lab-font">Avg: 0 m/s</span>
+                    </div>
+                    <div class="flex-1 bg-slate-50 rounded-2xl border border-slate-100 p-3 relative">
+                        <canvas id="vHistCanvas" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+                <!-- Path Histogram -->
+                <div class="flex flex-col min-h-0">
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <span class="text-[10px] font-black text-slate-400 tracking-widest">EXPONENTIAL (\(\lambda\))</span>
+                        <span id="hist-lambda-avg" class="text-[10px] font-bold text-amber-600 lab-font">Avg: 0.0 nm</span>
+                    </div>
+                    <div class="flex-1 bg-slate-50 rounded-2xl border border-slate-100 p-3 relative">
+                        <canvas id="lambdaHistCanvas" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('simCanvas');
+            const ctx = canvas.getContext('2d');
+            const tSlider = document.getElementById('tSlider');
+            const pSlider = document.getElementById('pSlider');
+            const mSlider = document.getElementById('mSlider');
+            const sigmaSlider = document.getElementById('sigmaSlider');
+            const resetBtn = document.getElementById('resetBtn');
+
+            // --- Physical Constants ---
+            const R = 8.314;
+            const k_B = 1.38e-23;
+            const SPEED_SCALE = 0.024; // m/s to px/frame mapping
+            
+            // --- State ---
+            let T = 298, P = 1.0, M = 28.0, sigma = 0.43;
+            let theory_v_mean = 0, theory_lambda = 0;
+            let particles = [];
+            let tracerPath = [];
+            const MAX_PATH_LENGTH = 20;
+            
+            // --- Stats ---
+            let stats = { speeds: [], freePaths: [], sum_v: 0, sum_l: 0 };
+            const MAX_RECORDS = 4000;
+
+            function updateTheory() {
+                T = parseFloat(tSlider.value);
+                P = parseFloat(pSlider.value);
+                M = parseFloat(mSlider.value);
+                sigma = parseFloat(sigmaSlider.value);
+
+                document.getElementById('tVal').textContent = `${T} K`;
+                document.getElementById('pVal').textContent = `${P.toFixed(1)} atm`;
+                document.getElementById('mVal').textContent = `${M.toFixed(1)} g/mol`;
+                document.getElementById('sigmaVal').textContent = `${sigma.toFixed(2)} nm²`;
+
+                const M_kg = M / 1000;
+                theory_v_mean = Math.sqrt((8 * R * T) / (Math.PI * M_kg));
+                
+                const P_pa = P * 101325;
+                const sigma_m2 = sigma * 1e-18;
+                theory_lambda = (k_B * T) / (sigma_m2 * P_pa) * 1e9; // to nm
+
+                document.getElementById('out-v').textContent = Math.round(theory_v_mean);
+                document.getElementById('out-lambda').textContent = theory_lambda.toFixed(1);
+
+                syncParticleCount();
+            }
+
+            function randomNormal() {
+                let u = 0, v = 0;
+                while(u === 0) u = Math.random();
+                while(v === 0) v = Math.random();
+                return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            }
+
+            function syncParticleCount() {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                let target = Math.max(10, Math.min(Math.floor((P / T) * 10000), 160));
+                
+                while (particles.length < target) {
+                    const radius = 8 + Math.sqrt(sigma) * 4;
+                    const scale = (theory_v_mean * SPEED_SCALE) / 1.2;
+                    particles.push({
+                        x: Math.random() * (w - 2 * radius) + radius,
+                        y: Math.random() * (h - 2 * radius) + radius,
+                        vx: randomNormal() * scale,
+                        vy: randomNormal() * scale,
+                        d_traveled: 0,
+                        radius: radius
+                    });
+                }
+                while (particles.length > target) particles.pop();
+                
+                if (particles.length > 0 && tracerPath.length === 0) {
+                    tracerPath = [{x: particles[0].x, y: particles[0].y}];
+                }
+            }
+
+            function resize() {
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = canvas.clientWidth * dpr;
+                canvas.height = canvas.clientHeight * dpr;
+                ctx.scale(dpr, dpr);
+                
+                const vC = document.getElementById('vHistCanvas');
+                const lC = document.getElementById('lambdaHistCanvas');
+                vC.width = vC.clientWidth * dpr; vC.height = vC.clientHeight * dpr;
+                lC.width = lC.clientWidth * dpr; lC.height = lC.clientHeight * dpr;
+            }
+
+            function recordCollision(p) {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                const lambda_canvas_expected = (w * h) / (particles.length * 4 * p.radius);
+                const phys_dist = p.d_traveled * (theory_lambda / lambda_canvas_expected);
+                const phys_v = Math.sqrt(p.vx**2 + p.vy**2) / SPEED_SCALE;
+
+                stats.speeds.push(phys_v);
+                stats.freePaths.push(phys_dist);
+                stats.sum_v += phys_v;
+                stats.sum_l += phys_dist;
+
+                if (stats.speeds.length > MAX_RECORDS) {
+                    stats.sum_v -= stats.speeds.shift();
+                    stats.sum_l -= stats.freePaths.shift();
+                }
+                p.d_traveled = 0;
+            }
+
+            function update() {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+
+                particles.forEach((p, i) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.d_traveled += Math.sqrt(p.vx**2 + p.vy**2);
+
+                    let hitWall = false;
+                    if (p.x < p.radius) { p.x = p.radius; p.vx *= -1; hitWall = true; }
+                    else if (p.x > w - p.radius) { p.x = w - p.radius; p.vx *= -1; hitWall = true; }
+                    if (p.y < p.radius) { p.y = p.radius; p.vy *= -1; hitWall = true; }
+                    else if (p.y > h - p.radius) { p.y = h - p.radius; p.vy *= -1; hitWall = true; }
+
+                    if (hitWall && i === 0) {
+                        tracerPath.push({x: p.x, y: p.y});
+                        if (tracerPath.length > MAX_PATH_LENGTH) tracerPath.shift();
+                    }
+                });
+
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p1 = particles[i], p2 = particles[j];
+                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                        const distSq = dx*dx + dy*dy;
+                        const minDist = p1.radius + p2.radius;
+
+                        if (distSq < minDist * minDist) {
+                            const dist = Math.sqrt(distSq) || 1;
+                            const nx = dx / dist, ny = dy / dist;
+                            const overlap = minDist - dist;
+
+                            p1.x -= nx * overlap / 2; p1.y -= ny * overlap / 2;
+                            p2.x += nx * overlap / 2; p2.y += ny * overlap / 2;
+
+                            const dot = (p1.vx - p2.vx) * nx + (p1.vy - p2.vy) * ny;
+                            if (dot > 0) continue; 
+                            
+                            p1.vx -= dot * nx; p1.vy -= dot * ny;
+                            p2.vx += dot * nx; p2.vy += dot * ny;
+
+                            recordCollision(p1); recordCollision(p2);
+                            if (i === 0) {
+                                tracerPath.push({x: p1.x, y: p1.y});
+                                if (tracerPath.length > MAX_PATH_LENGTH) tracerPath.shift();
+                            }
+                        }
+                    }
+                }
+            }
+
+            function draw() {
+                const w = canvas.clientWidth, h = canvas.clientHeight;
+                ctx.clearRect(0, 0, w, h);
+
+                // 1. Draw Tracer Trail First (FIXED BUG HERE)
+                if (particles.length > 0 && tracerPath.length > 0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(tracerPath[0].x, tracerPath[0].y);
+                    for (let k = 1; k < tracerPath.length; k++) {
+                        ctx.lineTo(tracerPath[k].x, tracerPath[k].y);
+                    }
+                    ctx.lineTo(particles[0].x, particles[0].y);
+                    ctx.lineWidth = 2.5; 
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineCap = 'round'; 
+                    ctx.lineJoin = 'round';
+                    ctx.stroke(); 
+                    ctx.restore();
+                }
+
+                // 2. Draw Particles (Independent Paths)
+                particles.forEach((p, i) => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    if (i === 0) {
+                        ctx.fillStyle = '#f43f5e'; 
+                        ctx.strokeStyle = '#ffffff'; 
+                        ctx.lineWidth = 2;
+                    } else {
+                        ctx.fillStyle = '#60a5fa'; 
+                        ctx.strokeStyle = '#1e40af'; 
+                        ctx.lineWidth = 1;
+                    }
+                    ctx.fill(); 
+                    ctx.stroke();
+                });
+            }
+
+            function drawHistogram(canvasId, data, color, maxVal) {
+                const c = document.getElementById(canvasId);
+                const hCtx = c.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                hCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                const cw = c.width / dpr, ch = c.height / dpr;
+                hCtx.clearRect(0, 0, cw, ch);
+                
+                if (data.length < 5) return;
+                const bins = 40;
+                let counts = new Array(bins).fill(0);
+                let maxCount = 0;
+
+                data.forEach(v => {
+                    let idx = Math.floor((v / maxVal) * bins);
+                    // 설정된 최대 범위를 벗어나는 값은 그래프에서 제외 (Crop)
+                    if (idx >= 0 && idx < bins) {
+                        counts[idx]++;
+                        if (counts[idx] > maxCount) maxCount = counts[idx];
+                    }
+                });
+
+                const bW = cw / bins;
+                hCtx.fillStyle = color;
+                counts.forEach((count, i) => {
+                    const bH = maxCount === 0 ? 0 : (count / maxCount) * (ch - 10);
+                    hCtx.fillRect(i * bW + 0.5, ch - bH, bW - 1, bH);
+                });
+            }
+
+            function loop() {
+                update();
+                draw();
+                
+                if (Date.now() % 5 === 0) {
+                    const avgV = stats.speeds.length ? (stats.sum_v / stats.speeds.length).toFixed(0) : "0";
+                    const avgL = stats.freePaths.length ? (stats.sum_l / stats.freePaths.length).toFixed(1) : "0.0";
+                    document.getElementById('hist-v-avg').textContent = `Avg: ${avgV} m/s`;
+                    document.getElementById('hist-lambda-avg').textContent = `Avg: ${avgL} nm`;
+
+                    drawHistogram('vHistCanvas', stats.speeds, '#6366f1', theory_v_mean * 2.5);
+                    drawHistogram('lambdaHistCanvas', stats.freePaths, '#f59e0b', theory_lambda * 4);
+                }
+                requestAnimationFrame(loop);
+            }
+
+            [tSlider, pSlider, mSlider, sigmaSlider].forEach(s => s.addEventListener('input', updateTheory));
+            resetBtn.onclick = () => { stats = { speeds: [], freePaths: [], sum_v: 0, sum_l: 0 }; tracerPath = []; };
+
+            window.addEventListener('resize', resize);
+            resize();
+            updateTheory();
+            loop();
+        });
+    </script>
+</body>
+</html>

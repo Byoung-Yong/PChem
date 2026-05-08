@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collision Flux Simulation</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX equations -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #0ea5e9;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        #wall-flash {
+            transition: opacity 0.1s ease-out;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 h-screen flex flex-col">
+
+    <header class="mb-8 text-center shrink-0">
+        <div class="unified-module-badge lab-font">16A.13 - Kinetic Theory</div>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Collision Flux Simulation</h1>
+        <p class="text-sm text-slate-500 mt-2 font-medium italic">입자의 무작위 열운동과 표면 충돌 빈도(\(Z_{\text{W}}\))의 역동적 분석</p>
+    </header>
+
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0">
+        
+        <!-- Left Panel: Simulation & Controls -->
+        <div class="lg:col-span-5 flex flex-col gap-6 min-h-0">
+            <div class="glass-panel p-6 rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-col gap-4 flex-1 overflow-hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                        High-Speed Dynamics
+                    </h3>
+                    <button id="resetBtn" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-4 py-1.5 rounded-full font-bold text-slate-500 transition-all border border-slate-200 uppercase lab-font">Reset</button>
+                </div>
+                
+                <!-- Canvas Container -->
+                <div class="relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Right Wall (Measurement Surface) -->
+                    <div id="target-wall" class="absolute right-0 top-0 w-1.5 h-full bg-yellow-400 z-10 shadow-[0_0_15px_rgba(250,204,21,0.5)]"></div>
+                    <!-- Impact Flash Overlay -->
+                    <div id="wall-flash" class="absolute right-0 top-0 w-8 h-full bg-gradient-to-l from-yellow-300 to-transparent opacity-0 z-20"></div>
+                    
+                    <div class="absolute left-4 top-4 text-white text-[10px] font-bold opacity-60 lab-font">
+                        TIME: <span id="timeDisplay">0.0</span> s
+                    </div>
+
+                    <!-- Legend Overlay -->
+                    <div class="absolute bottom-4 left-4 text-[9px] bg-black/70 backdrop-blur-sm text-white p-3 rounded-xl border border-white/10 space-y-1">
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_5px_#f43f5e]"></span> \(\Delta t\) 이내 충돌 확정 (\(v_x \Delta t > d_{\text{wall}}\))</div>
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> 우측 이동 (원거리)</div>
+                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span> 좌측 이동</div>
+                    </div>
+                </div>
+
+                <!-- Stats Dashboard -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm text-center">
+                        <p class="text-[9px] text-blue-500 font-black uppercase mb-1">Measured \(Z_{\text{W}}\)</p>
+                        <p class="text-2xl font-black text-blue-700 lab-font" id="measuredZw">0.00</p>
+                    </div>
+                    <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm text-center">
+                        <p class="text-[9px] text-emerald-500 font-black uppercase mb-1">Theoretical \(Z_{\text{W}}\)</p>
+                        <p class="text-2xl font-black text-emerald-700 lab-font" id="theoryZw">0.00</p>
+                    </div>
+                </div>
+
+                <!-- Controls Section -->
+                <div class="space-y-4 px-1 py-2 overflow-y-auto shrink-0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Temperature (\(T\))</span>
+                                <span id="tempValue" class="text-sky-600 lab-font">500 K</span>
+                            </label>
+                            <input type="range" id="tempSlider" min="100" max="2000" value="500" class="w-full">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Mass (\(m\))</span>
+                                <span id="massValue" class="text-sky-600 lab-font">10 amu</span>
+                            </label>
+                            <input type="range" id="massSlider" min="5" max="100" value="10" class="w-full">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Number (\(N\))</span>
+                                <span id="densityValue" class="text-sky-600 lab-font">600</span>
+                            </label>
+                            <input type="range" id="densitySlider" min="100" max="1500" step="50" value="600" class="w-full">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Volume Slice (\(\Delta t\))</span>
+                                <span id="dtValue" class="text-rose-500 lab-font">30 frames</span>
+                            </label>
+                            <input type="range" id="dtSlider" min="5" max="100" value="30" class="w-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Derivation & Analytics -->
+        <div class="lg:col-span-7 flex flex-col gap-6 overflow-y-auto min-h-0">
+            <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200 space-y-8">
+                <section>
+                    <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-slate-800 rounded-full"></span>
+                        Collision Theory Analytics
+                    </h2>
+                    
+                    <div class="space-y-8">
+                        <!-- Step 1: Distribution Chart -->
+                        <div>
+                            <div class="flex justify-between items-end mb-4">
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Velocity Distribution \(f(v_x)\)</h4>
+                                <div class="flex gap-4 text-[9px] font-bold uppercase">
+                                    <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-slate-100 rounded-sm border border-slate-200"></div> Sim Data</span>
+                                    <span class="flex items-center gap-1"><div class="w-3 h-0.5 bg-blue-600 rounded-full"></div> Gaussian</span>
+                                </div>
+                            </div>
+                            <div class="w-full h-44 bg-slate-50 rounded-2xl border border-slate-100 p-4">
+                                <canvas id="velocityChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Theoretical Integration -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                <p class="text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-wider">충돌 플럭스 정의</p>
+                                <p class="text-xs text-slate-600 leading-relaxed font-medium">
+                                    단위 면적당, 단위 시간당 벽면에 도달하는 입자의 수입니다. 이는 속도 분포 함수 \(f(v_x)\)를 적분하여 도출됩니다.
+                                </p>
+                                <div class="mt-4 text-sm font-bold text-slate-800">
+                                    \[ Z_{\text{W}} = \mathcal{N} \int_{0}^{\infty} v_x f(v_x) dv_x \]
+                                </div>
+                            </div>
+                            <div class="p-6 bg-amber-50 rounded-3xl border border-amber-100 flex flex-col justify-center text-center">
+                                <p class="text-[10px] font-bold text-amber-600 mb-3 uppercase tracking-wider">최종 관계식</p>
+                                <div class="text-xl font-black text-amber-900">
+                                    \[ Z_{\text{W}} = \mathcal{N} \sqrt{\frac{k_{\text{B}}T}{2\pi m}} \]
+                                </div>
+                                <p class="text-[9px] text-amber-700/60 mt-2 font-bold italic">압력(\(p\))에 비례하고 \(\sqrt{mT}\)에 반비례함</p>
+                            </div>
+                        </div>
+
+                        <!-- Scientific Summary -->
+                        <div class="p-6 bg-slate-900 rounded-[2rem] shadow-lg relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-sky-400 to-blue-600"></div>
+                            <h4 class="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 lab-font">Dynamic Equilibrium Summary</h4>
+                            <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                                시뮬레이션에서 붉은색으로 표시된 입자들은 현재 속도로 이동 시 \(\Delta t\) 이내에 벽면에 도달할 것이 확정된 입자들입니다. 
+                                온도가 높을수록(\(T\uparrow\)) 또는 질량이 작을수록(\(m\downarrow\)) 입자의 평균 속도가 빨라져 더 많은 입자가 붉은색으로 활성화되며, 이는 \(Z_{\text{W}}\)의 증가로 이어집니다.
+                            </p>
+                            <div class="flex justify-center items-baseline gap-2 text-sky-400 font-black lab-font">
+                                <span class="text-xs">Resultant Flux:</span>
+                                <span id="flux-result" class="text-2xl">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Physics Logic
+        const k_b = 3.5e-2; // Visual scaling for vibrancy
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const wallFlash = document.getElementById('wall-flash');
+        
+        const tempSlider = document.getElementById('tempSlider');
+        const massSlider = document.getElementById('massSlider');
+        const densitySlider = document.getElementById('densitySlider');
+        const dtSlider = document.getElementById('dtSlider');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        const measuredZwEl = document.getElementById('measuredZw');
+        const theoryZwEl = document.getElementById('theoryZw');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const fluxResult = document.getElementById('flux-result');
+
+        let T, m, N, dt_window;
+        let particles = [];
+        let hitFramesList = []; 
+        let simFrames = 0;
+        let areaA = 1; 
+        let volumeV = 1; 
+        const particleRadius = 3.2;
+
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            areaA = canvas.height;
+            volumeV = canvas.width * canvas.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function randomNormal() {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * (canvas.width - 2*particleRadius) + particleRadius;
+                this.y = Math.random() * (canvas.height - 2*particleRadius) + particleRadius;
+                this.assignVelocity();
+            }
+
+            assignVelocity() {
+                const sigma = Math.sqrt((k_b * T) / m);
+                this.vx = randomNormal() * sigma;
+                this.vy = randomNormal() * sigma;
+            }
+
+            move() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bounce Logic
+                if (this.x - particleRadius < 0) {
+                    this.x = particleRadius;
+                    this.vx *= -1;
+                }
+                if (this.x + particleRadius > canvas.width) {
+                    this.x = canvas.width - particleRadius;
+                    this.vx *= -1;
+                    hitFramesList.push(simFrames); 
+                    triggerFlash();
+                }
+                if (this.y - particleRadius < 0) {
+                    this.y = particleRadius;
+                    this.vy *= -1;
+                }
+                if (this.y + particleRadius > canvas.height) {
+                    this.y = canvas.height - particleRadius;
+                    this.vy *= -1;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, particleRadius, 0, Math.PI * 2);
+                
+                if (this.vx > 0) {
+                    const distanceToWall = canvas.width - this.x;
+                    // Will hit within dt frames
+                    if (distanceToWall < this.vx * dt_window) {
+                        ctx.fillStyle = '#f43f5e'; 
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = '#f43f5e';
+                    } else {
+                        ctx.fillStyle = '#38bdf8'; 
+                        ctx.shadowBlur = 0;
+                    }
+                } else {
+                    ctx.fillStyle = '#64748b'; 
+                    ctx.shadowBlur = 0;
+                }
+                
+                ctx.fill();
+                ctx.shadowBlur = 0; // reset for next
+            }
+        }
+
+        function triggerFlash() {
+            wallFlash.style.opacity = '0.6';
+            setTimeout(() => { wallFlash.style.opacity = '0'; }, 50);
+        }
+
+        function initSimulation() {
+            T = parseInt(tempSlider.value);
+            m = parseInt(massSlider.value);
+            N = parseInt(densitySlider.value);
+            dt_window = parseInt(dtSlider.value);
+            
+            particles = [];
+            for (let i = 0; i < N; i++) {
+                particles.push(new Particle());
+            }
+            
+            hitFramesList = [];
+            simFrames = 0;
+            updateUI();
+            updateChart();
+        }
+
+        function updateUI() {
+            document.getElementById('tempValue').textContent = T + ' K';
+            document.getElementById('massValue').textContent = m + ' amu';
+            document.getElementById('densityValue').textContent = N; 
+            document.getElementById('dtValue').textContent = dt_window + ' frames'; 
+        }
+
+        tempSlider.addEventListener('input', () => { T = parseInt(tempSlider.value); updateUI(); particles.forEach(p=>p.assignVelocity()); updateChart(); });
+        massSlider.addEventListener('input', () => { m = parseInt(massSlider.value); updateUI(); particles.forEach(p=>p.assignVelocity()); updateChart(); });
+        densitySlider.addEventListener('input', () => { 
+            let newN = parseInt(densitySlider.value);
+            if (newN > N) {
+                for(let i=0; i<newN-N; i++) particles.push(new Particle());
+            } else {
+                particles.splice(0, Math.min(particles.length, N-newN));
+            }
+            N = newN;
+            updateUI(); 
+            updateChart();
+        });
+        dtSlider.addEventListener('input', () => { dt_window = parseInt(dtSlider.value); updateUI(); });
+        resetBtn.addEventListener('click', initSimulation);
+
+        const chartCtx = document.getElementById('velocityChart').getContext('2d');
+        let velocityChart = new Chart(chartCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [
+                {
+                    type: 'line', label: 'Theory', data: [],
+                    borderColor: '#2563eb', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.4, yAxisID: 'y2'
+                },
+                {
+                    type: 'bar', label: 'Measured', data: [],
+                    backgroundColor: 'rgba(203, 213, 225, 0.5)', borderColor: '#94a3b8', borderWidth: 1,
+                    barPercentage: 1.0, categoryPercentage: 1.0, yAxisID: 'y'
+                }
+            ]},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { display: true, grid: { display: false }, ticks: { font: { size: 8, family: "'JetBrains Mono'" } } },
+                    y: { display: false }, y2: { display: false }
+                },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { duration: 0 }
+            }
+        });
+
+        function updateChart() {
+            const sigma = Math.sqrt((k_b * T) / m);
+            const range = Math.max(10, Math.ceil(sigma * 3.8));
+            const bins = 30;
+            const binWidth = (range * 2) / bins;
+            
+            const counts = new Array(bins).fill(0);
+            particles.forEach(p => {
+                const binIdx = Math.floor((p.vx + range) / binWidth);
+                if (binIdx >= 0 && binIdx < bins) counts[binIdx]++;
+            });
+
+            const theoryData = [];
+            const labels = [];
+            for (let i = 0; i < bins; i++) {
+                const vx = -range + (i + 0.5) * binWidth;
+                labels.push(vx.toFixed(0));
+                const prefactor = 1 / (sigma * Math.sqrt(2 * Math.PI));
+                const exponent = -(vx * vx) / (2 * sigma * sigma);
+                theoryData.push(prefactor * Math.exp(exponent));
+            }
+
+            velocityChart.data.labels = labels;
+            velocityChart.data.datasets[1].data = counts;
+            velocityChart.data.datasets[0].data = theoryData;
+            velocityChart.update();
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.move();
+                p.draw();
+            });
+
+            simFrames++;
+
+            const WINDOW_SIZE = 120; // 2 seconds window
+            while (hitFramesList.length > 0 && simFrames - hitFramesList[0] > WINDOW_SIZE) {
+                hitFramesList.shift();
+            }
+
+            if (simFrames % 5 === 0) {
+                const displayScale = 15000; 
+                let measuredZw = 0;
+                let effectiveFrames = Math.min(simFrames, WINDOW_SIZE);
+                if (effectiveFrames > 0) {
+                    measuredZw = (hitFramesList.length / (areaA * effectiveFrames)) * displayScale;
+                }
+                
+                const density = N / volumeV;
+                const theoryZw = density * Math.sqrt((k_b * T) / (2 * Math.PI * m)) * displayScale;
+
+                measuredZwEl.innerText = measuredZw.toFixed(2);
+                theoryZwEl.innerText = theoryZw.toFixed(2);
+                timeDisplay.innerText = (simFrames / 60).toFixed(1);
+                fluxResult.innerText = measuredZw.toFixed(2);
+                
+                updateChart();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = () => {
+            initSimulation();
+            requestAnimationFrame(gameLoop);
+            if (window.MathJax) MathJax.typesetPromise();
+        };
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relaxation Method And Reaction Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .formula-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #0ea5e9;
+            padding: 1.25rem;
+            margin: 0.5rem 0;
+            font-family: 'Cambria', 'Cochin', Georgia, Times, 'Times New Roman', serif;
+            transition: all 0.4s ease-out;
+            opacity: 0;
+            transform: translateY(10px);
+            display: none;
+        }
+        .formula-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .step-label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #0ea5e9;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        input[type="range"] {
+            accent-color: #0ea5e9;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-6xl mx-auto p-6 md:p-10">
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <div class="unified-module-badge">17A.11 - Relaxation Method</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Relaxation Method And Reaction Order</h1>
+            <div class="h-1 w-20 bg-sky-500 mx-auto mb-4"></div>
+            <p class="mt-3 text-sm md:text-base leading-relaxed">복잡한 반응 메커니즘에서 완화 시간이 반응 차수를 어떻게 반영하는지 분석하세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <!-- Left Column: Interactive Derivation -->
+            <div class="space-y-6">
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold mb-4 text-sky-600 flex justify-between items-center">
+                        1. 선형화 및 유도
+                        <button id="resetStepsBtn" class="text-xs font-normal text-slate-400 hover:text-sky-600 underline">초기화</button>
+                    </h2>
+                    
+                    <div id="derivationContainer" class="space-y-4">
+                        <!-- Reaction Equation -->
+                        <div class="text-2xl font-bold text-center text-sky-500 py-2 border-b border-slate-100 mb-2">
+                            \[ A \rightleftharpoons B + C \]
+                        </div>
+
+                        <!-- Step 1 -->
+                        <div id="step1" class="formula-box">
+                            <div class="step-label">Step 1: 농도 편차 정의</div>
+                            <p class="text-sm text-slate-600 mb-2">반응 평형으로부터의 편차 \(x\)를 다음과 같이 정의합니다:</p>
+                            <div class="text-lg text-center py-2">
+                                \[ [A] = [A]_{eq} + x, \quad [B] = [B]_{eq} - x, \quad [C] = [C]_{eq} - x \]
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div id="step2" class="formula-box">
+                            <div class="step-label">Step 2: 속도 법칙 대입</div>
+                            <div class="text-lg text-center py-2">
+                                \[ \frac{dx}{dt} = -k_r([A]_{eq} + x) + k_r'([B]_{eq} - x)([C]_{eq} - x) \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">알짜 속도식에 평형 농도와 편차 항을 대입합니다.</p>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div id="step3" class="formula-box">
+                            <div class="step-label">Step 3: 선형 근사</div>
+                            <p class="text-sm text-slate-600 mb-2">매우 작은 편차에 대해 \(x^2 \approx 0\)으로 간주하면:</p>
+                            <div class="text-lg text-center py-2">
+                                \[ \frac{dx}{dt} = -\{k_r + k_r'([B]_{eq} + [C]_{eq})\}x \]
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div id="step4" class="formula-box border-l-sky-400 bg-sky-50">
+                            <div class="step-label">Step 4: 완화 시간 (\(\tau\))</div>
+                            <div class="text-lg text-center py-2 font-bold">
+                                \[ \frac{1}{\tau} = k_r + k_r'([B]_{eq} + [C]_{eq}) \]
+                                \[ x = x_0 e^{-t/\tau} \]
+                            </div>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div id="step5" class="formula-box border-l-amber-500 bg-amber-50">
+                            <div class="step-label text-amber-600">Step 5: 특수 경우 (B=C)</div>
+                            <p class="text-sm text-slate-600 mb-2">초기에 생성물이 없었던 경우 \( [B]_{eq} = [C]_{eq} = a \)라 하면:</p>
+                            <div class="text-lg text-center font-bold text-slate-800 py-2">
+                                \[ a = (K [A]_{eq})^{1/2}, \quad \frac{1}{\tau} = k_r' (K + 2a) \]
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button id="nextStepBtn" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+                            <span>다음 단계 보기</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Visualization & Controls -->
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 sticky top-6">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800">완화 시뮬레이션 (A ⇌ B + C)</h2>
+                    <div class="relative bg-white border border-slate-100 rounded-lg overflow-hidden" style="height: 300px;">
+                        <div id="chartBackground" class="absolute inset-0 flex">
+                            <div class="h-full bg-slate-100 opacity-50" style="width: 25%;"></div>
+                            <div class="h-full bg-white" style="width: 75%;"></div>
+                        </div>
+                        <canvas id="relaxationChart" class="relative z-10"></canvas>
+                        
+                        <div class="absolute left-[8%] top-4 text-xs font-bold text-slate-400">평형 T₁</div>
+                        <div class="absolute left-[30%] top-4 text-xs font-bold text-sky-400">교란 후 T₂ 완화</div>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">완화 시간 (\(\tau\))</div>
+                            <div id="tauDisplay" class="text-xl font-mono text-sky-600 font-bold">-</div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">평형 상수 (\(K\))</div>
+                            <div id="kDisplay" class="text-xl font-mono text-slate-800 font-bold">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Controls Section -->
+                    <section class="mt-6 pt-6 border-t border-slate-100">
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>역반응 상수 (\(k_r\))</span>
+                                    <span id="krText" class="text-sky-600 font-bold">0.10</span>
+                                </div>
+                                <input type="range" id="krRange" min="0.01" max="0.50" step="0.01" value="0.10" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>정반응 상수 (\(k_r'\))</span>
+                                    <span id="krPrimeText" class="text-emerald-600 font-bold">0.20</span>
+                                </div>
+                                <input type="range" id="krPrimeRange" min="0.01" max="1.0" step="0.01" value="0.20" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>최종 평형 농도 \([A]_{eq}\)</span>
+                                    <span id="aEqText" class="text-slate-600 font-bold">0.50</span>
+                                </div>
+                                <input type="range" id="aEqRange" min="0.1" max="1.0" step="0.05" value="0.5" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Steps Management
+        let currentStep = 0;
+        const totalSteps = 5;
+        const nextStepBtn = document.getElementById('nextStepBtn');
+        const resetStepsBtn = document.getElementById('resetStepsBtn');
+
+        function showNextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                const stepEl = document.getElementById(`step${currentStep}`);
+                if (!stepEl) return;
+                stepEl.style.display = 'block';
+                setTimeout(() => stepEl.classList.add('visible'), 10);
+                if (window.MathJax) MathJax.typesetPromise([stepEl]);
+                if (currentStep === totalSteps) {
+                    nextStepBtn.innerHTML = '유도 완료';
+                    nextStepBtn.classList.replace('bg-sky-600', 'bg-green-600');
+                    nextStepBtn.disabled = true;
+                }
+                stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function resetSteps() {
+            for (let i = 1; i <= totalSteps; i++) {
+                const el = document.getElementById(`step${i}`);
+                if (el) {
+                    el.classList.remove('visible');
+                    el.style.display = 'none';
+                }
+            }
+            currentStep = 0;
+            nextStepBtn.innerHTML = '<span>다음 단계 보기</span><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>';
+            nextStepBtn.classList.replace('bg-green-600', 'bg-sky-600');
+            nextStepBtn.disabled = false;
+        }
+
+        nextStepBtn.addEventListener('click', showNextStep);
+        resetStepsBtn.addEventListener('click', resetSteps);
+
+        // Chart & Calculation Logic
+        const ctx = document.getElementById('relaxationChart').getContext('2d');
+        const krRange = document.getElementById('krRange');
+        const krPrimeRange = document.getElementById('krPrimeRange');
+        const aEqRange = document.getElementById('aEqRange');
+        
+        const krText = document.getElementById('krText');
+        const krPrimeText = document.getElementById('krPrimeText');
+        const aEqText = document.getElementById('aEqText');
+        const tauDisplay = document.getElementById('tauDisplay');
+        const kDisplay = document.getElementById('kDisplay');
+
+        let chart;
+
+        function initChart() {
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Concentration [A]', data: [], borderColor: '#e11d48', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.2 },
+                        { label: 'Conc [B], [C]', data: [], borderColor: '#0891b2', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.2 },
+                        { label: 'Equilibrium [A]', data: [], borderColor: '#cbd5e1', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { left: 10, right: 30, top: 30, bottom: 10 } },
+                    scales: {
+                        x: { 
+                            type: 'linear', min: 0, max: 20, 
+                            title: { display: true, text: '시간 (t)', font: { weight: 'bold' } },
+                            grid: { display: false }
+                        },
+                        y: { 
+                            beginAtZero: true, max: 1.5,
+                            title: { display: true, text: '농도', font: { weight: 'bold' } },
+                            grid: { color: '#f1f5f9' }
+                        }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'line',
+                                boxWidth: 35,
+                                font: { family: "'Segoe UI', sans-serif" },
+                                generateLabels: (chart) => {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    labels.forEach(label => {
+                                        const ds = chart.data.datasets[label.datasetIndex];
+                                        label.pointStyle = 'line';
+                                        label.lineDash = ds.borderDash || [];
+                                        label.lineWidth = ds.borderWidth;
+                                        label.strokeStyle = ds.borderColor;
+                                        label.hidden = false;
+                                        if (chart.getDatasetMeta(label.datasetIndex).hidden) {
+                                            label.strokeStyle = '#e2e8f0';
+                                            label.fontColor = '#94a3b8';
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            }
+                        },
+                        tooltip: { enabled: true }
+                    }
+                }
+            });
+        }
+
+        function updateData() {
+            if (!chart) return;
+
+            const kr = parseFloat(krRange.value);
+            const krPrime = parseFloat(krPrimeRange.value);
+            const aEq = parseFloat(aEqRange.value);
+            
+            krText.innerText = kr.toFixed(2);
+            krPrimeText.innerText = krPrime.toFixed(2);
+            aEqText.innerText = aEq.toFixed(2);
+            
+            // K = kr / kr'
+            const K = kr / krPrime;
+            // a = [B]eq = [C]eq = sqrt(K * Aeq)
+            const a = Math.sqrt(K * aEq);
+            // 1/tau = kr + kr'(Beq + Ceq) = kr + 2 * kr' * a
+            const tau = 1 / (kr + 2 * krPrime * a);
+            
+            tauDisplay.innerText = tau.toFixed(2) + "s";
+            kDisplay.innerText = K.toFixed(3);
+
+            const dataA = [];
+            const dataBC = [];
+            const dashA = [];
+            const tJump = 5;
+            const x0 = -0.3; // Initial deviation
+
+            for (let t = 0; t <= 20; t += 0.1) {
+                let currentA, currentBC;
+                if (t < tJump) {
+                    currentA = aEq + x0;
+                    currentBC = a - x0;
+                } else {
+                    const x_t = x0 * Math.exp(-(t - tJump) / tau);
+                    currentA = aEq + x_t;
+                    currentBC = a - x_t;
+                }
+                dataA.push({x: t, y: currentA});
+                dataBC.push({x: t, y: currentBC});
+                dashA.push({x: t, y: aEq});
+            }
+
+            chart.data.datasets[0].data = dataA;
+            chart.data.datasets[1].data = dataBC;
+            chart.data.datasets[2].data = dashA;
+
+            const allY = [...dataA.map(d=>d.y), ...dataBC.map(d=>d.y)];
+            chart.options.scales.y.max = Math.max(...allY, 1.2) + 0.2;
+
+            chart.update('none');
+        }
+
+        [krRange, krPrimeRange, aEqRange].forEach(el => el.oninput = updateData);
+
+        window.onload = () => {
+            initChart();
+            requestAnimationFrame(() => updateData());
+        };
+    </script>
+</body>
+</html>

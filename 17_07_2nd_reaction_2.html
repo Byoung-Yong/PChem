@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second-Order Reaction II</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .formula-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #6366f1;
+            padding: 1.25rem;
+            margin: 0.5rem 0;
+            font-family: 'Cambria', 'Cochin', Georgia, Times, 'Times New Roman', serif;
+            transition: all 0.4s ease-out;
+            opacity: 0;
+            transform: translateY(10px);
+            display: none;
+        }
+        .formula-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .step-label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #6366f1;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-6xl mx-auto p-6 md:p-10">
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <div class="unified-module-badge">17A.7 - Integrated Rate Laws</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Second-Order Reaction II</h1>
+            <div class="h-1 w-20 bg-indigo-600 mx-auto mb-4"></div>
+            <p class="mt-3 text-sm md:text-base leading-relaxed">두 가지 반응물 농도가 모두 변하는 2차 반응의 적분 속도식을 확인하세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <!-- Left Column: Interactive Derivation -->
+            <div class="space-y-6">
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold mb-4 text-indigo-700 flex justify-between items-center">
+                        1. 적분 속도식 유도
+                        <button id="resetStepsBtn" class="text-xs font-normal text-slate-400 hover:text-indigo-600 underline">초기화</button>
+                    </h2>
+                    
+                    <div id="derivationContainer" class="space-y-4">
+                        <div id="step1" class="formula-box">
+                            <div class="step-label">Step 1: 속도 법칙 정의</div>
+                            <div class="text-xl text-center py-2">
+                                \[ v = - \frac{d[A]}{dt} = k_r [A][B] \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">반응 속도는 두 반응물 [A]와 [B]의 농도 곱에 비례합니다.</p>
+                        </div>
+
+                        <div id="step2" class="formula-box">
+                            <div class="step-label">Step 2: 반응 정도 x 정의</div>
+                            <p class="text-sm text-slate-600 mb-2">반응이 진행된 정도를 \(x\)라고 하면:</p>
+                            <div class="text-lg text-center py-2">
+                                \[ [A] = [A]_0 - x, \quad [B] = [B]_0 - x \]
+                                \[ \frac{dx}{dt} = k_r([A]_0 - x)([B]_0 - x) \]
+                            </div>
+                        </div>
+
+                        <div id="step3" class="formula-box">
+                            <div class="step-label">Step 3: 변수 분리 및 적분</div>
+                            <div class="text-lg text-center py-2">
+                                \[ \int_{0}^{x} \frac{dx}{([A]_0 - x)([B]_0 - x)} = \int_{0}^{t} k_r \, dt \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">부분 분수를 이용하여 적분을 수행합니다.</p>
+                        </div>
+
+                        <div id="step4" class="formula-box">
+                            <div class="step-label">Step 4: 로그 형태 유도</div>
+                            <div class="text-lg text-center py-2">
+                                \[ \frac{1}{[B]_0 - [A]_0} \ln \frac{[A]_0 [B]}{[B]_0 [A]} = k_r t \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">초기 농도가 다를 경우의 적분 결과입니다.</p>
+                        </div>
+
+                        <div id="step5" class="formula-box border-l-amber-500 bg-amber-50">
+                            <div class="step-label text-amber-600">Step 5: 최종 선형식</div>
+                            <div class="text-2xl text-center font-bold text-slate-800 py-2">
+                                \[ \ln \frac{[B]/[B]_0}{[A]/[A]_0} = ([B]_0 - [A]_0) k_r t \]
+                            </div>
+                            <p class="text-sm text-slate-600 mt-2 font-medium text-center">기울기는 \(([B]_0 - [A]_0)k_r\)이 됩니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button id="nextStepBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+                            <span>다음 단계 보기</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Visualization -->
+            <div class="space-y-6">
+                <!-- 1. Concentration vs Time -->
+                <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4">시간에 따른 농도 변화</h2>
+                    <div class="relative" style="height: 250px;">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">[A] (t=25)</div>
+                            <div id="concADisplay" class="text-xl font-mono text-indigo-600 font-bold">-</div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">[B] (t=25)</div>
+                            <div id="concBDisplay" class="text-xl font-mono text-emerald-600 font-bold">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Linear Plot -->
+                <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4">선형화 그래프</h2>
+                    <div class="relative" style="height: 250px;">
+                        <canvas id="linearChart"></canvas>
+                    </div>
+                    <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold">기울기 (\(([B]_0 - [A]_0)k_r\))</div>
+                        <div id="slopeDisplay" class="text-xl font-mono text-red-500 font-bold">-</div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4">파라미터 조절</h2>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>초기 [A]₀</span>
+                                    <span id="a0Val" class="text-indigo-600 font-bold">1.0</span>
+                                </div>
+                                <input type="range" id="inputA0" min="0.1" max="2.0" step="0.1" value="1.0" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>초기 [B]₀</span>
+                                    <span id="b0Val" class="text-emerald-600 font-bold">1.5</span>
+                                </div>
+                                <input type="range" id="inputB0" min="0.1" max="2.0" step="0.1" value="1.5" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600">
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1 text-xs font-medium">
+                                <span>속도 상수 (\(k_r\))</span>
+                                <span id="kVal" class="text-slate-600 font-bold">0.05</span>
+                            </div>
+                            <input type="range" id="inputK" min="0.01" max="0.3" step="0.01" value="0.05" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600">
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Steps Management
+        let currentStep = 0;
+        const totalSteps = 5;
+        const nextStepBtn = document.getElementById('nextStepBtn');
+        const resetStepsBtn = document.getElementById('resetStepsBtn');
+
+        function showNextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                const stepEl = document.getElementById(`step${currentStep}`);
+                stepEl.style.display = 'block';
+                setTimeout(() => stepEl.classList.add('visible'), 10);
+                if (window.MathJax) MathJax.typesetPromise([stepEl]);
+                if (currentStep === totalSteps) {
+                    nextStepBtn.innerHTML = '유도 완료';
+                    nextStepBtn.classList.replace('bg-indigo-600', 'bg-green-600');
+                    nextStepBtn.disabled = true;
+                }
+                stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function resetSteps() {
+            for (let i = 1; i <= totalSteps; i++) {
+                const el = document.getElementById(`step${i}`);
+                el.classList.remove('visible');
+                el.style.display = 'none';
+            }
+            currentStep = 0;
+            nextStepBtn.innerHTML = '다음 단계 보기';
+            nextStepBtn.classList.replace('bg-green-600', 'bg-indigo-600');
+            nextStepBtn.disabled = false;
+        }
+
+        nextStepBtn.addEventListener('click', showNextStep);
+        resetStepsBtn.addEventListener('click', resetSteps);
+
+        // Charts Logic
+        const ctxMain = document.getElementById('mainChart').getContext('2d');
+        const ctxLinear = document.getElementById('linearChart').getContext('2d');
+        
+        const inputA0 = document.getElementById('inputA0');
+        const inputB0 = document.getElementById('inputB0');
+        const inputK = document.getElementById('inputK');
+        
+        const a0ValText = document.getElementById('a0Val');
+        const b0ValText = document.getElementById('b0Val');
+        const kValText = document.getElementById('kVal');
+        const concADisplay = document.getElementById('concADisplay');
+        const concBDisplay = document.getElementById('concBDisplay');
+        const slopeDisplay = document.getElementById('slopeDisplay');
+
+        let mainChart, linearChart;
+
+        function initCharts() {
+            // Main Chart
+            mainChart = new Chart(ctxMain, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Concentration [A]', data: [], borderColor: '#6366f1', borderWidth: 3, pointRadius: 0, tension: 0.1 },
+                        { label: 'Concentration [B]', data: [], borderColor: '#10b981', borderWidth: 3, pointRadius: 0, tension: 0.1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: 'Time (t)' }, min: 0, max: 25 },
+                        y: { beginAtZero: true, title: { display: true, text: 'Concentration' }, max: 2.2 }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                boxWidth: 35,
+                                boxHeight: 2,
+                                padding: 15,
+                                font: { family: "'Segoe UI', sans-serif" }
+                            }
+                        } 
+                    }
+                }
+            });
+
+            // Linear Chart
+            linearChart = new Chart(ctxLinear, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ln(([B]/[B]₀) / ([A]/[A]₀))',
+                        data: [],
+                        borderColor: '#ef4444',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: 'Time (t)' }, min: 0, max: 25 },
+                        y: { title: { display: true, text: 'ln Ratio' } }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                boxWidth: 35,
+                                boxHeight: 2,
+                                padding: 15,
+                                font: { family: "'Segoe UI', sans-serif" }
+                            }
+                        } 
+                    }
+                }
+            });
+        }
+
+        function updateData() {
+            const a0 = parseFloat(inputA0.value);
+            const b0 = parseFloat(inputB0.value);
+            const k = parseFloat(inputK.value);
+            
+            a0ValText.innerText = a0.toFixed(1);
+            b0ValText.innerText = b0.toFixed(1);
+            kValText.innerText = k.toFixed(2);
+            slopeDisplay.innerText = ((b0 - a0) * k).toFixed(3);
+            
+            const dataA = [], dataB = [], dataLinear = [];
+            const diff = b0 - a0;
+
+            for (let t = 0; t <= 25; t += 0.5) {
+                let at, bt, lnVal;
+                if (Math.abs(diff) < 0.001) {
+                    at = a0 / (1 + k * t * a0);
+                    bt = at;
+                    lnVal = 0;
+                } else {
+                    const expVal = Math.exp(diff * k * t);
+                    const x = (a0 * b0 * (1 - expVal)) / (a0 - b0 * expVal);
+                    at = Math.max(0.0001, a0 - x);
+                    bt = Math.max(0.0001, b0 - x);
+                    lnVal = Math.log((bt / b0) / (at / a0));
+                }
+                dataA.push({x: t, y: at});
+                dataB.push({x: t, y: bt});
+                dataLinear.push({x: t, y: lnVal});
+            }
+            
+            concADisplay.innerText = dataA[dataA.length-1].y.toFixed(3);
+            concBDisplay.innerText = dataB[dataB.length-1].y.toFixed(3);
+
+            mainChart.data.datasets[0].data = dataA;
+            mainChart.data.datasets[1].data = dataB;
+            mainChart.update('none');
+
+            linearChart.data.datasets[0].data = dataLinear;
+            linearChart.update('none');
+        }
+
+        [inputA0, inputB0, inputK].forEach(el => el.oninput = updateData);
+
+        window.onload = () => {
+            initCharts();
+            updateData();
+        };
+    </script>
+</body>
+</html>

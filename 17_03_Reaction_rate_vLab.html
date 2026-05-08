@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Rate Virtual Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+
+        .lab-card {
+            background-color: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #1e293b;
+            padding: 8px;
+            text-align: center;
+        }
+        .data-table th {
+            background-color: #1e293b;
+            color: #94a3b8;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #1e293b;
+            color: #38bdf8;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        select, button {
+            transition: all 0.2s ease;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-10 text-center border-b border-white/5 pb-8">
+            <div class="unified-module-badge code-font mb-2">17A.3 - Reaction Kinetics vLab</div>
+            <h1 class="text-3xl md:text-4xl font-black tracking-tight text-white mb-4">반응 속도론 가상 실험실</h1>
+            <p class="text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
+                초기 속도법을 사용하여 요오드 원자의 재결합 반응(\(2\text{I} + \text{Ar} \rightarrow \text{I}_2 + \text{Ar}\))의 반응 차수와 속도 상수를 결정합니다.
+            </p>
+        </header>
+
+        <div class="grid lg:grid-cols-12 gap-8 mb-8 items-stretch">
+            <!-- Left: Experiment Controls -->
+            <div class="lg:col-span-3 flex flex-col gap-6">
+                <div class="lab-card p-6 flex-1">
+                    <h2 class="text-sm font-black text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <span class="w-1.5 h-4 bg-blue-500 rounded-full"></span>
+                        실험 파라미터 제어
+                    </h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-2 tracking-tighter">
+                                초기 요오드 농도 [I]₀ (mM)
+                            </label>
+                            <select id="concI" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="0.01">0.01</option><option value="0.02">0.02</option>
+                                <option value="0.04">0.04</option><option value="0.06">0.06</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-2 tracking-tighter">
+                                아르곤 농도 [Ar]₀ (mM)
+                            </label>
+                            <select id="concAr" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="1.0">1.0</option><option value="5.0">5.0</option><option value="10.0">10.0</option>
+                            </select>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button id="btnMeasure" onclick="runAndLog()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black hover:bg-blue-500 shadow-lg shadow-blue-600/20 active:scale-95 transition-all">
+                                데이터 측정 및 기록
+                            </button>
+                        </div>
+
+                        <button onclick="location.reload()" class="w-full text-[10px] text-slate-600 hover:text-red-400 font-bold uppercase tracking-widest mt-2">
+                            실험 초기화 (RESET)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Data Logger -->
+            <div class="lg:col-span-4 flex flex-col">
+                <div class="lab-card p-6 flex-1 overflow-hidden flex flex-col">
+                    <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
+                        Raw Data Logger
+                        <span id="dataCount" class="text-[10px] bg-slate-800 px-2 py-1 rounded text-blue-400">0 Samples</span>
+                    </h2>
+                    <div class="flex-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950">
+                        <table id="dataTable" class="data-table code-font">
+                            <thead>
+                                <tr>
+                                    <th>[I]₀ (mM)</th>
+                                    <th>[Ar]₀ (mM)</th>
+                                    <th>\(v_0\) (Meas)</th>
+                                    <th>\(\log v_0\)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataBody">
+                                <tr><td colspan="4" class="py-20 text-slate-600 italic">데이터를 측정하세요.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Live Monitor -->
+            <div class="lg:col-span-5 flex flex-col">
+                <div class="lab-card p-6 flex-1 flex flex-col">
+                    <h2 class="text-sm font-black text-emerald-400 uppercase tracking-widest mb-6">Live Analysis Monitor</h2>
+                    <div class="flex-1 relative bg-slate-950 rounded-2xl border border-slate-800 p-4 min-h-[300px]">
+                        <canvas id="chartI"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Steps -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+            <!-- Step 1 Panel -->
+            <div id="panelStep1" class="rounded-[2rem] p-8 bg-blue-900/10 border border-blue-500/20 shadow-xl transition-all">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1 block">Analysis Phase 1</span>
+                        <h3 class="text-xl font-black text-white">유효 속도 상수 도출 (\(k_{\text{r, eff}}\))</h3>
+                    </div>
+                    <button onclick="calculateStep1Trendline()" class="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-bold hover:bg-blue-500">추세선 계산</button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="p-4 bg-slate-900/60 rounded-2xl border border-white/5">
+                        <p class="text-[10px] text-slate-500 font-bold uppercase mb-2">계산된 식</p>
+                        <p id="equationText" class="text-sm code-font text-blue-300">\(\log v_0 = a \log [\text{I}]_0 + \log k_{\text{r, eff}}\)</p>
+                    </div>
+                    <div class="p-4 bg-slate-900/60 rounded-2xl border border-white/5">
+                        <p class="text-[10px] text-slate-500 font-bold uppercase mb-2">현재 요오드 차수 (\(a\))</p>
+                        <p id="calcSlope" class="text-lg font-black code-font text-white">---</p>
+                    </div>
+                </div>
+
+                <div class="p-5 bg-slate-900/40 rounded-2xl border border-white/5">
+                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">수집된 유효 속도 상수</h4>
+                    <div id="interceptList" class="space-y-2 text-xs code-font">
+                        <p class="text-slate-600 italic">아르곤 농도별로 최소 2개 이상의 측정값이 필요합니다.</p>
+                    </div>
+                    <button id="btnGoToStep2" onclick="validateStep1()" class="w-full mt-6 bg-slate-800 text-slate-400 py-3 rounded-xl font-black text-xs disabled:opacity-50 transition-all" disabled>단계 2로 진행</button>
+                </div>
+            </div>
+
+            <!-- Step 2 Panel -->
+            <div id="panelStep2" class="rounded-[2rem] p-8 bg-emerald-900/5 border border-white/5 shadow-xl opacity-40 pointer-events-none transition-all">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <span class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 block">Analysis Phase 2</span>
+                        <h3 class="text-xl font-black text-white">최종 반응 법칙 결정</h3>
+                    </div>
+                    <button onclick="calculateFinalConstants()" class="bg-emerald-600 text-white px-6 py-2 rounded-xl text-xs font-bold hover:bg-emerald-500">차수 분석 실행</button>
+                </div>
+
+                <div class="relative h-48 bg-slate-950 rounded-2xl border border-slate-800 p-4 mb-6">
+                    <canvas id="chartAr"></canvas>
+                </div>
+
+                <div id="finalResultBox" class="hidden">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-emerald-900/20 rounded-2xl border border-emerald-500/20 text-center">
+                            <p class="text-[11px] text-emerald-400 font-bold mb-1">\( \text{Ar} \text{ 차수 } (b) \)</p>
+                            <p id="finalOrderAr" class="text-2xl font-black text-white code-font">---</p>
+                        </div>
+                        <div class="p-4 bg-emerald-900/20 rounded-2xl border border-emerald-500/20 text-center">
+                            <p class="text-[11px] text-emerald-400 font-bold mb-1">\( \log k_{\text{r}} \)</p>
+                            <p id="finalLogK" class="text-2xl font-black text-white code-font">---</p>
+                        </div>
+                    </div>
+                    <div id="finalRateLawDisplay" class="mt-6 p-4 bg-slate-950 text-emerald-400 rounded-2xl border border-emerald-500/30 text-center font-bold text-lg code-font shadow-inner">
+                        \(v = k_{\text{r}} [\text{I}]^a [\text{Ar}]^b\)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TRUE_KR = 1.25e8; 
+        const ORDER_I = 2.0;
+        const ORDER_AR = 1.0;
+
+        function getSimulatedRate(i0_val, ar0_val) {
+            const i0 = i0_val * 1e-3;
+            const ar0 = ar0_val * 1e-3;
+            const baseRate = TRUE_KR * Math.pow(i0, ORDER_I) * Math.pow(ar0, ORDER_AR);
+            const noise = 1 + (Math.random() - 0.5) * 0.03;
+            return baseRate * noise;
+        }
+
+        let collectedData = [];
+        let recordedIntercepts = [];
+        let chartI, chartAr;
+
+        function refreshMath() {
+            if (window.MathJax) {
+                MathJax.typesetPromise().catch((err) => console.log(err));
+            }
+        }
+
+        function runAndLog() {
+            // [MOD] Animation and delay removed
+            const i0 = parseFloat(document.getElementById('concI').value);
+            const ar0 = parseFloat(document.getElementById('concAr').value);
+            const v0 = getSimulatedRate(i0, ar0);
+
+            const newData = {
+                i0: i0, ar0: ar0, v0: v0,
+                logI0: Math.log10(i0 * 1e-3),
+                logV0: Math.log10(v0)
+            };
+
+            collectedData.push(newData);
+            renderTable();
+            updateChartI();
+        }
+
+        function renderTable() {
+            const body = document.getElementById('dataBody');
+            const count = document.getElementById('dataCount');
+            body.innerHTML = collectedData.slice().reverse().map(d => `
+                <tr class="hover:bg-slate-900 transition-colors">
+                    <td class="text-blue-400 font-bold">${d.i0.toFixed(2)}</td>
+                    <td class="text-emerald-400 font-bold">${d.ar0.toFixed(1)}</td>
+                    <td class="text-white">${d.v0.toExponential(2)}</td>
+                    <td class="text-slate-500 font-bold">${d.logV0.toFixed(2)}</td>
+                </tr>
+            `).join('');
+            count.textContent = `${collectedData.length} Samples`;
+            refreshMath();
+        }
+
+        function calculateStep1Trendline() {
+            const currentAr = parseFloat(document.getElementById('concAr').value);
+            const filtered = collectedData.filter(d => d.ar0 === currentAr);
+
+            if(filtered.length < 2) {
+                alert(`[Ar]₀ = ${currentAr} mM에 대해 최소 2개 이상의 데이터가 필요합니다.`);
+                return;
+            }
+
+            const n_count = filtered.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            filtered.forEach(d => {
+                sumX += d.logI0; sumY += d.logV0;
+                sumXY += d.logI0 * d.logV0; sumXX += d.logI0 * d.logI0;
+            });
+
+            const slope = (n_count * sumXY - sumX * sumY) / (n_count * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n_count;
+
+            document.getElementById('calcSlope').innerText = slope.toFixed(1);
+            document.getElementById('equationText').innerHTML = `\\(\\log v_0 = ${slope.toFixed(1)} \\log [\\text{I}]_0 + (${intercept.toFixed(2)})\\)`;
+
+            const logAr0 = Math.log10(currentAr * 1e-3);
+            if(!recordedIntercepts.some(ri => Math.abs(ri.logAr0 - logAr0) < 0.01)) {
+                recordedIntercepts.push({ logAr0, logKeff: intercept, arLabel: currentAr });
+                renderInterceptList();
+            }
+            
+            updateChartI(slope, intercept, currentAr);
+            refreshMath();
+        }
+
+        function renderInterceptList() {
+            const list = document.getElementById('interceptList');
+            list.innerHTML = recordedIntercepts.map(ri => `
+                <div class="flex justify-between items-center p-3 bg-slate-950 rounded-xl border border-white/5">
+                    <span class="text-slate-400 font-bold tracking-tighter">[Ar]₀ = ${ri.arLabel.toFixed(1)} mM</span>
+                    <span class="text-blue-400 font-black">\\(\\log k_{\\text{r, eff}} = ${ri.logKeff.toFixed(2)}\\)</span>
+                </div>
+            `).join('');
+            
+            if(recordedIntercepts.length >= 2) {
+                const step2Btn = document.getElementById('btnGoToStep2');
+                step2Btn.disabled = false;
+                step2Btn.classList.replace('bg-slate-800', 'bg-blue-600');
+                step2Btn.classList.replace('text-slate-400', 'text-white');
+            }
+            refreshMath();
+        }
+
+        function validateStep1() {
+            const panel2 = document.getElementById('panelStep2');
+            panel2.classList.remove('opacity-40', 'pointer-events-none');
+            panel2.classList.add('bg-emerald-900/10', 'border-emerald-500/20');
+            initChartAr();
+            panel2.scrollIntoView({ behavior: 'smooth' });
+            refreshMath();
+        }
+
+        function calculateFinalConstants() {
+            const numIntercepts = recordedIntercepts.length; 
+            if (numIntercepts < 2) return;
+
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            recordedIntercepts.forEach(d => {
+                sumX += d.logAr0; sumY += d.logKeff;
+                sumXY += d.logAr0 * d.logKeff; sumXX += d.logAr0 * d.logAr0;
+            });
+
+            const slope = (numIntercepts * sumXY - sumX * sumY) / (numIntercepts * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / numIntercepts;
+
+            document.getElementById('finalResultBox').classList.remove('hidden');
+            document.getElementById('finalOrderAr').innerText = slope.toFixed(1);
+            document.getElementById('finalLogK').innerText = intercept.toFixed(2);
+            
+            const a_order_val = parseFloat(document.getElementById('calcSlope').innerText);
+            document.getElementById('finalRateLawDisplay').innerHTML = `\\(v = k_{\\text{r}} [\\text{I}]^{${a_order_val.toFixed(1)}} [\\text{Ar}]^{${slope.toFixed(1)}}\\)`;
+            
+            updateChartAr(slope, intercept);
+            refreshMath();
+        }
+
+        function initCharts() {
+            const ctxI = document.getElementById('chartI').getContext('2d');
+            Chart.defaults.color = '#64748b';
+            Chart.defaults.font.family = "'JetBrains Mono', monospace";
+
+            chartI = new Chart(ctxI, {
+                type: 'scatter',
+                data: { datasets: [] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { type: 'linear', min: -5.5, max: -3.5, title: { display: true, text: 'log [I]₀', font: { weight: 'bold' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { type: 'linear', min: -6.0, max: -1.0, title: { display: true, text: 'log v₀', font: { weight: 'bold' } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top', 
+                            labels: { 
+                                usePointStyle: true,
+                                boxWidth: 10, font: { size: 10 },
+                                generateLabels: (chart) => {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    labels.forEach(label => {
+                                        const ds = chart.data.datasets[label.datasetIndex];
+                                        if (ds.type === 'line' || ds.showLine) {
+                                            label.pointStyle = 'line';
+                                        } else {
+                                            label.pointStyle = 'circle';
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            } 
+                        } 
+                    }
+                }
+            });
+        }
+
+        function initChartAr() {
+            const ctxAr = document.getElementById('chartAr').getContext('2d');
+            chartAr = new Chart(ctxAr, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'log k_eff points',
+                        data: recordedIntercepts.map(ri => ({ x: ri.logAr0, y: ri.logKeff })),
+                        backgroundColor: '#10b981',
+                        pointRadius: 6,
+                        showLine: false,
+                        pointStyle: 'circle'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { type: 'linear', min: -3.5, max: -1.5, title: { display: true, text: 'log [Ar]₀' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { type: 'linear', min: 4.5, max: 6.5, title: { display: true, text: 'log k_eff' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { 
+                        legend: { 
+                            display: false,
+                            labels: { usePointStyle: true }
+                        } 
+                    }
+                }
+            });
+        }
+
+        function updateChartI(slope = null, intercept = null, activeAr = null) {
+            const arGroups = [1.0, 5.0, 10.0];
+            const colors = ['#94a3b8', '#10b981', '#ef4444'];
+            
+            let datasets = arGroups.map((ar, idx) => {
+                const points = collectedData.filter(d => d.ar0 === ar).map(d => ({ x: d.logI0, y: d.logV0 })).sort((a,b) => a.x - b.x);
+                return {
+                    label: `[Ar]₀ = ${ar} mM`,
+                    data: points,
+                    showLine: false,
+                    borderColor: colors[idx],
+                    backgroundColor: colors[idx],
+                    borderWidth: ar === activeAr ? 3 : 1,
+                    pointRadius: 5,
+                    pointStyle: 'circle'
+                };
+            }).filter(ds => ds.data.length > 0);
+
+            if(slope !== null) {
+                const xMin = -5.3, xMax = -4.1;
+                datasets.push({
+                    label: `Trend (Ar=${activeAr} mM)`,
+                    data: [{x: xMin, y: slope * xMin + intercept}, {x: xMax, y: slope * xMax + intercept}],
+                    type: 'line', 
+                    borderColor: '#38bdf8', 
+                    borderDash: [5, 5], 
+                    pointRadius: 0, 
+                    order: -1
+                });
+            }
+
+            chartI.data.datasets = datasets;
+            chartI.update();
+        }
+
+        function updateChartAr(slope, intercept) {
+            const xMin = -3.2, xMax = -1.8;
+            chartAr.data.datasets = chartAr.data.datasets.filter(ds => ds.type !== 'line');
+            chartAr.data.datasets.push({
+                label: `Final Regression`,
+                data: [{x: xMin, y: slope * xMin + intercept}, {x: xMax, y: slope * xMax + intercept}],
+                type: 'line', 
+                borderColor: '#10b981', 
+                borderDash: [4, 4], 
+                pointRadius: 0, 
+                order: -1
+            });
+            chartAr.update();
+        }
+
+        window.onload = initCharts;
+    </script>
+</body>
+</html>

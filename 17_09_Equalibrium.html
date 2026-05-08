@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reversible First-Order Kinetics And Equilibrium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .formula-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #6366f1;
+            padding: 1.25rem;
+            margin: 0.5rem 0;
+            font-family: 'Cambria', 'Cochin', Georgia, Times, 'Times New Roman', serif;
+            transition: all 0.4s ease-out;
+            opacity: 0;
+            transform: translateY(10px);
+            display: none;
+        }
+        .formula-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .step-label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #6366f1;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        input[type="range"] {
+            accent-color: #6366f1;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-6xl mx-auto p-6 md:p-10">
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <div class="unified-module-badge">17A.9 - Reversible Reactions</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Reversible First-Order Kinetics And Equilibrium</h1>
+            <div class="h-1 w-20 bg-indigo-600 mx-auto mb-4"></div>
+            <p class="mt-3 text-sm md:text-base leading-relaxed">정반응과 역반응이 공존할 때 시스템이 평형 상태로 도달하는 과정을 분석하세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <!-- Left Column: Interactive Derivation -->
+            <div class="space-y-6">
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold mb-4 text-indigo-700 flex justify-between items-center">
+                        1. 적분 속도식 유도
+                        <button id="resetStepsBtn" class="text-xs font-normal text-slate-400 hover:text-indigo-600 underline">초기화</button>
+                    </h2>
+                    
+                    <div id="derivationContainer" class="space-y-4">
+                        <!-- Reaction Equation Display -->
+                        <div class="text-2xl font-bold text-center text-indigo-600 py-2 border-b border-slate-100 mb-2">
+                            \[ A \rightleftharpoons B \]
+                        </div>
+
+                        <!-- Step 1 -->
+                        <div id="step1" class="formula-box">
+                            <div class="step-label">Step 1: 알짜 속도 법칙</div>
+                            <div class="text-lg text-center py-2">
+                                \[ \frac{d[A]}{dt} = -k_f [A] + k_r [B] \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">\(k_f\)는 정반응, \(k_r\)은 역반응 속도 상수입니다.</p>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div id="step2" class="formula-box">
+                            <div class="step-label">Step 2: 물질 수지 적용</div>
+                            <p class="text-sm text-slate-600 mb-2">초기에 \([A]_0\)만 있고 \([B]_0 = 0\)이라면:</p>
+                            <div class="text-lg text-center py-2">
+                                \[ [B] = [A]_0 - [A] \]
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div id="step3" class="formula-box">
+                            <div class="step-label">Step 3: 미분 방정식 정리</div>
+                            <div class="text-lg text-center py-2">
+                                \[ \frac{d[A]}{dt} = -k_f[A] + k_r([A]_0 - [A]) \]
+                                \[ \frac{d[A]}{dt} = -(k_f + k_r)[A] + k_r[A]_0 \]
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div id="step4" class="formula-box border-l-indigo-400 bg-indigo-50">
+                            <div class="step-label">Step 4: 방정식의 해</div>
+                            <div class="text-lg text-center py-2 font-bold">
+                                \[ [A] = \frac{k_r + k_f e^{-(k_f + k_r)t}}{k_f + k_r} [A]_0 \]
+                            </div>
+                            <p class="text-sm text-slate-500 mt-2">농도는 지수 함수적으로 평형값에 수렴합니다.</p>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div id="step5" class="formula-box border-l-amber-500 bg-amber-50">
+                            <div class="step-label text-amber-600">Step 5: 평형 상태 분석</div>
+                            <div class="text-lg text-center font-bold text-slate-800 py-2">
+                                \[ [A]_{eq} = \frac{k_r [A]_0}{k_f + k_r}, \quad K = \frac{[B]_{eq}}{[A]_{eq}} = \frac{k_f}{k_r} \]
+                            </div>
+                            <p class="text-sm text-slate-600 mt-2 font-medium">\(t \to \infty\)일 때 시스템은 평형 상수 \(K\)에 의해 결정됩니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button id="nextStepBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+                            <span>다음 단계 보기</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Visualization & Controls -->
+            <div class="space-y-6">
+                <!-- Graph Card -->
+                <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 sticky top-6">
+                    <h2 class="text-xl font-bold mb-6">농도-시간 그래프 (\(A \rightleftharpoons B\))</h2>
+                    <div class="relative" style="height: 350px;">
+                        <canvas id="kineticsChart"></canvas>
+                    </div>
+
+                    <!-- Result Stats -->
+                    <div class="mt-6 grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">평형 상수 (\(K\))</div>
+                            <div id="kConstantDisplay" class="text-xl font-mono text-indigo-600 font-bold">-</div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">평형 농도 \([A]_{eq}\)</div>
+                            <div id="aEqDisplay" class="text-xl font-mono text-slate-800 font-bold">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Controls Section -->
+                    <section class="mt-8 pt-6 border-t border-slate-100">
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>정반응 상수 (\(k_f\))</span>
+                                    <span id="kfText" class="text-indigo-600 font-bold">0.10</span>
+                                </div>
+                                <input type="range" id="kfRange" min="0.01" max="0.5" step="0.01" value="0.1" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>역반응 상수 (\(k_r\))</span>
+                                    <span id="krText" class="text-emerald-600 font-bold">0.05</span>
+                                </div>
+                                <input type="range" id="krRange" min="0.01" max="0.5" step="0.01" value="0.05" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span>초기 농도 \([A]_0\)</span>
+                                    <span id="a0Text" class="text-slate-600 font-bold">1.0</span>
+                                </div>
+                                <input type="range" id="a0Range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Steps Management
+        let currentStep = 0;
+        const totalSteps = 5;
+        const nextStepBtn = document.getElementById('nextStepBtn');
+        const resetStepsBtn = document.getElementById('resetStepsBtn');
+
+        function showNextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                const stepEl = document.getElementById(`step${currentStep}`);
+                stepEl.style.display = 'block';
+                setTimeout(() => stepEl.classList.add('visible'), 10);
+                if (window.MathJax) MathJax.typesetPromise([stepEl]);
+                if (currentStep === totalSteps) {
+                    nextStepBtn.innerHTML = '유도 완료';
+                    nextStepBtn.classList.replace('bg-indigo-600', 'bg-green-600');
+                    nextStepBtn.disabled = true;
+                }
+                stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function resetSteps() {
+            for (let i = 1; i <= totalSteps; i++) {
+                const el = document.getElementById(`step${i}`);
+                el.classList.remove('visible');
+                el.style.display = 'none';
+            }
+            currentStep = 0;
+            nextStepBtn.innerHTML = '<span>다음 단계 보기</span><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>';
+            nextStepBtn.classList.replace('bg-green-600', 'bg-indigo-600');
+            nextStepBtn.disabled = false;
+        }
+
+        nextStepBtn.addEventListener('click', showNextStep);
+        resetStepsBtn.addEventListener('click', resetSteps);
+
+        // Chart & Calculation Logic
+        const ctx = document.getElementById('kineticsChart').getContext('2d');
+        const kfRange = document.getElementById('kfRange');
+        const krRange = document.getElementById('krRange');
+        const a0Range = document.getElementById('a0Range');
+        
+        const kfText = document.getElementById('kfText');
+        const krText = document.getElementById('krText');
+        const a0Text = document.getElementById('a0Text');
+        const kConstantDisplay = document.getElementById('kConstantDisplay');
+        const aEqDisplay = document.getElementById('aEqDisplay');
+
+        let chart;
+
+        function initChart() {
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Concentration [A]', data: [], borderColor: '#6366f1', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.1 },
+                        { label: 'Concentration [B]', data: [], borderColor: '#10b981', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', min: 0, max: 30, title: { display: true, text: 'Time (t)' } },
+                        y: { beginAtZero: true, min: 0, max: 2.2, title: { display: true, text: 'Concentration' } }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                boxWidth: 35,
+                                boxHeight: 2,
+                                padding: 15,
+                                font: { family: "'Segoe UI', sans-serif" },
+                                // Customizing labels to remove strike-through when hidden
+                                generateLabels: (chart) => {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    labels.forEach(label => {
+                                        const isHidden = chart.getDatasetMeta(label.datasetIndex).hidden;
+                                        label.hidden = false;
+                                        if (isHidden) {
+                                            label.fillStyle = '#e2e8f0';
+                                            label.strokeStyle = '#cbd5e1';
+                                            label.fontColor = '#94a3b8';
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            }
+                        } 
+                    }
+                }
+            });
+        }
+
+        function updateData() {
+            const kf = parseFloat(kfRange.value);
+            const kr = parseFloat(krRange.value);
+            const a0 = parseFloat(a0Range.value);
+            
+            kfText.innerText = kf.toFixed(2);
+            krText.innerText = kr.toFixed(2);
+            a0Text.innerText = a0.toFixed(1);
+            
+            const K = kf / kr;
+            const aEq = (kr * a0) / (kf + kr);
+            
+            kConstantDisplay.innerText = K.toFixed(2);
+            aEqDisplay.innerText = aEq.toFixed(3);
+
+            const dataA = [];
+            const dataB = [];
+            const sumK = kf + kr;
+
+            for (let t = 0; t <= 30; t += 0.5) {
+                // [A] = (kr + kf * exp(-sumK * t)) / sumK * a0
+                const a_t = ((kr + kf * Math.exp(-sumK * t)) / sumK) * a0;
+                const b_t = a0 - a_t;
+                
+                dataA.push({x: t, y: a_t});
+                dataB.push({x: t, y: b_t});
+            }
+
+            chart.data.datasets[0].data = dataA;
+            chart.data.datasets[1].data = dataB;
+            chart.update('none');
+        }
+
+        [kfRange, krRange, a0Range].forEach(el => el.oninput = updateData);
+
+        window.onload = () => {
+            initChart();
+            updateData();
+        };
+    </script>
+</body>
+</html>

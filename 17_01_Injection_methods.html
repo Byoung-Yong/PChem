@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Rate Measurement: Injection Methods</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        .lab-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .syringe-barrel {
+            fill: rgba(255, 255, 255, 0.05);
+            stroke: rgba(148, 163, 184, 0.4);
+            stroke-width: 1.5;
+        }
+
+        .detector-beam {
+            stroke: #ff1f1f;
+            stroke-width: 3;
+            stroke-dasharray: 4;
+            filter: drop-shadow(0 0 4px #ff1f1f);
+            animation: beamPulse 1.5s infinite ease-in-out;
+        }
+
+        @keyframes beamPulse {
+            0%, 100% { opacity: 0.2; stroke-width: 2; }
+            50% { opacity: 0.9; stroke-width: 4; }
+        }
+
+        .glass-highlight {
+            fill: url(#specularGrad);
+            pointer-events: none;
+        }
+
+        .control-panel {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            background: #334155;
+            border-radius: 10px;
+            height: 6px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-top: -7px;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        
+        input[type=range].slider-blue::-webkit-slider-thumb {
+            background: #3b82f6;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #1e293b;
+            color: #38bdf8;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        /* Animations for Realism */
+        @keyframes spinStirrer {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .stirrer-active {
+            animation: spinStirrer 0.1s linear infinite;
+            transform-origin: 410px 225px;
+        }
+
+        @keyframes hardwareShake {
+            0% { transform: translate(0, 0); }
+            20% { transform: translate(-3px, 1px); }
+            40% { transform: translate(3px, -1px); }
+            60% { transform: translate(-2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+        .shake-impact {
+            animation: hardwareShake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="px-10 py-5 flex justify-between items-center bg-slate-900 border-b border-white/5 z-20">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            </div>
+            <div>
+                <div class="unified-module-badge">17A.1 - Kinetics Measurement</div>
+                <h1 class="text-xl md:text-2xl font-black tracking-tight">반응 속도 측정: 주입법 (Injection Methods)</h1>
+                <p class="text-xs text-slate-400 font-medium">실시간 분광광도계와 유체 동역학을 이용한 초고속 반응 관측 시뮬레이션</p>
+            </div>
+        </div>
+        <div id="status-badge" class="hidden md:flex items-center gap-3 bg-slate-800/80 px-5 py-2.5 rounded-full border border-white/10 shadow-inner">
+            <div id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-slate-500 shadow-[0_0_8px_rgba(148,163,184,0.5)]"></div>
+            <span id="status-msg" class="text-[11px] font-bold text-slate-300 uppercase tracking-widest lab-font">System Ready</span>
+        </div>
+    </header>
+
+    <!-- Simulation Viewport -->
+    <main class="flex-1 flex items-center justify-center p-6 bg-[#0a0f1e] relative overflow-hidden" id="simulation-area">
+        <!-- SVG Apparatus -->
+        <div class="w-full max-w-4xl relative z-10 flex-shrink-0">
+            <svg viewBox="0 0 900 450" class="w-full h-auto filter drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]" id="apparatus-svg">
+                <defs>
+                    <linearGradient id="metalPiston" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#e2e8f0" />
+                        <stop offset="20%" stop-color="#94a3b8" />
+                        <stop offset="50%" stop-color="#475569" />
+                        <stop offset="80%" stop-color="#64748b" />
+                        <stop offset="100%" stop-color="#1e293b" />
+                    </linearGradient>
+                    <linearGradient id="metalMount" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#334155" />
+                        <stop offset="100%" stop-color="#0f172a" />
+                    </linearGradient>
+                    <linearGradient id="specularGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="white" stop-opacity="0.3" />
+                        <stop offset="15%" stop-color="white" stop-opacity="0.05" />
+                        <stop offset="85%" stop-color="white" stop-opacity="0.02" />
+                        <stop offset="100%" stop-color="white" stop-opacity="0.1" />
+                    </linearGradient>
+                    <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="black" stop-opacity="0.3" />
+                        <stop offset="50%" stop-color="white" stop-opacity="0.15" />
+                        <stop offset="100%" stop-color="black" stop-opacity="0.3" />
+                    </linearGradient>
+                    <linearGradient id="liquidAGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#60a5fa" />
+                        <stop offset="50%" stop-color="#2563eb" />
+                        <stop offset="100%" stop-color="#1e3a8a" />
+                    </linearGradient>
+                    <linearGradient id="liquidBGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#fcd34d" />
+                        <stop offset="50%" stop-color="#d97706" />
+                        <stop offset="100%" stop-color="#78350f" />
+                    </linearGradient>
+                    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
+                        <feOffset dx="2" dy="6" result="offsetblur" />
+                        <feComponentTransfer><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
+                        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+
+                <!-- Hardware Mounts (Background) -->
+                <rect x="50" y="80" width="30" height="290" fill="url(#metalMount)" rx="4" filter="url(#softShadow)"/>
+                <rect x="290" y="80" width="30" height="290" fill="url(#metalMount)" rx="4" filter="url(#softShadow)"/>
+
+                <!-- Pipework -->
+                <g filter="url(#softShadow)">
+                    <!-- Tubes -->
+                    <path d="M 300 145 L 380 200" stroke="#1e293b" stroke-width="16" fill="none" stroke-linecap="round" />
+                    <path d="M 300 305 L 380 250" stroke="#1e293b" stroke-width="16" fill="none" stroke-linecap="round" />
+                    <!-- Liquid in Tubes -->
+                    <path id="flowPathA" d="M 300 145 L 380 200" stroke="url(#liquidAGrad)" stroke-width="10" fill="none" stroke-dasharray="120" stroke-dashoffset="120" stroke-linecap="round" />
+                    <path id="flowPathB" d="M 300 305 L 380 250" stroke="url(#liquidBGrad)" stroke-width="10" fill="none" stroke-dasharray="120" stroke-dashoffset="120" stroke-linecap="round" />
+                    <!-- Tube Glass Overlays -->
+                    <path d="M 300 145 L 380 200" stroke="url(#tubeGrad)" stroke-width="16" fill="none" stroke-linecap="round" />
+                    <path d="M 300 305 L 380 250" stroke="url(#tubeGrad)" stroke-width="16" fill="none" stroke-linecap="round" />
+                </g>
+
+                <!-- Syringe A (Top) -->
+                <g transform="translate(80, 110)" filter="url(#softShadow)">
+                    <rect width="220" height="70" rx="4" class="syringe-barrel" />
+                    <rect id="liqA" x="45" y="4" width="170" height="62" rx="2" fill="url(#liquidAGrad)" />
+                    
+                    <!-- Syringe Markings -->
+                    <path d="M 60 4 v 8 M 80 4 v 12 M 100 4 v 8 M 120 4 v 12 M 140 4 v 8 M 160 4 v 12 M 180 4 v 8 M 200 4 v 12" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" fill="none" />
+                    <path d="M 60 66 v -8 M 80 66 v -12 M 100 66 v -8 M 120 66 v -12 M 140 66 v -8 M 160 66 v -12 M 180 66 v -8 M 200 66 v -12" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" fill="none" />
+
+                    <g id="pistonAGroup" transform="translate(0, 0)">
+                        <rect x="-80" y="30" width="85" height="10" fill="url(#metalPiston)" rx="2" />
+                        <rect x="5" y="4" width="40" height="62" fill="url(#metalPiston)" rx="2" />
+                        <rect x="42" y="4" width="6" height="62" fill="#0f172a" rx="1" />
+                        <line x1="15" y1="4" x2="15" y2="66" stroke="#475569" stroke-width="2"/>
+                    </g>
+                    <rect width="220" height="70" rx="4" class="glass-highlight" />
+                </g>
+
+                <!-- Syringe B (Bottom) -->
+                <g transform="translate(80, 270)" filter="url(#softShadow)">
+                    <rect width="220" height="70" rx="4" class="syringe-barrel" />
+                    <rect id="liqB" x="45" y="4" width="170" height="62" rx="2" fill="url(#liquidBGrad)" />
+                    
+                    <!-- Syringe Markings -->
+                    <path d="M 60 4 v 8 M 80 4 v 12 M 100 4 v 8 M 120 4 v 12 M 140 4 v 8 M 160 4 v 12 M 180 4 v 8 M 200 4 v 12" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" fill="none" />
+                    <path d="M 60 66 v -8 M 80 66 v -12 M 100 66 v -8 M 120 66 v -12 M 140 66 v -8 M 160 66 v -12 M 180 66 v -8 M 200 66 v -12" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" fill="none" />
+
+                    <g id="pistonBGroup" transform="translate(0, 0)">
+                        <rect x="-80" y="30" width="85" height="10" fill="url(#metalPiston)" rx="2" />
+                        <rect x="5" y="4" width="40" height="62" fill="url(#metalPiston)" rx="2" />
+                        <rect x="42" y="4" width="6" height="62" fill="#0f172a" rx="1" />
+                        <line x1="15" y1="4" x2="15" y2="66" stroke="#475569" stroke-width="2"/>
+                    </g>
+                    <rect width="220" height="70" rx="4" class="glass-highlight" />
+                </g>
+
+                <!-- Outflow Tube -->
+                <g filter="url(#softShadow)">
+                    <rect x="420" y="215" width="220" height="20" fill="#1e293b" rx="2" />
+                    <rect id="tubeMixed" x="420" y="217" width="0" height="16" fill="#10b981" rx="1" />
+                    <rect x="420" y="215" width="220" height="20" fill="url(#tubeGrad)" rx="2" />
+                    <!-- Distance markers on observation tube -->
+                    <path d="M 460 215 v 20 M 500 215 v 20 M 540 215 v 20 M 580 215 v 20 M 620 215 v 20" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none" />
+                </g>
+
+                <!-- Mixing Chamber -->
+                <g id="mixer" transform="translate(410, 225)" filter="url(#softShadow)">
+                    <circle r="52" fill="#1e293b" stroke="#334155" stroke-width="6" />
+                    <circle id="mixLiquid" r="46" fill="#0f172a" />
+                    <!-- Magnetic Stirrer -->
+                    <rect id="stirrer" x="-15" y="-4" width="30" height="8" rx="4" fill="#cbd5e1" opacity="0.8" />
+                    <circle r="46" fill="url(#specularGrad)" />
+                </g>
+
+                <!-- Advanced Spectrometer -->
+                <g id="spectrometer" opacity="0.95" filter="url(#softShadow)">
+                    <rect x="580" y="140" width="80" height="60" fill="#1e293b" rx="6" stroke="#334155" stroke-width="2"/>
+                    <rect x="580" y="250" width="80" height="60" fill="#1e293b" rx="6" stroke="#334155" stroke-width="2"/>
+                    <rect x="600" y="180" width="40" height="20" fill="#0f172a" rx="4" />
+                    <rect x="600" y="250" width="40" height="20" fill="#0f172a" rx="4" />
+                    <line id="laser-beam" x1="620" y1="200" x2="620" y2="250" class="detector-beam" />
+                    <text x="620" y="130" text-anchor="middle" font-size="10" font-weight="900" fill="#ff4d4d" class="lab-font tracking-widest">UV-VIS SENSOR</text>
+                </g>
+
+                <!-- Stopping Piston (for stopped-flow) -->
+                <g id="stopPistonGroup" opacity="0" transform="translate(635, 205)" filter="url(#softShadow)">
+                    <rect width="60" height="40" fill="#1e293b" rx="4" stroke="#475569" stroke-width="2"/>
+                    <rect id="stopperBlock" x="5" y="4" width="15" height="32" fill="url(#metalPiston)" rx="2" />
+                    <text x="30" y="-10" text-anchor="middle" font-size="10" font-weight="900" fill="#ef4444" class="lab-font tracking-widest">STOPPER</text>
+                </g>
+            </svg>
+        </div>
+
+        <!-- Real-time Live Spectrometer Chart -->
+        <div class="absolute top-6 right-6 bottom-6 w-80 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+            <div class="bg-black/40 px-4 py-3 border-b border-white/5 flex justify-between items-center">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest lab-font">Live Sensor Data</span>
+                <span id="chart-status" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            </div>
+            
+            <div class="flex-1 p-4 relative">
+                <canvas id="liveChart"></canvas>
+            </div>
+            
+            <!-- Digital Readouts -->
+            <div class="bg-black/50 p-4 grid grid-cols-2 gap-4 border-t border-white/5 lab-font">
+                <div>
+                    <p class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Time (ms)</p>
+                    <p id="time-readout" class="text-lg text-slate-200 font-bold">0.0</p>
+                </div>
+                <div>
+                    <p class="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Yield (%)</p>
+                    <p id="yield-readout" class="text-lg text-emerald-400 font-bold">0.00</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Control Panel -->
+    <footer class="p-8 control-panel z-20">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-end pr-80">
+            
+            <!-- Analysis Logic Mode -->
+            <div class="md:col-span-4">
+                <label class="block text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.2em] lab-font">주입 프로토콜</label>
+                <div class="flex bg-slate-800/40 p-1.5 rounded-xl border border-white/5 shadow-inner">
+                    <button id="btn-flow" class="flex-1 py-3 rounded-lg text-xs font-black transition-all bg-blue-600 text-white shadow-lg shadow-blue-500/20">연속 주입법</button>
+                    <button id="btn-stop" class="flex-1 py-3 rounded-lg text-xs font-black transition-all text-slate-400 hover:text-white">정지 흐름법</button>
+                </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="md:col-span-5 space-y-4">
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] lab-font">반응 속도 상수 (k)</label>
+                        <span id="k-value" class="text-xs font-black text-emerald-400 lab-font">1.00</span>
+                    </div>
+                    <input type="range" id="rate-slider" min="1" max="100" value="50" class="w-full appearance-none bg-transparent">
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] lab-font">기기 주입 속도 (Flow Velocity)</label>
+                        <span id="v-value" class="text-xs font-black text-blue-400 lab-font">Medium</span>
+                    </div>
+                    <input type="range" id="flow-slider" min="1" max="100" value="50" class="w-full appearance-none bg-transparent slider-blue">
+                </div>
+            </div>
+
+            <!-- Execution -->
+            <div class="md:col-span-3 flex gap-3">
+                <button id="btn-action" class="flex-1 bg-white text-slate-900 font-black py-4 rounded-xl shadow-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+                    실험 시작
+                </button>
+                <button id="btn-reset" class="px-5 bg-slate-800/60 hover:bg-slate-700 text-slate-300 font-bold rounded-xl border border-white/5 transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * Advanced Kinetics Simulation Engine
+         */
+        let isRunning = false;
+        let mode = 'flow'; // 'flow' (Continuous) or 'stop' (Stopped-Flow)
+        let phase = 'idle'; // idle -> injecting -> observing -> finished
+        let progress = 0;
+        let timeMs = 0;
+        
+        // Physical parameters
+        let k = 0.05; // Reaction rate constant
+        let flowVelocity = 2.0; // Piston speed
+        
+        let animationFrame;
+        
+        // Chart Data
+        let chartData = { labels: [], datasets: [{ label: 'Yield (%)', data: [], borderColor: '#10b981', borderWidth: 2, pointRadius: 0, tension: 0.1 }] };
+        let liveChart;
+
+        const el = {
+            svgContainer: document.getElementById('apparatus-svg'),
+            pistA: document.getElementById('pistonAGroup'),
+            pistB: document.getElementById('pistonBGroup'),
+            liqA: document.getElementById('liqA'),
+            liqB: document.getElementById('liqB'),
+            flowA: document.getElementById('flowPathA'),
+            flowB: document.getElementById('flowPathB'),
+            mixLiquid: document.getElementById('mixLiquid'),
+            tubeMixed: document.getElementById('tubeMixed'),
+            stopGroup: document.getElementById('stopPistonGroup'),
+            stopperBlock: document.getElementById('stopperBlock'),
+            stirrer: document.getElementById('stirrer'),
+            statusMsg: document.getElementById('status-msg'),
+            statusInd: document.getElementById('status-indicator'),
+            kValue: document.getElementById('k-value'),
+            vValue: document.getElementById('v-value'),
+            rateSlider: document.getElementById('rate-slider'),
+            flowSlider: document.getElementById('flow-slider'),
+            btnAction: document.getElementById('btn-action'),
+            btnReset: document.getElementById('btn-reset'),
+            btnFlow: document.getElementById('btn-flow'),
+            btnStop: document.getElementById('btn-stop'),
+            timeReadout: document.getElementById('time-readout'),
+            yieldReadout: document.getElementById('yield-readout'),
+            chartStatus: document.getElementById('chart-status')
+        };
+
+        // --- Init Chart.js ---
+        function initChart() {
+            const ctx = document.getElementById('liveChart').getContext('2d');
+            Chart.defaults.color = '#64748b';
+            Chart.defaults.font.family = "'JetBrains Mono', monospace";
+            
+            liveChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    animation: false, // Turn off for real-time updates
+                    scales: {
+                        x: { 
+                            title: { display: false },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { maxTicksLimit: 5, callback: val => (val/10).toFixed(0) }
+                        },
+                        y: { 
+                            min: 0, max: 100,
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+        }
+
+        // --- Color Utilities ---
+        const baseMixColor = { r: 51, g: 65, b: 85 }; // Unreacted Dark slate
+        const finalColor = { r: 16, g: 185, b: 129 }; // Reacted Emerald
+
+        function lerpColor(c1, c2, t) {
+            const r = Math.round(c1.r + (c2.r - c1.r) * t);
+            const g = Math.round(c1.g + (c2.g - c1.g) * t);
+            const b = Math.round(c1.b + (c2.b - c1.b) * t);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        // ADDED: getReactionColor helper to fix the ReferenceError
+        function getReactionColor(t) {
+            return lerpColor(baseMixColor, finalColor, Math.min(t, 1));
+        }
+
+        // --- Sliders ---
+        function updateParameters() {
+            k = parseInt(el.rateSlider.value) * 0.001;
+            el.kValue.textContent = (k * 100).toFixed(1);
+
+            const v = parseInt(el.flowSlider.value);
+            flowVelocity = v * 0.04 + 0.5; // range: ~0.5 to ~4.5
+            
+            let vText = "Medium";
+            if (v < 30) vText = "Slow";
+            else if (v > 70) vText = "Fast";
+            el.vValue.textContent = vText;
+        }
+
+        function setMode(m) {
+            if (isRunning) return;
+            mode = m;
+            const isF = mode === 'flow';
+            
+            el.btnFlow.className = isF ? "flex-1 py-3 rounded-lg text-xs font-black transition-all bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "flex-1 py-3 rounded-lg text-xs font-black transition-all text-slate-400 hover:text-white";
+            el.btnStop.className = !isF ? "flex-1 py-3 rounded-lg text-xs font-black transition-all bg-rose-600 text-white shadow-lg shadow-rose-500/20" : "flex-1 py-3 rounded-lg text-xs font-black transition-all text-slate-400 hover:text-white";
+            
+            el.stopGroup.style.opacity = isF ? "0" : "1";
+            
+            // Adjust defaults for modes to make pedagogical sense
+            if (!isF) {
+                // Stopped-flow is usually for very fast reactions, so push fast
+                el.flowSlider.value = 90;
+            } else {
+                el.flowSlider.value = 30;
+            }
+            updateParameters();
+            reset();
+        }
+
+        function reset() {
+            cancelAnimationFrame(animationFrame);
+            isRunning = false;
+            phase = 'idle';
+            progress = 0;
+            timeMs = 0;
+            
+            // Reset SVGs
+            el.pistA.setAttribute('transform', 'translate(0, 0)');
+            el.pistB.setAttribute('transform', 'translate(0, 0)');
+            el.liqA.setAttribute('x', 45); el.liqA.setAttribute('width', 170);
+            el.liqB.setAttribute('x', 45); el.liqB.setAttribute('width', 170);
+            el.flowA.setAttribute('stroke-dashoffset', 120);
+            el.flowB.setAttribute('stroke-dashoffset', 120);
+            
+            el.mixLiquid.setAttribute('fill', '#0f172a');
+            el.tubeMixed.setAttribute('width', 0);
+            el.stopperBlock.setAttribute('transform', 'translate(0,0)');
+            el.svgContainer.classList.remove('shake-impact');
+            el.stirrer.classList.remove('stirrer-active');
+
+            // Reset UI
+            el.btnAction.disabled = false;
+            el.btnAction.innerHTML = `실험 시작`;
+            el.statusMsg.textContent = "System Ready";
+            el.statusInd.className = "w-2.5 h-2.5 rounded-full bg-slate-500";
+            el.timeReadout.textContent = "0.0";
+            el.yieldReadout.textContent = "0.00";
+            el.chartStatus.className = "w-2 h-2 rounded-full bg-slate-500";
+            
+            // Reset Chart
+            chartData.labels = [];
+            chartData.datasets[0].data = [];
+            liveChart.update();
+        }
+
+        function addChartData(t, yieldVal) {
+            // Simulate Sensor Noise (+/- 0.5%)
+            const noise = (Math.random() - 0.5) * 1.5;
+            let noisyYield = Math.max(0, Math.min(100, yieldVal * 100 + noise));
+            
+            chartData.labels.push(t);
+            chartData.datasets[0].data.push(noisyYield);
+            
+            if (chartData.labels.length > 100) {
+                chartData.labels.shift();
+                chartData.datasets[0].data.shift();
+            }
+            
+            liveChart.update();
+            el.timeReadout.textContent = (t / 10).toFixed(1);
+            el.yieldReadout.textContent = noisyYield.toFixed(2);
+        }
+
+        function step() {
+            if (!isRunning) return;
+
+            if (phase === 'injecting') {
+                progress += flowVelocity;
+                const maxPush = mode === 'flow' ? 170 : 80; // Stopped flow pushes less volume before stopping
+                const currentPush = Math.min(progress, maxPush);
+
+                // Piston Movement
+                el.pistA.setAttribute('transform', `translate(${currentPush}, 0)`);
+                el.pistB.setAttribute('transform', `translate(${currentPush}, 0)`);
+                el.liqA.setAttribute('x', 45 + currentPush);
+                el.liqA.setAttribute('width', 170 - currentPush);
+                el.liqB.setAttribute('x', 45 + currentPush);
+                el.liqB.setAttribute('width', 170 - currentPush);
+
+                // Pipe flow
+                const pipeOffset = Math.max(120 - (progress * 4), 0);
+                el.flowA.setAttribute('stroke-dashoffset', pipeOffset);
+                el.flowB.setAttribute('stroke-dashoffset', pipeOffset);
+
+                if (progress > 30) {
+                    // Reached mixer
+                    if (mode === 'flow') {
+                        // Continuous Flow: Age of mixture at sensor is constant, depends on flow rate and distance
+                        // Distance to sensor = approx 200 units. Time = 200 / flowVelocity
+                        const residenceTime = 200 / flowVelocity;
+                        const theoreticalYield = 1 - Math.exp(-k * residenceTime);
+                        
+                        el.mixLiquid.setAttribute('fill', getReactionColor(theoreticalYield * 0.2)); // Mixer is early
+                        
+                        const tubeProgress = Math.min((progress - 30) * 4, 220); // Reach sensor at x=600 (tube width 220 is enough)
+                        el.tubeMixed.setAttribute('width', tubeProgress);
+                        
+                        if (tubeProgress >= 180) { // Hit sensor
+                            timeMs += 1;
+                            addChartData(timeMs, theoreticalYield);
+                            el.tubeMixed.setAttribute('fill', getReactionColor(theoreticalYield));
+                        } else {
+                            el.tubeMixed.setAttribute('fill', getReactionColor(0));
+                        }
+
+                        if (currentPush >= maxPush) {
+                            phase = 'finished';
+                        }
+                    } else if (mode === 'stop') {
+                        // Stopped Flow: Fills rapidly to sensor, then stops
+                        el.mixLiquid.setAttribute('fill', getReactionColor(0));
+                        const tubeProgress = Math.min((progress - 30) * 4, 180);
+                        el.tubeMixed.setAttribute('width', tubeProgress);
+                        el.tubeMixed.setAttribute('fill', getReactionColor(0));
+
+                        if (currentPush >= maxPush) {
+                            // HIT STOPPER!
+                            el.stopperBlock.setAttribute('transform', 'translate(10,0)');
+                            el.svgContainer.classList.add('shake-impact');
+                            
+                            phase = 'observing';
+                            el.statusMsg.textContent = "흐름 정지 - 반응 관측 중";
+                            el.statusInd.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping";
+                            el.chartStatus.className = "w-2 h-2 rounded-full bg-rose-500 animate-ping";
+                            el.stirrer.classList.remove('stirrer-active'); // Flow stopped
+                        }
+                    }
+                }
+            } 
+            else if (phase === 'observing') {
+                // Stopped Flow Observation: Age increases linearly with time
+                timeMs += 1;
+                // Scale timeMs slightly to fit chart nicely
+                const obsTime = timeMs * 2; 
+                const yieldVal = 1 - Math.exp(-k * obsTime);
+                
+                const c = getReactionColor(yieldVal);
+                el.mixLiquid.setAttribute('fill', c);
+                el.tubeMixed.setAttribute('fill', c);
+                
+                addChartData(timeMs, yieldVal);
+
+                if (yieldVal > 0.99 || timeMs > 200) {
+                    phase = 'finished';
+                }
+            }
+            else if (phase === 'finished') {
+                isRunning = false;
+                el.statusMsg.textContent = "실험 완료";
+                el.statusInd.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                el.chartStatus.className = "w-2 h-2 rounded-full bg-emerald-500";
+                el.stirrer.classList.remove('stirrer-active');
+                el.btnAction.disabled = true;
+                el.btnAction.textContent = "완료";
+            }
+
+            if (isRunning) animationFrame = requestAnimationFrame(step);
+        }
+
+        el.btnAction.addEventListener('click', () => {
+            if (!isRunning && phase === 'idle') {
+                isRunning = true;
+                phase = 'injecting';
+                el.statusInd.className = "w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse";
+                el.statusMsg.textContent = mode === 'flow' ? "연속 주입 중..." : "급속 주입 중...";
+                el.chartStatus.className = "w-2 h-2 rounded-full bg-blue-500 animate-pulse";
+                el.stirrer.classList.add('stirrer-active');
+                step();
+            }
+        });
+
+        el.btnReset.addEventListener('click', reset);
+        el.btnFlow.addEventListener('click', () => setMode('flow'));
+        el.btnStop.addEventListener('click', () => setMode('stop'));
+        el.rateSlider.addEventListener('input', updateParameters);
+        el.flowSlider.addEventListener('input', updateParameters);
+
+        initChart();
+        updateParameters();
+    </script>
+</body>
+</html>

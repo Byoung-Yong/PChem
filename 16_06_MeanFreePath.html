@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mean Free Path and Collision Cross section</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+
+        /* [No Edges] Strictly plain box style with uniform border */
+        .math-box {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 1.5rem;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { image-rendering: auto; display: block; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden p-4 md:p-8">
+
+    <header class="text-center mb-8 shrink-0">
+        <div class="unified-module-badge lab-font">16A.6 - Kinetic Theory</div>
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-left">
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Mean Free Path Analysis</h1>
+                <p class="mt-2 text-sm text-slate-500 font-medium italic">이론적 평균 자유 행로(\(\lambda_{\text{theory}}\))와 시뮬레이션 데이터의 정합성 분석</p>
+            </div>
+            <div class="flex gap-3 shrink-0">
+                <button id="resetBtn" class="bg-white hover:bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-bold shadow-sm border border-slate-200 uppercase tracking-widest text-[10px] lab-font">Reset</button>
+                <button id="playBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-indigo-200 transition-all uppercase tracking-widest text-xs lab-font border border-indigo-500">Run Simulation</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden w-full max-w-7xl mx-auto gap-8">
+        <!-- Left Panel -->
+        <div class="w-full lg:w-1/2 flex flex-col gap-6 min-h-0">
+            <div id="canvasContainer" class="relative flex-[1.4] bg-slate-950 rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-2xl">
+                <canvas id="collisionCanvas" class="w-full h-full block"></canvas>
+                <div class="absolute top-6 left-6 flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                    <span class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_8px_#818cf8]"></span>
+                    <span id="statusText" class="text-[9px] text-indigo-300 font-black tracking-widest uppercase lab-font">System Ready</span>
+                </div>
+                <div class="absolute top-16 left-6 flex flex-col gap-3">
+                    <div class="bg-slate-900/60 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/5">
+                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">누적 이동 거리 (\(L\))</p>
+                        <p id="totalDist" class="text-2xl font-black text-white lab-font">0 <span class="text-xs font-normal">nm</span></p>
+                    </div>
+                    <div class="bg-slate-900/60 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/5">
+                        <p class="text-[9px] text-yellow-500 font-bold uppercase tracking-widest mb-1">실제 충돌 수 (Observed)</p>
+                        <p id="hitCount" class="text-3xl font-black text-white lab-font">0</p>
+                    </div>
+                </div>
+                <div class="absolute bottom-6 right-6">
+                    <div class="bg-emerald-900/60 backdrop-blur-md px-5 py-3 rounded-3xl border border-emerald-500/30 shadow-lg text-right min-w-[160px]">
+                        <p class="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-1">예상 충돌 수 (\(L / \lambda_{\text{theory}}\))</p>
+                        <p id="expectedHits" class="text-3xl font-black text-emerald-400 lab-font">0.0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-panel p-6 rounded-[2.5rem] border border-slate-200 shadow-xl shrink-0">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-5 lab-font border-b border-slate-100 pb-2">Physics Parameters</h3>
+                <div class="space-y-6">
+                    <div>
+                        <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                            <span>입자 직경 (\(d\))</span>
+                            <span id="dVal" class="text-indigo-600 font-black lab-font">2.5 nm</span>
+                        </label>
+                        <input type="range" id="dSlider" min="1.0" max="5.0" step="0.1" value="2.5" class="w-full">
+                    </div>
+                    <div class="grid grid-cols-2 gap-6 pt-2">
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>온도 (\(T\))</span>
+                                <span id="tVal" class="text-indigo-600 font-black lab-font">300 K</span>
+                            </label>
+                            <input type="range" id="tSlider" min="100" max="600" step="10" value="300" class="w-full">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>압력 (\(P\))</span>
+                                <span id="pVal" class="text-indigo-600 font-black lab-font">10 atm</span>
+                            </label>
+                            <input type="range" id="pSlider" min="1" max="50" step="1" value="10" class="w-full">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-2">
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-center text-center shadow-inner">
+                            <span class="text-[9px] font-black text-slate-500 mb-1">이론적 \(\lambda_{\text{theory}}\)</span>
+                            <span id="lambdaVal" class="text-xl font-black text-slate-800 lab-font">0.0 nm</span>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-center text-center shadow-inner">
+                            <span class="text-[9px] font-black text-slate-500 mb-1">실측값 \(\lambda_{\text{obs}}\)</span>
+                            <span id="obsLambdaVal" class="text-xl font-black text-slate-800 lab-font">0.0 nm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="w-full lg:w-1/2 p-8 overflow-y-auto bg-white border border-slate-200 rounded-[2.5rem] shadow-xl">
+            <div class="space-y-8">
+                <header class="border-b border-slate-100 pb-4">
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">물리적 정합성 증명</h2>
+                    <p class="text-slate-500 text-xs font-medium leading-relaxed mt-2 text-justify">
+                        시뮬레이션의 '예상 충돌 수'와 '실제 관찰된 충돌 수'의 수렴을 통해, 평균 자유 행로(\(\lambda_{\text{theory}}\)) 공식이 기하학적으로 완벽히 타당함을 검증합니다.
+                    </p>
+                </header>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black lab-font border border-slate-200">01</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">2D 충돌 단면적 (\(\sigma_{\text{2D}}\))</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                        메인 입자의 직경이 \(d\)일 때, 배경 입자와 충돌하기 위한 중심 간 거리는 \(\pm d\) 이내가 되어야 합니다. 이동하는 입자는 너비가 \(2d\)인 <b>'충돌 띠'</b>를 휩쓸며 전진합니다.
+                    </p>
+                    <div class="math-box"><div class="text-center"><span class="text-lg font-black text-indigo-800">\[ \sigma_{\text{2D}} = 2d \]</span></div></div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black lab-font border border-slate-200">02</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">입자 밀도(\(\mathcal{N}\))와의 관계</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                        평균 자유 행로(\(\lambda\))는 입자가 다음 충돌까지 쓸고 지나가야 하는 면적이 입자 한 개당 점유 면적(\(1/\mathcal{N}\))과 같아지는 거리입니다.
+                    </p>
+                    <div class="math-box"><div class="text-center"><span class="text-base font-black text-blue-800">\[ \lambda_{\text{theory}} = \frac{1}{\mathcal{N} \cdot \sigma_{\text{2D}}} \]</span></div></div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black lab-font border border-slate-200">03</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">관찰 데이터 해석</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-3">입자가 거리 \(L\)만큼 이동했을 때, 기대되는 충돌 수(\(N_{\text{expected}}\))는 다음과 같습니다.</p>
+                    <div class="bg-slate-900 p-6 rounded-[2rem] text-center shadow-lg relative overflow-hidden mt-4">
+                        <div class="text-xl font-black text-white mb-2 lab-font">\[ N_{\text{expected}} = \frac{L}{\lambda_{\text{theory}}} \]</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('collisionCanvas');
+            const ctx = canvas.getContext('2d');
+            const playBtn = document.getElementById('playBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const dSlider = document.getElementById('dSlider');
+            const tSlider = document.getElementById('tSlider');
+            const pSlider = document.getElementById('pSlider');
+            const dValEl = document.getElementById('dVal');
+            const tValEl = document.getElementById('tVal');
+            const pValEl = document.getElementById('pVal');
+            const lambdaValEl = document.getElementById('lambdaVal');
+            const obsLambdaValEl = document.getElementById('obsLambdaVal');
+            const hitCountEl = document.getElementById('hitCount');
+            const totalDistEl = document.getElementById('totalDist');
+            const expectedHitsEl = document.getElementById('expectedHits');
+            const statusText = document.getElementById('statusText');
+
+            let dpr = window.devicePixelRatio || 1;
+            let w, h, diam=2.5, temp=300, pres=10, n_density=0, theoryLambda=0, hits=0, isRunning=false, currentTravelDist=0;
+            const startZone=300; let corridorW=0, particles=[], mainParticle={x:80, y:0}, speed=0;
+
+            function setupCanvas() {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr); w = canvas.width/dpr; h = canvas.height/dpr;
+                mainParticle.y = h/2; corridorW = w * 25; 
+            }
+
+            function updatePhysics() {
+                diam = parseFloat(dSlider.value); temp = parseInt(tSlider.value); pres = parseInt(pSlider.value);
+                dValEl.textContent = diam.toFixed(1) + " nm"; tValEl.textContent = temp + " K"; pValEl.textContent = pres + " atm";
+                n_density = (pres / temp) * 0.015; const sigma = diam * 10;
+                theoryLambda = 1 / (n_density * sigma); lambdaValEl.textContent = theoryLambda.toFixed(1) + " nm";
+                speed = Math.sqrt(temp) * 0.32; if (!isRunning) initScene();
+            }
+
+            function initScene() {
+                particles = []; if (!w || !h) return;
+                const particleCountTotal = Math.floor(n_density * corridorW * h);
+                for(let i=0; i<particleCountTotal; i++) {
+                    particles.push({ x: startZone + Math.random()*corridorW, y: Math.random()*h, hit: false, checked: false });
+                }
+                mainParticle.x = 80; hits = 0; currentTravelDist = 0;
+                hitCountEl.textContent = "0"; totalDistEl.innerHTML = `0 <span class="text-xs font-normal">nm</span>`;
+                expectedHitsEl.textContent = "0.0"; obsLambdaValEl.textContent = "0.0 nm";
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, w, h);
+                const camX = mainParticle.x - 150;
+                ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1;
+                for(let x=0; x<w*25; x+=100) { ctx.beginPath(); ctx.moveTo(x-camX,0); ctx.lineTo(x-camX,h); ctx.stroke(); }
+                const sx = startZone - camX;
+                if (sx > 0 && sx < w) {
+                    ctx.beginPath(); ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)'; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+                    ctx.moveTo(sx, 0); ctx.lineTo(sx, h); ctx.stroke(); ctx.setLineDash([]);
+                    ctx.fillStyle = '#10b981'; ctx.font = 'bold 10px "JetBrains Mono"'; ctx.fillText('START', sx+10, 30);
+                }
+                const thw = diam * 5; 
+                ctx.save(); ctx.translate(-camX, 0);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.05)'; ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)'; ctx.setLineDash([5, 5]);
+                ctx.beginPath(); const ts = Math.max(startZone, 80); ctx.rect(ts, mainParticle.y - thw, mainParticle.x - ts, thw * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+                particles.forEach(p => {
+                    if (isRunning && !p.checked && p.x < mainParticle.x && mainParticle.x >= startZone) {
+                        p.checked = true; if (Math.abs(p.y - mainParticle.y) <= thw) {
+                            p.hit = true; hits++; hitCountEl.textContent = hits;
+                            statusText.textContent = "COLLISION!"; statusText.style.color = "#facc15";
+                            setTimeout(() => { if(isRunning) { statusText.textContent = "Simulating..."; statusText.style.color = "#818cf8"; } }, 200);
+                        }
+                    }
+                    if (p.x > camX - 100 && p.x < camX + w + 100) {
+                        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = p.hit ? '#facc15' : (p.checked ? '#1e293b' : '#475569'); ctx.fill();
+                    }
+                });
+                ctx.beginPath(); ctx.arc(mainParticle.x, mainParticle.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#60a5fa'; ctx.fill(); ctx.restore();
+                if (isRunning) {
+                    mainParticle.x += speed;
+                    if (mainParticle.x >= startZone) {
+                        currentTravelDist += speed; totalDistEl.innerHTML = `${Math.floor(currentTravelDist)} <span class="text-xs font-normal">nm</span>`;
+                        expectedHitsEl.textContent = (currentTravelDist / theoryLambda).toFixed(2);
+                        if (hits > 0) obsLambdaValEl.innerHTML = `${(currentTravelDist/hits).toFixed(1)} <span class="text-xs font-normal">nm</span>`;
+                    }
+                    if (mainParticle.x > startZone + corridorW) { isRunning = false; playBtn.textContent = "Restart"; statusText.textContent = "Finished"; }
+                }
+                requestAnimationFrame(draw);
+            }
+
+            playBtn.onclick = () => { if (mainParticle.x > startZone + corridorW) initScene(); isRunning = !isRunning;
+                playBtn.textContent = isRunning ? "Pause" : "Resume"; statusText.textContent = isRunning ? "Simulating..." : "Paused";
+            };
+            resetBtn.onclick = () => { isRunning = false; playBtn.textContent = "Run Simulation"; statusText.textContent = "System Ready"; initScene(); };
+            [dSlider, tSlider, pSlider].forEach(s => s.oninput = updatePhysics);
+            window.addEventListener('resize', () => { setupCanvas(); updatePhysics(); });
+            setupCanvas(); updatePhysics(); requestAnimationFrame(draw);
+        });
+    </script>
+</body>
+</html>

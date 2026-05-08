@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrhenius Equation And Activation Energy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .formula-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #f59e0b;
+            padding: 1.25rem;
+            margin: 0.5rem 0;
+            font-family: 'Cambria', 'Cochin', Georgia, Times, 'Times New Roman', serif;
+            transition: all 0.4s ease-out;
+            opacity: 0;
+            transform: translateY(10px);
+            display: none;
+        }
+        .formula-box.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .step-label {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #f59e0b;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        input[type="range"] {
+            accent-color: #f59e0b;
+        }
+        select {
+            font-family: 'Segoe UI', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-6xl mx-auto p-6 md:p-10">
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <div class="unified-module-badge">17A.12 - Temperature Dependence</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Arrhenius Equation And Activation Energy</h1>
+            <div class="h-1 w-20 bg-amber-500 mx-auto mb-4"></div>
+            <p class="mt-3 text-sm md:text-base leading-relaxed">온도에 따른 속도 상수 변화를 분석하고, 아레니우스 플롯을 통해 활성화 에너지를 구하는 원리를 학습하세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <!-- Left Column: Interactive Derivation & Theory -->
+            <div class="space-y-6">
+                <section class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold mb-4 text-amber-600 flex justify-between items-center">
+                        1. 아레니우스 도식과 활성화 에너지
+                        <button id="resetStepsBtn" class="text-xs font-normal text-slate-400 hover:text-amber-600 underline">초기화</button>
+                    </h2>
+                    
+                    <div id="derivationContainer" class="space-y-4">
+                        <div id="step1" class="formula-box">
+                            <div class="step-label">Step 1: 아레니우스 식</div>
+                            <div class="text-xl text-center py-2">
+                                \[ k_{\text{r}} = A e^{-\frac{E_{\text{a}}}{RT}} \]
+                            </div>
+                        </div>
+                        <div id="step2" class="formula-box">
+                            <div class="step-label">Step 2: 선형화 (로그 변환)</div>
+                            <div class="text-xl text-center py-2">
+                                \[ \ln k_{\text{r}} = \ln A - \frac{E_{\text{a}}}{R} \left( \frac{1}{T} \right) \]
+                            </div>
+                        </div>
+                        <div id="step3" class="formula-box">
+                            <div class="step-label">Step 3: 아레니우스 플롯</div>
+                            <div class="text-lg text-center py-2 font-bold">
+                                \[ \text{Slope} = \frac{d \ln k_{\text{r}}}{d(1/T)} = -\frac{E_{\text{a}}}{R} \]
+                            </div>
+                        </div>
+                        <div id="step4" class="formula-box">
+                            <div class="step-label">Step 4: 두 온도 공식</div>
+                            <div class="text-lg text-center py-2">
+                                \[ \ln \frac{k_{\text{r},2}}{k_{\text{r},1}} = \frac{E_{\text{a}}}{R} \left( \frac{1}{T_1} - \frac{1}{T_2} \right) \]
+                            </div>
+                        </div>
+                        <div id="step5" class="formula-box border-l-rose-500 bg-rose-50">
+                            <div class="step-label text-rose-600">Step 5: 국부 활성화 에너지</div>
+                            <div class="text-lg text-center py-2 text-rose-800 font-bold">
+                                \[ E_{\text{a}} = -R \frac{d \ln k_{\text{r}}}{d(1/T)} \]
+                            </div>
+                        </div>
+                        <div id="step6" class="formula-box border-l-rose-500 bg-rose-50">
+                            <div class="step-label text-rose-600">Step 6: 비아레니우스 거동</div>
+                            <p class="text-sm text-slate-600 mb-2">곡선인 경우, 접선의 기울기를 통해 해당 온도에서의 국부 활성화 에너지(\(E_{\text{a, local}}\))를 정의합니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <button id="nextStepBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+                            <span>다음 단계 보기</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Visualization & Controls -->
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 sticky top-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-slate-800">아레니우스 도식 (\(\ln k_{\text{r}}\) vs \(1/T\))</h2>
+                        <select id="behaviorSelect" class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500">
+                            <option value="linear">Linear (이상적)</option>
+                            <option value="concave">Concave (아래로 볼록)</option>
+                            <option value="convex">Convex (위로 볼록)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="relative bg-white border border-slate-100 rounded-lg overflow-hidden" style="height: 300px;">
+                        <canvas id="arrheniusChart"></canvas>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 flex flex-col justify-center min-h-[90px]">
+                            <div class="text-[10px] text-amber-600 font-bold text-center">관측 온도 및 역수</div>
+                            <div id="obsTDisplay" class="text-base font-mono text-slate-800 font-bold text-center leading-tight mt-1">-</div>
+                        </div>
+                        <div class="p-3 bg-rose-50 rounded-xl border border-rose-100 flex flex-col justify-center min-h-[90px]">
+                            <div class="text-[10px] text-rose-600 font-bold text-center">국부 \(E_{\text{a, local}}\)</div>
+                            <div id="localEaDisplay" class="text-lg font-mono text-rose-600 font-bold text-center">-</div>
+                        </div>
+                    </div>
+
+                    <section class="mt-6 pt-6 border-t border-slate-100">
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex justify-between mb-1 text-xs font-medium">
+                                    <span class="text-rose-600 font-bold">관측 지점 (\(T_{\text{obs}}\))</span>
+                                    <span id="obsTInputText" class="text-rose-600 font-bold">500 K</span>
+                                </div>
+                                <input type="range" id="obsTRange" min="250" max="1000" step="10" value="500" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-rose-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div class="flex justify-between mb-1 text-xs font-medium">
+                                        <span>활성화 에너지 (\(E_{\text{a}}\))</span>
+                                        <span id="eaInputText" class="text-amber-600 font-bold">50.0</span>
+                                    </div>
+                                    <input type="range" id="eaRange" min="10" max="150" step="1" value="50" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1 text-xs font-medium">
+                                        <span>지수 앞 인자 (\(\ln A\))</span>
+                                        <span id="lnAText" class="text-slate-600 font-bold">25.0</span>
+                                    </div>
+                                    <input type="range" id="lnARange" min="10" max="40" step="1" value="25" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Steps Management
+        let currentStep = 0;
+        const totalSteps = 6;
+        const nextStepBtn = document.getElementById('nextStepBtn');
+        const resetStepsBtn = document.getElementById('resetStepsBtn');
+
+        function showNextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                const stepEl = document.getElementById(`step${currentStep}`);
+                if (!stepEl) return;
+                stepEl.style.display = 'block';
+                setTimeout(() => stepEl.classList.add('visible'), 10);
+                if (window.MathJax) MathJax.typesetPromise([stepEl]);
+                if (currentStep === totalSteps) {
+                    nextStepBtn.innerHTML = '유도 완료';
+                    nextStepBtn.classList.replace('bg-amber-500', 'bg-green-600');
+                    nextStepBtn.disabled = true;
+                }
+                stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function resetSteps() {
+            for (let i = 1; i <= totalSteps; i++) {
+                const el = document.getElementById(`step${i}`);
+                if (el) {
+                    el.classList.remove('visible');
+                    el.style.display = 'none';
+                }
+            }
+            currentStep = 0;
+            nextStepBtn.innerHTML = '<span>다음 단계 보기</span><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>';
+            nextStepBtn.classList.replace('bg-green-600', 'bg-amber-500');
+            nextStepBtn.disabled = false;
+        }
+
+        nextStepBtn.addEventListener('click', showNextStep);
+        resetStepsBtn.addEventListener('click', resetSteps);
+
+        // Helper function for scientific notation formatting (x 10^y)
+        function formatScientific(value, decimals = 2) {
+            const exp = value.toExponential(decimals);
+            const parts = exp.split('e');
+            const mantissa = parts[0];
+            const exponent = parseInt(parts[1]);
+            return `${mantissa} × 10<sup>${exponent}</sup>`;
+        }
+
+        // Chart & Calculation Logic
+        const ctx = document.getElementById('arrheniusChart').getContext('2d');
+        const eaRange = document.getElementById('eaRange');
+        const lnARange = document.getElementById('lnARange');
+        const obsTRange = document.getElementById('obsTRange');
+        const behaviorSelect = document.getElementById('behaviorSelect');
+        
+        const eaInputText = document.getElementById('eaInputText');
+        const lnAText = document.getElementById('lnAText');
+        const obsTInputText = document.getElementById('obsTInputText');
+        
+        const obsTDisplay = document.getElementById('obsTDisplay');
+        const localEaDisplay = document.getElementById('localEaDisplay');
+
+        const R = 8.314;
+        let chart;
+
+        function initChart() {
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: '아레니우스 플롯', data: [], borderColor: '#f59e0b', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.2 },
+                        { label: '이상적 직선', data: [], borderColor: '#cbd5e1', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false },
+                        { label: '국부 접선', data: [], borderColor: '#f43f5e', borderWidth: 2, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { left: 10, right: 30, top: 30, bottom: 10 } },
+                    scales: {
+                        x: { 
+                            type: 'linear', min: 0.001, max: 0.004, 
+                            title: { display: true, text: '1/T (K⁻¹)', font: { weight: 'bold' } },
+                            ticks: {
+                                callback: (v) => v.toExponential(1),
+                                font: { family: "'Segoe UI', sans-serif" }
+                            },
+                            grid: { display: false }
+                        },
+                        y: { title: { display: true, text: 'ln kᵣ' }, grid: { color: '#f1f5f9' } }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'line',
+                                generateLabels: (chart) => {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    labels.forEach(label => {
+                                        label.hidden = false;
+                                        if (chart.getDatasetMeta(label.datasetIndex).hidden) {
+                                            label.strokeStyle = '#e2e8f0';
+                                            label.fontColor = '#94a3b8';
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            }
+                        },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [{
+                    id: 'customPoint',
+                    afterDraw: (chart) => {
+                        const {ctx, scales: {x, y}} = chart;
+                        const invT = 1 / parseFloat(obsTRange.value);
+                        if (!chart.data.datasets[0].data.length) return;
+                        const curve = chart.data.datasets[0].data;
+                        let closest = curve.reduce((p, c) => Math.abs(c.x - invT) < Math.abs(p.x - invT) ? c : p);
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(x.getPixelForValue(closest.x), y.getPixelForValue(closest.y), 6, 0, 2 * Math.PI);
+                        ctx.fillStyle = '#f43f5e';
+                        ctx.fill();
+                        ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function updateData() {
+            if (!chart) return;
+            const Ea_kJ = parseFloat(eaRange.value);
+            const Ea_J = Ea_kJ * 1000;
+            const lnA = parseFloat(lnARange.value);
+            const T_obs = parseFloat(obsTRange.value);
+            const behavior = behaviorSelect.value;
+            
+            eaInputText.innerText = Ea_kJ.toFixed(1);
+            lnAText.innerText = lnA.toFixed(1);
+            obsTInputText.innerText = T_obs + " K";
+            
+            // Fixed formatting: Temperature on top, 1/T below with cross-multiplication style
+            obsTDisplay.innerHTML = `${T_obs} K<br>(1/T = ${formatScientific(1/T_obs, 2)})`;
+
+            const slopeBase = -(Ea_J / R);
+            const mainData = [], refData = [];
+            const anchorX = 0.004;
+            let c = (behavior === 'concave') ? 600000 : (behavior === 'convex' ? -600000 : 0);
+
+            for (let invT = 0.001; invT <= 0.004; invT += 0.00005) {
+                const yLinear = slopeBase * invT + lnA;
+                refData.push({x: invT, y: yLinear});
+                mainData.push({x: invT, y: yLinear + c * Math.pow(invT - anchorX, 2)});
+            }
+
+            const x_obs = 1 / T_obs;
+            const y_obs = slopeBase * x_obs + lnA + c * Math.pow(x_obs - anchorX, 2);
+            const m_obs = slopeBase + 2 * c * (x_obs - anchorX);
+            localEaDisplay.innerText = (-m_obs * R / 1000).toFixed(1) + " kJ/mol";
+
+            chart.data.datasets[0].data = mainData;
+            chart.data.datasets[1].data = refData;
+            chart.data.datasets[2].data = [{x:x_obs-0.0005, y:y_obs-0.0005*m_obs}, {x:x_obs+0.0005, y:y_obs+0.0005*m_obs}];
+            chart.data.datasets[1].hidden = (behavior === 'linear');
+            
+            const allY = [...mainData.map(d => d.y)];
+            chart.options.scales.y.min = Math.floor(Math.min(...allY)) - 2;
+            chart.options.scales.y.max = Math.ceil(Math.max(...allY)) + 2;
+            chart.update('none');
+        }
+
+        [eaRange, lnARange, obsTRange, behaviorSelect].forEach(el => el.addEventListener('input', updateData));
+        window.onload = () => { initChart(); updateData(); };
+    </script>
+</body>
+</html>

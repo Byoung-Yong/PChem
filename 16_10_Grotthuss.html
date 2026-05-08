@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grotthuss Mechanism</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        /* SVG Animation Transitions */
+        .dynamic-bond {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dynamic-atom {
+            transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .slide-transition {
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden p-6 md:p-10">
+
+    <!-- Header -->
+    <header class="text-center mb-10 shrink-0">
+        <div class="unified-module-badge lab-font">16A.10 - Proton Transport</div>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Grotthuss Mechanism</h1>
+        <p class="mt-3 text-sm md:text-base leading-relaxed text-slate-500 font-medium italic">
+            수소 결합 네트워크에서 일어나는 양성자 전달 현상을 단계적(Stepwise) 모델과 협동적(Concerted) 모델로 비교 분석합니다.
+        </p>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-start max-w-5xl mx-auto w-full gap-8">
+        
+        <!-- Simulation Canvas -->
+        <div class="w-full bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 flex items-center justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-50 to-white pointer-events-none"></div>
+            
+            <svg id="simSvg" width="100%" viewBox="0 0 800 300" style="max-height: 350px;" class="relative z-10">
+                <defs>
+                    <!-- Oxygen Gradient -->
+                    <radialGradient id="ox-grad" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#fca5a5" />
+                        <stop offset="100%" stop-color="#e11d48" />
+                    </radialGradient>
+                    
+                    <!-- Hydrogen Gradient -->
+                    <radialGradient id="hy-grad" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="100%" stop-color="#94a3b8" />
+                    </radialGradient>
+                </defs>
+
+                <!-- ================= STATIC BONDS ================= -->
+                <g stroke="#cbd5e1" stroke-width="6" stroke-linecap="round">
+                    <line x1="150" y1="180" x2="105" y2="180" /><!-- O0 Left H -->
+                    <line x1="150" y1="180" x2="150" y2="135" /><!-- O0 Top H -->
+                    <line x1="310" y1="180" x2="310" y2="135" /><!-- O1 Top H -->
+                    <line x1="470" y1="180" x2="470" y2="135" /><!-- O2 Top H -->
+                    <line x1="630" y1="180" x2="630" y2="135" /><!-- O3 Top H -->
+                    <line x1="630" y1="180" x2="675" y2="180" /><!-- O3 Right H -->
+                </g>
+
+                <!-- ================= DYNAMIC BONDS ================= -->
+                <g stroke="#cbd5e1" stroke-width="6" stroke-linecap="round">
+                    <line id="bond-bridge-0" x1="150" y1="180" x2="195" y2="180" class="dynamic-bond" />
+                    <line id="bond-bridge-1" x1="310" y1="180" x2="355" y2="180" class="dynamic-bond" />
+                    <line id="bond-bridge-2" x1="470" y1="180" x2="515" y2="180" class="dynamic-bond" />
+                </g>
+
+                <!-- ================= STATIC ATOMS ================= -->
+                <!-- Oxygen -->
+                <circle cx="150" cy="180" r="26" fill="url(#ox-grad)" />
+                <circle cx="310" cy="180" r="26" fill="url(#ox-grad)" />
+                <circle cx="470" cy="180" r="26" fill="url(#ox-grad)" />
+                <circle cx="630" cy="180" r="26" fill="url(#ox-grad)" />
+
+                <!-- Fixed Hydrogen -->
+                <circle cx="105" cy="180" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" />
+                <circle cx="150" cy="135" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" />
+                <circle cx="310" cy="135" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" />
+                <circle cx="470" cy="135" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" />
+                <circle cx="630" cy="135" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" />
+                <circle cx="675" cy="180" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" />
+
+                <!-- ================= DYNAMIC ATOMS ================= -->
+                <!-- Bridging Hydrogen -->
+                <circle id="h-bridge-0" cx="195" cy="180" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" class="dynamic-atom" />
+                <circle id="h-bridge-1" cx="355" cy="180" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" class="dynamic-atom" />
+                <circle id="h-bridge-2" cx="515" cy="180" r="13" fill="url(#hy-grad)" stroke="#e2e8f0" stroke-width="1.5" class="dynamic-atom" />
+
+                <!-- ================= BRACKET & PLUS SIGN (H3O+) ================= -->
+                <g id="bracket-group" class="slide-transition">
+                    <path d="M 160 100 L 180 100 L 180 120" fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                    <text x="190" y="112" fill="#334155" font-weight="900" font-size="24" class="lab-font">+</text>
+                </g>
+            </svg>
+        </div>
+
+        <!-- Controls and Explanation -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-8 w-full">
+            <!-- Buttons -->
+            <div class="md:col-span-4 flex flex-col justify-center gap-4">
+                <button onclick="triggerStepwise()" class="bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-200 transition-all active:scale-95 text-xs uppercase tracking-widest flex items-center justify-center gap-2 lab-font">
+                    Stepwise (순차적)
+                </button>
+                <button onclick="triggerConcerted()" class="bg-rose-500 hover:bg-rose-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-rose-200 transition-all active:scale-95 text-xs uppercase tracking-widest flex items-center justify-center gap-2 lab-font">
+                    Concerted (협동적)
+                </button>
+                <button onclick="resetHop()" class="bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 py-3.5 rounded-2xl font-bold transition-all active:scale-95 text-[10px] uppercase tracking-widest mt-2 lab-font">
+                    초기화 (Reset)
+                </button>
+            </div>
+            
+            <!-- Scientific Insight -->
+            <div class="md:col-span-8 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-8 items-stretch">
+                <!-- Boxed Stepwise Panel -->
+                <div class="flex-1 bg-indigo-50 p-6 rounded-3xl border border-indigo-100 shadow-inner">
+                    <h3 class="text-xs font-black text-indigo-600 mb-3 border-b border-indigo-200 pb-3 uppercase tracking-widest">1. Stepwise Mechanism</h3>
+                    <p class="text-xs text-slate-700 leading-relaxed font-medium">
+                        양성자(\(\text{H}^+\)) 결함이 한 산소에서 인접한 산소로 <span class="font-bold text-indigo-700">하나씩 순차적으로</span> 도약합니다. 장거리를 이동하기 위해서는 매 단계마다 물 분자의 회전과 결합 재배열이 필요하여 전체 이동 속도가 상대적으로 제한적일 수 있습니다.
+                    </p>
+                </div>
+                <!-- Boxed Concerted Panel -->
+                <div class="flex-1 bg-rose-50 p-6 rounded-3xl border border-rose-100 shadow-inner">
+                    <h3 class="text-xs font-black text-rose-600 mb-3 border-b border-rose-200 pb-3 uppercase tracking-widest">2. Concerted Mechanism</h3>
+                    <p class="text-xs text-slate-700 leading-relaxed font-medium">
+                        수소 결합 네트워크 전체가 <span class="font-bold text-rose-700">동시에 한꺼번에</span> 재배열되어, 양성자 전하(\(+\))가 공간을 순간적으로 가로지릅니다. 수용액에서 양성자(\(\text{H}^+\))와 수산화 이온(\(\text{OH}^-\))이 예외적으로 높은 이동도를 갖는 이유를 가장 잘 설명하는 <strong>그로투스(Grotthuss) 모델</strong>의 핵심입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let isAnimating = false;
+
+        // Base X coordinates for Oxygen atoms
+        const oxX = [150, 310, 470, 630];
+
+        // Updates a single hydrogen bridge
+        function updateBondState(idx, isHopped) {
+            const h = document.getElementById(`h-bridge-${idx}`);
+            const b = document.getElementById(`bond-bridge-${idx}`);
+            
+            const currentOx = oxX[idx];
+            const nextOx = oxX[idx + 1];
+
+            // If hopped: Covalently bonded to right Oxygen (nextOx), H is on its left
+            // If not: Covalently bonded to left Oxygen (currentOx), H is on its right
+            h.setAttribute('cx', isHopped ? nextOx - 45 : currentOx + 45);
+            b.setAttribute('x1', isHopped ? nextOx : currentOx);
+            b.setAttribute('x2', isHopped ? nextOx - 45 : currentOx + 45);
+        }
+
+        // Moves the H3O+ positive charge indicator
+        function updateBracketPosition(oxIndex) {
+            // Shift bracket by 160px per oxygen index
+            document.getElementById('bracket-group').style.transform = `translateX(${oxIndex * 160}px)`;
+        }
+
+        // 1. Stepwise Model (순차적 반응)
+        async function triggerStepwise() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            // Reset first
+            for(let i=0; i<3; i++) updateBondState(i, false);
+            updateBracketPosition(0);
+            await new Promise(r => setTimeout(r, 400));
+
+            // Hop 1
+            updateBondState(0, true);
+            updateBracketPosition(1);
+            await new Promise(r => setTimeout(r, 600));
+
+            // Hop 2
+            updateBondState(1, true);
+            updateBracketPosition(2);
+            await new Promise(r => setTimeout(r, 600));
+
+            // Hop 3
+            updateBondState(2, true);
+            updateBracketPosition(3);
+            
+            isAnimating = false;
+        }
+
+        // 2. Concerted Model (동시/협동적 반응)
+        function triggerConcerted() {
+            if (isAnimating) return;
+
+            // All hop at once
+            updateBondState(0, true);
+            updateBondState(1, true);
+            updateBondState(2, true);
+            updateBracketPosition(3); // + charge jumps from 0 to 3 instantly
+        }
+
+        function resetHop() {
+            if (isAnimating) return;
+            for(let i=0; i<3; i++) updateBondState(i, false);
+            updateBracketPosition(0);
+        }
+    </script>
+</body>
+</html>

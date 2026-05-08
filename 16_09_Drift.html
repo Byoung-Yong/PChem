@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift Velocity</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #0ea5e9;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { image-rendering: auto; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="text-center mb-8 shrink-0">
+        <div class="unified-module-badge lab-font">16A.9 - Field-Driven Motion</div>
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-left">
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Drift Velocity</h1>
+                <p class="mt-2 text-sm md:text-base leading-relaxed text-slate-500 font-medium italic">
+                    외부 전기장(Electric Field)에 의해 유도되는 이온의 지향성 거동(Drift)과 점성 저항(Drag)의 평형을 분석합니다.
+                </p>
+            </div>
+            <button id="playBtn" class="bg-sky-600 hover:bg-sky-700 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-sky-200 transition-all active:scale-95 text-xs uppercase tracking-widest lab-font shrink-0 border border-sky-500">
+                Restart Experiment
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden w-full max-w-7xl mx-auto gap-8">
+        
+        <!-- Left Panel: High-Res Simulation -->
+        <div class="w-full lg:w-7/12 flex flex-col gap-6 min-h-0">
+            
+            <!-- Viewport -->
+            <div class="relative flex-1 bg-slate-950 rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-2xl">
+                <canvas id="driftCanvas" class="w-full h-full block"></canvas>
+                
+                <!-- Overlay Status -->
+                <div class="absolute top-6 left-8 flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                    <span class="w-2 h-2 bg-sky-400 rounded-full animate-pulse shadow-[0_0_8px_#38bdf8]"></span>
+                    <span class="text-[9px] text-sky-300 font-black tracking-widest uppercase lab-font">Smooth Flow Interpolation: Active</span>
+                </div>
+
+                <!-- Dashboard Metrics -->
+                <div class="absolute bottom-8 left-8 right-8 grid grid-cols-3 gap-4">
+                    <div class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-sky-500/30 text-center shadow-lg">
+                        <p class="text-[9px] uppercase font-black text-sky-400 mb-1 tracking-widest">Velocity (\(s\))</p>
+                        <p id="currentVelocity" class="text-2xl font-black text-white lab-font">0.00</p>
+                    </div>
+                    <div class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-rose-500/30 text-center shadow-lg">
+                        <p class="text-[9px] uppercase font-black text-rose-400 mb-1 tracking-widest">Drag Force (\(F_{\text{drag}}\))</p>
+                        <p id="currentDrag" class="text-2xl font-black text-white lab-font">0.00</p>
+                    </div>
+                    <div class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-amber-500/30 text-center shadow-lg">
+                        <p class="text-[9px] uppercase font-black text-amber-400 mb-1 tracking-widest">Acceleration (\(a\))</p>
+                        <p id="currentAccel" class="text-2xl font-black text-white lab-font">0.00</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Physics Controllers -->
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shrink-0">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 lab-font border-b border-slate-100 pb-2">Physics Controllers</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Electric Field (\(E\))</span>
+                                <span id="eFieldDisp" class="text-sky-600 font-black lab-font">5.0</span>
+                            </label>
+                            <input type="range" id="eFieldSlider" min="0.1" max="15" step="0.1" value="5.0" class="w-full">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Viscosity (\(\eta\))</span>
+                                <span id="viscosityDisp" class="text-sky-600 font-black lab-font">1.8</span>
+                            </label>
+                            <input type="range" id="viscositySlider" min="0.5" max="5" step="0.1" value="1.8" class="w-full">
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Charge (\(ze\))</span>
+                                <span id="chargeDisp" class="text-purple-600 font-black lab-font">+1</span>
+                            </label>
+                            <input type="range" id="chargeSlider" min="1" max="3" step="1" value="1" class="w-full accent-purple-600">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
+                                <span>Radius (\(a\))</span>
+                                <span id="radiusDisp" class="text-emerald-600 font-black lab-font">25 px</span>
+                            </label>
+                            <input type="range" id="radiusSlider" min="10" max="45" step="1" value="25" class="w-full accent-emerald-600">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Scientific Derivation -->
+        <div class="w-full lg:w-5/12 p-8 overflow-y-auto bg-white border border-slate-200 rounded-[2.5rem] shadow-xl">
+            <div id="derivation-container" class="space-y-8">
+                <header class="border-b border-slate-100 pb-4">
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Stokes Flow Derivation</h2>
+                    <p class="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+                        전기장에 의한 가속과 유체 점성에 의한 감속이 평형을 이루어 일정한 종단 속도(Terminal Velocity)에 도달하는 과정을 수식으로 증명합니다.
+                    </p>
+                </header>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-black lab-font border border-sky-200">01</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">구동력 (Driving Force)</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed font-medium mb-3">
+                        전기장 \(E\)가 가해지면 무작위 열운동을 하는 이온은 한 방향으로 일정한 힘을 받아 가속됩니다.
+                    </p>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center shadow-sm">
+                        <span class="text-lg font-black text-sky-700">\[ F_{\text{electric}} = zeE \]</span>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xs font-black lab-font border border-rose-200">02</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">점성 저항 (Viscous Drag)</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed font-medium mb-3">
+                        이온이 유체 속을 이동할 때 주변 매질의 점성 \(\eta\)과 이온의 반경 \(a\)에 비례하는 마찰력을 받습니다. (스토크스 법칙)
+                    </p>
+                    <div class="bg-rose-50 p-4 rounded-2xl border border-rose-100 text-center shadow-sm relative">
+                        <span class="absolute top-2 left-3 text-[9px] font-black text-rose-400 uppercase tracking-widest">Stokes' Law</span>
+                        <span class="text-lg font-black text-rose-700">\[ F_{\text{drag}} = 6\pi \eta a \cdot s \]</span>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-black lab-font border border-emerald-200">03</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">종단 속도 (Terminal Velocity)</h3>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed font-medium mb-3">
+                        전기력과 마찰력이 평형을 이루면 가속도(\(a\))가 0이 되며, 이온은 일정한 드리프트 속도 \(s\) (또는 \(v_{\text{drift}}\)) 로 이동합니다.
+                    </p>
+                    <div class="bg-emerald-50 p-5 rounded-2xl border border-emerald-200 text-center shadow-inner">
+                        <div class="text-sm font-bold text-emerald-800 mb-2 border-b border-emerald-200 pb-2">
+                            \[ zeE = 6\pi \eta a \cdot s \]
+                        </div>
+                        <div class="text-xl font-black text-emerald-700 mt-4">
+                            \[ s = \frac{zeE}{6\pi \eta a} \]
+                        </div>
+                        <p class="text-[10px] text-emerald-600 font-bold mt-3">※ 이 때 비례상수 \(u = \frac{ze}{6\pi \eta a}\) 를 이온 이동도(Mobility)라 합니다.</p>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('driftCanvas');
+            const ctx = canvas.getContext('2d');
+            const playBtn = document.getElementById('playBtn');
+            
+            const velDisplay = document.getElementById('currentVelocity');
+            const dragDisplay = document.getElementById('currentDrag');
+            const accelDisplay = document.getElementById('currentAccel');
+            
+            const eFieldS = document.getElementById('eFieldSlider');
+            const chargeS = document.getElementById('chargeSlider');
+            const viscS = document.getElementById('viscositySlider');
+            const radiusS = document.getElementById('radiusSlider');
+            
+            const eFieldD = document.getElementById('eFieldDisp');
+            const chargeD = document.getElementById('chargeDisp');
+            const viscD = document.getElementById('viscosityDisp');
+            const radiusD = document.getElementById('radiusDisp');
+
+            // --- High-DPI Rendering ---
+            const dpr = window.devicePixelRatio || 1;
+            function setupCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+            }
+
+            // Physical State
+            let particle = {
+                x: 80, y: 0,
+                vx: 0, ax: 0,
+                radius: 25, charge: 1, mass: 80
+            };
+
+            let env = {
+                electricField: 5.0,
+                viscosity: 1.8,
+                fConstant: 0
+            };
+
+            // High-Resolution Streamline Data
+            const numLines = 26; 
+            const horizontalStep = 3; 
+
+            function updateEnv() {
+                env.electricField = parseFloat(eFieldS.value);
+                particle.charge = parseInt(chargeS.value);
+                env.viscosity = parseFloat(viscS.value);
+                particle.radius = parseInt(radiusS.value);
+                
+                // Real-world physics scale factor for simulation
+                const physicsScale = 0.08;
+                env.fConstant = physicsScale * 6 * Math.PI * env.viscosity * (particle.radius / 25);
+                
+                eFieldD.innerText = env.electricField.toFixed(1);
+                chargeD.innerText = (particle.charge > 0 ? "+" : "") + particle.charge;
+                viscD.innerText = env.viscosity.toFixed(1);
+                radiusD.innerText = `${particle.radius} px`;
+            }
+
+            function resetParticle() {
+                particle.x = 40;
+                particle.vx = 0;
+                particle.ax = 0;
+                updateEnv();
+            }
+
+            function animate() {
+                const w = canvas.width / dpr;
+                const h = canvas.height / dpr;
+                particle.y = h / 2;
+
+                // 1. ODE Solving (Newton's Second Law)
+                const fElectric = particle.charge * env.electricField * 1.5; 
+                const fDrag = env.fConstant * particle.vx;
+                const fTotal = fElectric - fDrag;
+                
+                particle.ax = fTotal / particle.mass;
+                particle.vx += particle.ax;
+                particle.x += particle.vx;
+
+                if (particle.x > w + 200) {
+                    particle.x = -150;
+                }
+
+                // 2. Clear (Dark sleek background)
+                ctx.fillStyle = '#020617'; // slate-950
+                ctx.fillRect(0, 0, w, h);
+
+                // 3. Render Smooth Streamlines & Particle
+                drawSmoothStreamlines(w, h);
+                drawParticle();
+
+                // 4. Interface Sync
+                velDisplay.innerText = particle.vx.toFixed(2);
+                dragDisplay.innerText = fDrag.toFixed(2);
+                accelDisplay.innerText = Math.max(0, particle.ax).toFixed(5);
+
+                requestAnimationFrame(animate);
+            }
+
+            /**
+             * 실제 물리 기반의 부드러운 유선(Streamline) 렌더링
+             */
+            function drawSmoothStreamlines(w, h) {
+                ctx.save();
+                ctx.lineWidth = 1.0;
+                
+                const R = particle.radius;
+                const influenceRadius = R * 12; // 영향 범위 내 부드러운 전이
+
+                for (let i = 0; i < numLines; i++) {
+                    const yBase = (i + 0.5) * (h / numLines);
+                    
+                    ctx.beginPath();
+                    // 상하단 투명도 조절
+                    const baseOpacity = 0.1 + (0.3 * (1 - Math.abs(yBase - h/2) / (h/2)));
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${baseOpacity})`; 
+                    
+                    for (let x = 0; x <= w; x += horizontalStep) {
+                        const dx = x - particle.x;
+                        const dy = yBase - particle.y;
+                        const r2 = dx * dx + dy * dy;
+                        const r = Math.sqrt(r2);
+                        
+                        let finalY = yBase;
+
+                        if (r < influenceRadius && r > 0) {
+                            // Gaussian-like decay factor for smoothness
+                            const decay = Math.exp(-(r2) / (2 * (R * 2.5) * (R * 2.5)));
+                            
+                            // 입자 표면에서 최대, 멀어질수록 0으로 수렴
+                            const factor = (1.5 * R / (r + R*0.2)) - (0.5 * Math.pow(R, 3) / Math.pow(r + R*0.2, 3));
+                            
+                            // 수직 변위 적용
+                            finalY = particle.y + dy * (1 + factor * 0.85 * decay);
+                        }
+
+                        if (x === 0) ctx.moveTo(x, finalY);
+                        else ctx.lineTo(x, finalY);
+                    }
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            function drawParticle() {
+                ctx.save();
+                
+                // Interaction Area Glow
+                const glow = ctx.createRadialGradient(
+                    particle.x, particle.y, 0,
+                    particle.x, particle.y, particle.radius * 3.5
+                );
+                glow.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+                glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = glow;
+                ctx.fillRect(particle.x - 150, particle.y - 150, 300, 300);
+
+                // Ion Body
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                
+                const grad = ctx.createRadialGradient(
+                    particle.x - particle.radius * 0.3, 
+                    particle.y - particle.radius * 0.3, 
+                    particle.radius * 0.1,
+                    particle.x, particle.y, particle.radius
+                );
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, '#bae6fd'); // sky-200
+                grad.addColorStop(1, '#0284c7');   // sky-600
+                
+                ctx.fillStyle = grad;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = '#0ea5e9'; // sky-500
+                ctx.fill();
+                
+                // Symbol
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${particle.radius * 0.85}px 'JetBrains Mono'`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('+', particle.x, particle.y + (particle.radius * 0.05));
+                ctx.restore();
+            }
+
+            playBtn.addEventListener('click', resetParticle);
+            [eFieldS, chargeS, viscS, radiusS].forEach(s => s.addEventListener('input', updateEnv));
+
+            window.addEventListener('resize', () => {
+                setupCanvas();
+                resetParticle();
+            });
+
+            setupCanvas();
+            resetParticle();
+            animate();
+        });
+    </script>
+</body>
+</html>

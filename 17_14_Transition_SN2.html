@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SN2 Reaction Dynamics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .slider-thumb::-webkit-slider-thumb:active { transform: scale(1.2); }
+
+        .slider-thumb-angle::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #64748b;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid white;
+        }
+
+        .step-btn {
+            transition: all 0.2s ease;
+        }
+        .step-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px -2px rgba(0,0,0,0.1);
+        }
+
+        .glow { filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4)); }
+        .danger-glow { filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.6)); }
+
+        .aspect-ratio-box {
+            position: relative;
+            width: 100%;
+            padding-top: 45%; 
+        }
+        .aspect-ratio-box svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="py-10 px-4">
+
+<div class="max-w-4xl mx-auto">
+    <header class="text-center mb-10">
+        <div class="unified-module-badge">17A.14 - Reaction Coordinate</div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">S<sub>N</sub>2 Reaction Dynamics</h1>
+        <p class="mt-3 text-sm md:text-base leading-relaxed text-slate-600">친핵체 공격에 의한 결합 형성과 이탈기 이탈이 동시에 일어나는 S<sub>N</sub>2 메커니즘을 시각화하세요.</p>
+        
+        <div class="mt-8 inline-flex items-center px-10 py-3 bg-white/60 rounded-3xl shadow-sm border border-white/80">
+            <span class="text-xl font-bold text-blue-600 tracking-wide">OH<sup>−</sup> + CH<sub>3</sub>Br → CH<sub>3</sub>OH + Br<sup>−</sup></span>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 gap-8">
+        <!-- Molecular Simulation Card -->
+        <div class="glass-card rounded-[2.5rem] overflow-hidden p-8 md:p-10">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                <div>
+                    <h2 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Molecular Dynamics (3D View)</h2>
+                    <p id="state-desc" class="text-lg md:text-xl font-bold text-slate-700 h-8">진행도를 조절하여 관찰하세요</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="jumpTo(0)" class="step-btn px-4 py-2 bg-slate-100 text-slate-600 rounded-2xl text-xs font-bold">반응 시작</button>
+                    <button onclick="jumpTo(500)" class="step-btn px-4 py-2 bg-rose-50 text-rose-600 rounded-2xl text-xs font-bold">전이 상태</button>
+                    <button onclick="jumpTo(1000)" class="step-btn px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-bold">반응 완료</button>
+                </div>
+            </div>
+
+            <!-- Simulation View -->
+            <div class="relative h-64 w-full flex items-center justify-center overflow-hidden mb-8 bg-slate-50/50 rounded-3xl shadow-inner border border-slate-100">
+                <svg id="viz-svg" viewBox="0 0 600 240" class="w-full h-full">
+                    <defs>
+                        <radialGradient id="grad-c" cx="30%" cy="30%" r="60%">
+                            <stop offset="0%" style="stop-color:#94a3b8" />
+                            <stop offset="100%" style="stop-color:#334155" />
+                        </radialGradient>
+                        <radialGradient id="grad-o" cx="30%" cy="30%" r="60%">
+                            <stop offset="0%" style="stop-color:#fca5a5" />
+                            <stop offset="100%" style="stop-color:#b91c1c" />
+                        </radialGradient>
+                        <radialGradient id="grad-br" cx="30%" cy="30%" r="60%">
+                            <stop offset="0%" style="stop-color:#fcd34d" />
+                            <stop offset="100%" style="stop-color:#b45309" />
+                        </radialGradient>
+                        <radialGradient id="grad-h" cx="30%" cy="30%" r="60%">
+                            <stop offset="0%" style="stop-color:#ffffff" />
+                            <stop offset="100%" style="stop-color:#94a3b8" />
+                        </radialGradient>
+                    </defs>
+
+                    <!-- Background H (Dash) -->
+                    <g id="group-h-back" opacity="0.6">
+                        <line id="bond-h-back" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+                        <circle id="atom-h-back" r="8" fill="url(#grad-h)" />
+                    </g>
+
+                    <!-- Central Bonds -->
+                    <line id="line-o-c" x1="0" y1="0" x2="300" y2="120" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round" stroke-dasharray="6,4" opacity="0"/>
+                    <line id="line-c-br" x1="300" y1="120" x2="360" y2="120" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round" />
+
+                    <!-- Top H (In Plane) -->
+                    <g id="group-h-top">
+                        <line id="bond-h-top" stroke="#94a3b8" stroke-width="5" stroke-linecap="round" />
+                        <circle id="atom-h-top" r="10" fill="url(#grad-h)" />
+                    </g>
+
+                    <!-- Central Carbon -->
+                    <circle id="atom-c" cx="300" cy="120" r="20" fill="url(#grad-c)" />
+
+                    <!-- Front H (Wedge) -->
+                    <g id="group-h-front">
+                        <line id="bond-h-front" stroke="#334155" stroke-width="7" stroke-linecap="round" />
+                        <circle id="atom-h-front" r="14" fill="url(#grad-h)" stroke="#1e293b" stroke-width="1.5" />
+                    </g>
+
+                    <!-- Nucleophile OH- -->
+                    <g id="group-oh">
+                        <line x1="0" y1="0" x2="-15" y2="15" stroke="#94a3b8" stroke-width="5" stroke-linecap="round" />
+                        <circle cx="0" cy="0" r="16" fill="url(#grad-o)" />
+                        <circle cx="-15" cy="15" r="9" fill="url(#grad-h)" />
+                        <!-- Repulsion Alert Symbol -->
+                        <path id="repulsion-alert" d="M -10 -25 L 10 -25 L 0 -10 Z" fill="#ef4444" opacity="0" class="danger-glow"/>
+                    </g>
+
+                    <!-- Leaving Group Br -->
+                    <circle id="atom-br" cx="360" cy="120" r="28" fill="url(#grad-br)" />
+                </svg>
+            </div>
+
+            <!-- Controls -->
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">반응 진행 시간 (Reaction Progress)</label>
+                    <input type="range" id="main-slider" min="0" max="1000" value="0" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none slider-thumb cursor-pointer">
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">공격 각도 (Attack Angle): <span id="angle-display" class="text-blue-600">0°</span></label>
+                        <span id="angle-status" class="text-[10px] font-bold text-blue-500 uppercase">후면 공격 기하 (Back-side attack)</span>
+                    </div>
+                    <input type="range" id="angle-slider" min="-80" max="80" value="0" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none slider-thumb-angle cursor-pointer">
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Energy Graph Card -->
+        <div class="glass-card rounded-[2.5rem] p-8 md:p-10">
+            <h2 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-6">Potential Energy Surface</h2>
+            <div class="aspect-ratio-box">
+                <svg id="graph-svg" viewBox="0 0 600 300">
+                    <g stroke="#94a3b8" stroke-width="2">
+                        <line x1="50" y1="20" x2="50" y2="260" />
+                        <path d="M 45,30 L 50,20 L 55,30" fill="none" />
+                    </g>
+                    <text x="15" y="140" transform="rotate(-90 15,140)" font-size="11" fill="#64748b" font-weight="600">포텐셜 에너지 (V)</text>
+                    <line x1="50" y1="260" x2="550" y2="260" stroke="#94a3b8" stroke-width="2" />
+                    <text x="300" y="285" text-anchor="middle" font-size="11" fill="#64748b" font-weight="600">반응 좌표 (Reaction Coordinate)</text>
+
+                    <!-- Base Reference Line -->
+                    <line x1="50" y1="160" x2="550" y2="160" stroke="#f1f5f9" stroke-width="1.5" />
+
+                    <!-- Success Reaction Path -->
+                    <path id="curve-success" fill="none" stroke="#f43f5e" stroke-width="5" stroke-linecap="round" opacity="1"/>
+                    
+                    <!-- Fail Reaction Path -->
+                    <path id="curve-fail" fill="none" stroke="#94a3b8" stroke-width="4" stroke-dasharray="8,6" stroke-linecap="round" opacity="0"/>
+                    
+                    <g id="energy-markers">
+                        <line id="ea-line" x1="300" y1="160" x2="300" y2="60" stroke="#f43f5e" stroke-width="2" stroke-dasharray="4" />
+                        <!-- Using upright text for subscripts in labels -->
+                        <text id="ea-label" x="310" y="100" font-size="13" fill="#f43f5e" font-weight="700">E<tspan baseline-shift="sub" font-size="10">a</tspan></text>
+                    </g>
+                    <circle id="graph-marker" cx="50" cy="160" r="8" fill="#334155" class="glow" />
+                </svg>
+            </div>
+            <div class="mt-6 p-4 bg-blue-50 rounded-2xl text-xs text-blue-800 leading-relaxed italic">
+                "S<sub>N</sub>2 반응에서 친핵체는 항상 이탈기의 반대편(180°)에서 공격해야 궤도 겹침이 최대화됩니다. 각도가 어긋나면 입체 장애로 인해 에너지 장벽($E_{\text{a}}$)이 급격히 상승합니다."
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const slider = document.getElementById('main-slider');
+    const angleSlider = document.getElementById('angle-slider');
+    const angleDisplay = document.getElementById('angle-display');
+    const angleStatus = document.getElementById('angle-status');
+    const stateDesc = document.getElementById('state-desc');
+    
+    const curveSuccess = document.getElementById('curve-success');
+    const curveFail = document.getElementById('curve-fail');
+    const graphMarker = document.getElementById('graph-marker');
+    const eaLine = document.getElementById('ea-line');
+    const eaLabel = document.getElementById('ea-label');
+
+    const groupOH = document.getElementById('group-oh');
+    const atomBr = document.getElementById('atom-br');
+    const lineOC = document.getElementById('line-o-c');
+    const lineCBr = document.getElementById('line-c-br');
+    const alertIcon = document.getElementById('repulsion-alert');
+
+    const hTop = { atom: document.getElementById('atom-h-top'), bond: document.getElementById('bond-h-top') };
+    const hFront = { atom: document.getElementById('atom-h-front'), bond: document.getElementById('bond-h-front') };
+    const hBack = { atom: document.getElementById('atom-h-back'), bond: document.getElementById('bond-h-back') };
+
+    const C_X = 300;
+    const C_Y = 120;
+    const BOND_LEN = 48; 
+
+    function jumpTo(val) {
+        slider.value = val;
+        update();
+    }
+
+    // Mathematical curve function for smoother PES
+    function calculateY(progress, isSuccess, peakY) {
+        if (isSuccess) {
+            // Smooth asymmetric bell curve (gaussian-like or spline)
+            if (progress <= 0.5) {
+                // Rise to peak
+                const t = progress / 0.5;
+                return 160 + (peakY - 160) * (t * (2 - t));
+            } else {
+                // Drop to product energy (lower than reactant)
+                const t = (progress - 0.5) / 0.5;
+                const productY = 200; 
+                return peakY + (productY - peakY) * (t * t);
+            }
+        } else {
+            // Failed bounce curve
+            const t = (progress < 0.5) ? progress / 0.5 : (1 - progress) / 0.5;
+            return 160 + (peakY - 160) * (t * (2 - t));
+        }
+    }
+
+    function update() {
+        const p = slider.value / 1000;
+        const angleDeg = parseInt(angleSlider.value);
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const isSuccess = Math.abs(angleDeg) <= 30;
+
+        // Base peak height calculation
+        const peakY = isSuccess ? (60 + Math.abs(angleDeg)*1.2) : (40 - Math.abs(angleDeg)*0.3); 
+        
+        // Draw PES Curves
+        if (isSuccess) {
+            curveFail.setAttribute('opacity', 0);
+            curveSuccess.setAttribute('opacity', 1);
+            let d = `M 50,160`;
+            for(let i=0.01; i<=1.01; i+=0.02) {
+                const y = calculateY(i, true, peakY);
+                d += ` L ${50 + i*500},${y}`;
+            }
+            curveSuccess.setAttribute('d', d);
+            
+            const mY = calculateY(p, true, peakY);
+            graphMarker.setAttribute('cx', 50 + p * 500);
+            graphMarker.setAttribute('cy', mY);
+            
+            eaLine.setAttribute('stroke', '#f43f5e');
+            eaLabel.setAttribute('fill', '#f43f5e');
+            graphMarker.setAttribute('fill', '#334155');
+        } else {
+            curveSuccess.setAttribute('opacity', 0);
+            curveFail.setAttribute('opacity', 1);
+            let d = `M 50,160`;
+            for(let i=0; i<=1.01; i+=0.02) {
+                const y = calculateY(i, false, peakY);
+                d += ` L ${50 + i*500},${y}`;
+            }
+            curveFail.setAttribute('d', d);
+
+            const mY = calculateY(p, false, peakY);
+            graphMarker.setAttribute('cx', 50 + p * 500); 
+            graphMarker.setAttribute('cy', mY);
+
+            eaLine.setAttribute('stroke', '#94a3b8');
+            eaLabel.setAttribute('fill', '#94a3b8');
+            graphMarker.setAttribute('fill', '#f43f5e');
+        }
+
+        eaLine.setAttribute('y2', peakY);
+        eaLabel.setAttribute('y', peakY - 10);
+
+        // UI Updates
+        angleDisplay.textContent = `${angleDeg}°`;
+        if (isSuccess) {
+            angleStatus.textContent = "후면 공격 기하: Sₙ2 반응에 유리한 각도입니다.";
+            angleStatus.className = "text-[10px] font-bold text-blue-500 uppercase";
+            alertIcon.setAttribute('opacity', 0);
+        } else {
+            angleStatus.textContent = "부적절한 접근 각도: 궤도 중첩이 방해받습니다.";
+            angleStatus.className = "text-[10px] font-bold text-rose-500 uppercase";
+            alertIcon.setAttribute('opacity', p > 0.3 && p < 0.7 ? 1 : 0);
+        }
+
+        // --- Molecular Kinematics ---
+        let oh_x, oh_y, br_x;
+        let umbrella_deg; 
+
+        const kinetic_t = isSuccess ? p : (p < 0.5 ? p * 1.5 : (1 - p) * 1.5); 
+
+        if (isSuccess) {
+            umbrella_deg = -70.5 + (141 * p); 
+            
+            if (p <= 0.5) {
+                const t = p / 0.5;
+                const startDist = 240;
+                const tsDist = 78; 
+                const currentDist = startDist - (startDist - tsDist) * t;
+                
+                oh_x = C_X - currentDist * Math.cos(angleRad);
+                oh_y = C_Y - currentDist * Math.sin(angleRad);
+                br_x = C_X + 55 + (82 - 55) * Math.pow(t, 2);
+
+                lineOC.setAttribute('opacity', t);
+                lineOC.setAttribute('stroke-dasharray', '6,4');
+                lineCBr.setAttribute('stroke-dasharray', t > 0.8 ? '6,4' : '0');
+                
+                stateDesc.textContent = (p > 0.45) ? "전이 상태: 친핵체와 이탈기 모두 부분 결합을 형성합니다." : "친핵체 접근: OH⁻가 탄소 중심으로 접근합니다.";
+                stateDesc.className = (p > 0.45) ? "text-lg md:text-xl font-bold text-rose-600" : "text-lg md:text-xl font-bold text-slate-700";
+            } else {
+                const t = (p - 0.5) / 0.5;
+                const tsDist = 78;
+                const finalDist = 52; 
+                const currentDist = tsDist - (tsDist - finalDist) * Math.sqrt(t);
+                const currentAngle = angleRad * (1 - Math.sqrt(t)); 
+                
+                oh_x = C_X - currentDist * Math.cos(currentAngle);
+                oh_y = C_Y - currentDist * Math.sin(currentAngle);
+                br_x = C_X + 82 + 180 * t;
+
+                lineOC.setAttribute('opacity', 1);
+                lineOC.setAttribute('stroke-dasharray', '0');
+                lineCBr.setAttribute('stroke-dasharray', '0');
+                lineCBr.setAttribute('opacity', 1 - t);
+                
+                stateDesc.textContent = "월든 반전(Walden Inversion)이 완료되었습니다.";
+                stateDesc.className = "text-lg md:text-xl font-bold text-emerald-600";
+            }
+        } else {
+            // Failure Animation
+            umbrella_deg = -70.5 + (15 * kinetic_t); 
+            const startDist = 240;
+            const bounceDist = 110; 
+            const currentDist = startDist - (startDist - bounceDist) * kinetic_t;
+
+            oh_x = C_X - currentDist * Math.cos(angleRad);
+            oh_y = C_Y - currentDist * Math.sin(angleRad);
+            br_x = C_X + 55 + (5 * kinetic_t);
+
+            lineOC.setAttribute('opacity', Math.min(kinetic_t, 0.5)); 
+            lineOC.setAttribute('stroke-dasharray', '4,8');
+            lineCBr.setAttribute('stroke-dasharray', '0');
+            lineCBr.setAttribute('opacity', 1);
+
+            if (p < 0.4) stateDesc.textContent = "접근 중: 충돌 기하 구조가 정렬되지 않았습니다.";
+            else if (p < 0.6) stateDesc.textContent = "차단됨: 입체 장애로 인해 에너지 장벽이 너무 높습니다.";
+            else stateDesc.textContent = "충돌 실패: 충분한 에너지를 얻지 못하고 튕겨 나갑니다.";
+            
+            stateDesc.className = (p > 0.3 && p < 0.7) ? "text-lg md:text-xl font-bold text-rose-600" : "text-lg md:text-xl font-bold text-slate-700";
+        }
+
+        const rad = umbrella_deg * Math.PI / 180;
+        const dx = Math.sin(rad) * BOND_LEN;
+        const dy_scale = Math.cos(rad) * BOND_LEN;
+
+        setAtomPos(hTop, C_X + dx, C_Y - dy_scale * 0.9);
+        setAtomPos(hFront, C_X + dx, C_Y + dy_scale * 0.6);
+        setAtomPos(hBack, C_X + dx + (umbrella_deg > 0 ? 10 : -10), C_Y + dy_scale * 0.3); 
+
+        groupOH.setAttribute('transform', `translate(${oh_x}, ${oh_y})`);
+        atomBr.setAttribute('cx', br_x);
+        
+        lineOC.setAttribute('x1', oh_x); lineOC.setAttribute('y1', oh_y);
+        lineCBr.setAttribute('x2', br_x);
+
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function setAtomPos(element, x, y) {
+        element.atom.setAttribute('cx', x);
+        element.atom.setAttribute('cy', y);
+        element.bond.setAttribute('x1', C_X);
+        element.bond.setAttribute('y1', C_Y);
+        element.bond.setAttribute('x2', x);
+        element.bond.setAttribute('y2', y);
+    }
+
+    slider.addEventListener('input', update);
+    angleSlider.addEventListener('input', update);
+    
+    window.onload = update;
+</script>
+
+</body>
+</html>

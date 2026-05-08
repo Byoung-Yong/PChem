@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flux Definition With Pipe Flow</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax Configuration for perfect alignment -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    
+    <style>
+        /* Font remains English as requested */
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            margin: 0;
+            padding: 0;
+        }
+        .math-box {
+            background-color: #ffffff;
+            border-left: 4px solid #3b82f6;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        /* Essential for preventing symbol separation */
+
+        /* --- MathJax inline line-break fix --- */
+        .keep-together {
+            white-space: nowrap;
+        }
+
+        .mjx-container {
+            display: inline !important;
+            white-space: nowrap !important;
+            vertical-align: middle !important;
+        }
+
+        .mjx-container[jax="SVG"] > svg {
+            display: inline !important;
+            vertical-align: middle !important;
+        }
+
+        .math-inline {
+            white-space: nowrap;
+            display: inline;
+        }
+
+        canvas {
+            image-rendering: auto;
+        }
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    
+        /* Final inline MathJax stabilization */
+        .mjx-container[jax="SVG"] {
+            display: inline-flex !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+            line-height: 1 !important;
+        }
+
+        .mjx-container[jax="SVG"] svg {
+            display: inline-block !important;
+            vertical-align: middle !important;
+        }
+
+        p .mjx-container,
+        span .mjx-container {
+            display: inline-flex !important;
+        }
+
+        .math-inline {
+            display: inline-flex !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+        }
+
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-blue-100 p-5 shadow-sm z-10 text-center">
+        <div class="unified-module-badge">16A.2 - Transport Basics</div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Flux Definition With Pipe Flow</h1>
+        <p class="mt-2 text-sm md:text-base leading-relaxed text-slate-600">Relate amount-per-time transport and area-normalized flow to flux using a pipe flow model.</p>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden w-full">
+        
+        <!-- Left Panel: Interactive Simulation -->
+        <div class="w-full md:w-1/2 p-4 md:p-6 flex flex-col gap-4 border-r border-slate-200 bg-white">
+            
+            <div id="canvasContainer" class="relative flex-[2.5] bg-slate-50 rounded-3xl overflow-hidden border-2 border-slate-200 shadow-inner min-h-[350px]">
+                <canvas id="pipeCanvas" class="w-full h-full block"></canvas>
+                
+                <!-- Legend -->
+                <div class="absolute top-4 right-4 bg-white/80 backdrop-blur px-3 py-2 rounded-lg border border-slate-200 shadow-sm text-center">
+                    <p class="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Velocity</p>
+                    <div class="w-32 h-3 rounded bg-gradient-to-r from-[#bae6fd] to-[#1e3a8a]"></div>
+                </div>
+
+                <!-- Dashboards -->
+                <div class="absolute bottom-4 left-4 bg-white/90 backdrop-blur px-4 py-3 rounded-xl border-l-4 border-red-500 shadow-md">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Flow Rate</p>
+                    <p class="text-lg font-black text-red-600 leading-none">Q</p>
+                    <p id="dispQ" class="text-xl font-bold text-slate-800 mt-1">1000</p>
+                </div>
+
+                <div class="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-5 py-3 rounded-xl border-l-4 border-blue-500 shadow-md text-right">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase mb-1">Flux Intensity</p>
+                    <p class="text-lg font-black text-blue-600 leading-none">Flux, J</p>
+                    <p id="dispJ" class="text-3xl font-black text-slate-800 mt-1">0.0</p>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="bg-slate-100 p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div>
+                    <label class="flex justify-between text-sm font-black text-slate-700 mb-3">
+                        <span class="text-red-600">Volume Flow (Q)</span>
+                    </label>
+                    <input type="range" id="qSlider" min="200" max="2000" step="50" value="1000" class="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label class="flex justify-between text-sm font-black text-slate-700 mb-3">
+                        <span class="text-blue-600">Cross-section (A)</span>
+                    </label>
+                    <input type="range" id="aSlider" min="40" max="200" step="5" value="120" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Explanation -->
+        <div class="w-full md:w-1/2 p-6 md:p-8 overflow-y-auto bg-slate-50">
+            <div class="space-y-12">
+                
+                <section>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-3 tracking-tight">Understanding Flux</h2>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        <span class="keep-together">Flux <span class='math-inline'>\(J\)</span></span> is defined as the amount of a property crossing a unit area per unit time. Pipe flow provides a visual way to understand this density.
+                    </p>
+                </section>
+
+                <!-- Section 1 -->
+                <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-bold text-blue-900 border-b border-slate-200 pb-2 mb-4 flex items-center">
+                        <span class="mr-2">1.</span>
+                        <span class="keep-together">Volume Flow Rate <span class='math-inline'>\(Q\)</span></span>
+                    </h3>
+                    <p class="text-sm text-slate-700 leading-relaxed mb-4">
+                        In steady state flow, the total volume passing through the system per unit time is constant.
+                    </p>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+                        <span class="text-slate-800 font-bold text-lg">
+                            $$ Q = \frac{dV}{dt} = \text{Constant} $$
+                        </span>
+                    </div>
+                </section>
+
+                <!-- Section 2 -->
+                <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4 flex items-center">
+                        <span class="mr-2">2.</span>
+                        <span>Area and Velocity</span>
+                    </h3>
+                    <p class="text-sm text-slate-700 leading-relaxed mb-6">
+                        <span>Since </span><span class="math-inline">\(Q = A \cdot v\)</span><span>, if the area </span><span class="math-inline">\(A\)</span><span> decreases, the velocity </span><span class="math-inline">\(v\)</span><span> must increase to maintain flow.</span>
+                    </p>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="flex items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <span class="text-sm font-bold text-slate-600 keep-together">Large Area <span class='math-inline'>\(A\)</span></span>
+                            <span class="bg-blue-100 text-blue-800 font-bold px-4 py-2 rounded text-sm keep-together">Low Velocity <span class='math-inline'>\(v\)</span></span>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <span class="text-sm font-bold text-slate-600 keep-together">Small Area <span class='math-inline'>\(A\)</span></span>
+                            <span class="bg-sky-100 text-sky-800 font-bold px-4 py-2 rounded text-sm keep-together">High Velocity <span class='math-inline'>\(v\)</span></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 3 -->
+                <section>
+                    <h3 class="text-lg font-bold text-slate-800 mb-3 tracking-tight flex items-center">
+                        <span class="mr-2">3.</span>
+                        <span class="keep-together">Flux Intensity <span class='math-inline'>\(J\)</span></span>
+                    </h3>
+                    <p class="text-sm text-slate-700 leading-relaxed mb-4">
+                        Flux is the normalization of flow rate by the surface area it crosses.
+                    </p>
+                    
+                    <div class="math-box text-center py-6">
+                        <div class="text-2xl font-bold">
+                            $$ J = \frac{\text{Flow Rate }(Q)}{\text{Area }(A)} $$
+                        </div>
+                    </div>
+
+                    <div class="p-5 bg-blue-50 rounded-xl border border-blue-100 mt-4">
+                        <p class="text-sm text-blue-800 leading-relaxed">
+                            <strong>Insight:</strong> For a fixed flow rate, a smaller area concentrates the transport, resulting in a higher flux.
+                        </p>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('pipeCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const qSlider = document.getElementById('qSlider');
+            const aSlider = document.getElementById('aSlider');
+            const dispQ = document.getElementById('dispQ');
+            const dispJ = document.getElementById('dispJ');
+
+            const dpr = window.devicePixelRatio || 1;
+            function setupCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+            }
+
+            let pumpQ = 1000; 
+            let pipeA = 120;  
+            let velocity = 0; 
+            let flux = 0;     
+            let flowOffset = 0; 
+
+            function updatePhysics() {
+                pumpQ = parseFloat(qSlider.value);
+                pipeA = parseFloat(aSlider.value);
+                velocity = pumpQ / pipeA;
+                flux = (pumpQ / pipeA) * 10;
+
+                dispQ.innerText = pumpQ;
+                dispJ.innerText = flux.toFixed(1);
+            }
+
+            function getVelocityColor(v) {
+                let normV = (v - 1) / 49;
+                normV = Math.max(0, Math.min(1, normV));
+                const lightness = 85 - (normV * 55);
+                return `hsl(215, 90%, ${lightness}%)`;
+            }
+
+            function drawArrow(ctx, x, y, size, label) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.beginPath();
+                ctx.fillStyle = '#fef08a';
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.moveTo(0, -size/4);
+                ctx.lineTo(size*0.6, -size/4);
+                ctx.lineTo(size*0.6, -size/2);
+                ctx.lineTo(size, 0);
+                ctx.lineTo(size*0.6, size/2);
+                ctx.lineTo(size*0.6, size/4);
+                ctx.lineTo(0, size/4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                if (label) {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(label, size/2, size/2 + 20);
+                }
+                ctx.restore();
+            }
+
+            function animate() {
+                const w = canvas.width / dpr;
+                const h = canvas.height / dpr;
+                if (w === 0 || h === 0) return requestAnimationFrame(animate);
+                
+                const cy = h / 2;
+                ctx.clearRect(0, 0, w, h);
+
+                const pipeTop = cy - pipeA / 2;
+                const pipeBottom = cy + pipeA / 2;
+                const redLineX = w * 0.35; 
+                const fluidColor = getVelocityColor(velocity);
+                const visualVx = 3 + velocity * 0.35; 
+                const grav = 0.5; 
+
+                // Draw Fluid Body
+                ctx.fillStyle = fluidColor;
+                ctx.beginPath();
+                ctx.moveTo(0, pipeTop);
+                ctx.lineTo(redLineX, pipeTop);
+                for(let x = redLineX; x <= w + 50; x += 10) {
+                    let t = (x - redLineX) / visualVx;
+                    let y = pipeTop + 0.5 * grav * t * t;
+                    ctx.lineTo(x, y);
+                }
+                for(let x = w + 50; x >= redLineX; x -= 10) {
+                    let t = (x - redLineX) / visualVx;
+                    let y = pipeBottom + 0.5 * grav * t * t;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(redLineX, pipeBottom);
+                ctx.lineTo(0, pipeBottom);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw Flow Animation Lines
+                flowOffset -= visualVx * 0.6;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([40, 20]);
+                ctx.lineDashOffset = flowOffset;
+
+                const numLines = Math.max(3, Math.floor(pipeA / 20));
+                for (let i = 1; i < numLines; i++) {
+                    let startY = pipeTop + (pipeA * i / numLines);
+                    ctx.beginPath();
+                    ctx.moveTo(0, startY);
+                    ctx.lineTo(redLineX, startY);
+                    for(let x = redLineX; x <= w + 50; x += 10) {
+                        let t = (x - redLineX) / visualVx;
+                        let y = startY + 0.5 * grav * t * t;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+
+                // Pipe Walls
+                ctx.beginPath();
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 4;
+                ctx.moveTo(0, pipeTop); ctx.lineTo(redLineX, pipeTop);
+                ctx.moveTo(0, pipeBottom); ctx.lineTo(redLineX, pipeBottom);
+                ctx.stroke();
+
+                // Outlet Indicator
+                ctx.beginPath();
+                ctx.setLineDash([8, 6]);
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 3;
+                ctx.moveTo(redLineX, pipeTop);
+                ctx.lineTo(redLineX, pipeBottom);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Labels
+                drawArrow(ctx, 20, cy - 85, 70, "P-Gradient");
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`v = ${velocity.toFixed(1)}`, redLineX / 2, cy + 6);
+                ctx.shadowBlur = 0;
+
+                requestAnimationFrame(animate);
+            }
+
+            qSlider.addEventListener('input', updatePhysics);
+            aSlider.addEventListener('input', updatePhysics);
+            window.addEventListener('resize', setupCanvas);
+
+            setupCanvas();
+            updatePhysics();
+            requestAnimationFrame(animate);
+        });
+    </script>
+</body>
+</html>

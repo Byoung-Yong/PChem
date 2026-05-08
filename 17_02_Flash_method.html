@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Rate Measurement: Flash Photolysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* [2025-07-30] English fonts for code elements */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* Very dark blue/black for laser lab */
+            color: #f1f5f9;
+            user-select: none;
+        }
+
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+
+        /* Optical Elements */
+        .opt-path {
+            fill: none;
+            stroke: #475569;
+            stroke-width: 1.5;
+            stroke-dasharray: 4 4;
+        }
+
+        .lens {
+            fill: rgba(52, 211, 153, 0.15);
+            stroke: #34d399;
+            stroke-width: 1.5;
+            filter: drop-shadow(0 0 2px rgba(52,211,153,0.5));
+        }
+
+        .prism {
+            fill: rgba(226, 232, 240, 0.1);
+            stroke: #94a3b8;
+            stroke-width: 1.5;
+            backdrop-filter: blur(2px);
+        }
+
+        /* Animated Pulses */
+        .pulse-pump {
+            fill: #c084fc;
+            filter: drop-shadow(0 0 10px #c084fc) drop-shadow(0 0 20px #a855f7);
+        }
+
+        .pulse-probe {
+            fill: #fef08a; 
+            filter: drop-shadow(0 0 10px #fde047) drop-shadow(0 0 20px #fbbf24);
+        }
+
+        #sample-cell {
+            transition: all 0.15s ease-out;
+        }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #334155;
+            border-radius: 8px;
+            height: 6px;
+            outline: none;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.6), inset 0 2px 4px rgba(255,255,255,0.3);
+            border: 2px solid #1e3a8a;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:active {
+            transform: scale(1.15);
+        }
+        input[type=range]:disabled::-webkit-slider-thumb {
+            background: #64748b;
+            box-shadow: none;
+            border-color: #475569;
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #1e293b;
+            color: #a855f7;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Header Section -->
+    <header class="px-8 py-5 bg-slate-900 border-b border-white/5 flex justify-between items-center z-20 shadow-lg shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-600/20">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <div>
+                <div class="unified-module-badge code-font">17A.2 - Kinetics Measurement</div>
+                <h1 class="text-xl md:text-2xl font-black tracking-tight text-white">반응 속도 측정: 섬광 광분해법 (Flash Photolysis)</h1>
+                <p class="text-xs text-slate-400 font-medium">초짧은 레이저 펄스(Pump-Probe)를 이용한 초고속 분자 동역학 관측 시뮬레이션</p>
+            </div>
+        </div>
+        <div class="flex gap-8 bg-slate-800/80 px-6 py-2.5 rounded-2xl border border-white/5 shadow-inner">
+            <div class="flex flex-col items-end">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">광경로차 (Path Diff, d)</span>
+                <span class="text-xl font-black text-blue-400 code-font drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]"><span id="val-diff">0</span> <span class="text-sm">mm</span></span>
+            </div>
+            <div class="flex flex-col items-end border-l pl-8 border-white/10">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">지연 시간 (Time Delay, t)</span>
+                <span class="text-xl font-black text-purple-400 code-font drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]"><span id="val-time">0.0</span> <span class="text-sm">ps</span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex overflow-hidden p-6 gap-6 max-w-[1600px] mx-auto w-full relative">
+        
+        <!-- Left Column: Optical System (Breadboard) & Main Controls -->
+        <div class="flex-1 flex flex-col gap-6 overflow-y-auto z-10">
+            
+            <!-- Optical Table Container -->
+            <div class="bg-slate-900 rounded-[2rem] border border-slate-700 shadow-2xl p-6 flex items-center justify-center relative overflow-hidden">
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800/50 via-slate-900/50 to-transparent"></div>
+                
+                <svg viewBox="0 0 900 600" class="w-full h-auto max-h-[60vh] relative z-10 filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                    <!-- Optical Breadboard Pattern -->
+                    <pattern id="breadboard" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <circle cx="10" cy="10" r="1.5" fill="#1e293b"/>
+                    </pattern>
+                    <rect width="900" height="600" fill="url(#breadboard)" rx="24" stroke="#334155" stroke-width="4"/>
+
+                    <defs>
+                        <linearGradient id="metalGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#94a3b8" />
+                            <stop offset="50%" stop-color="#475569" />
+                            <stop offset="100%" stop-color="#1e293b" />
+                        </linearGradient>
+                        <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#fde047" />
+                            <stop offset="50%" stop-color="#ca8a04" />
+                            <stop offset="100%" stop-color="#713f12" />
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Laser Source -->
+                    <g transform="translate(50, 150)">
+                        <rect x="-10" y="-10" width="140" height="60" fill="#0f172a" rx="6" stroke="#334155" stroke-width="2"/>
+                        <rect width="120" height="40" fill="url(#metalGrad)" stroke="#64748b" rx="4" />
+                        <rect x="120" y="15" width="10" height="10" fill="#ef4444" />
+                        <text x="60" y="-15" text-anchor="middle" class="text-[11px] font-black fill-slate-400 uppercase tracking-widest code-font">Femtosecond Laser</text>
+                    </g>
+
+                    <!-- Beamsplitter -->
+                    <g transform="translate(250, 170) rotate(45)">
+                        <rect x="-15" y="-15" width="30" height="30" fill="#1e293b" rx="2" />
+                        <rect x="-2" y="-25" width="4" height="50" fill="rgba(255,255,255,0.2)" stroke="#94a3b8" />
+                        <rect x="-2" y="-25" width="2" height="50" fill="url(#goldGrad)" opacity="0.6"/>
+                        <text x="-35" y="-30" text-anchor="middle" transform="rotate(-45)" class="text-[10px] font-black fill-slate-400 uppercase tracking-widest code-font">BS</text>
+                    </g>
+
+                    <!-- Beam Paths (Guidelines) -->
+                    <path d="M 250 170 L 600 170" class="opt-path" />
+                    
+                    <ellipse cx="420" cy="170" rx="6" ry="25" class="lens" />
+                    <text x="420" y="215" text-anchor="middle" class="text-[10px] font-black fill-emerald-500 code-font">L1</text>
+
+                    <path id="path-probe-guide" d="M 250 170 L 250 450 L 600 450 L 600 170" class="opt-path" />
+                    
+                    <ellipse cx="250" cy="240" rx="25" ry="6" class="lens" />
+                    <text x="210" y="243" text-anchor="end" class="text-[10px] font-black fill-emerald-500 code-font">L2</text>
+
+                    <!-- Continuum Generation -->
+                    <g id="continuum-gen" transform="translate(230, 280)">
+                        <rect x="-10" y="-10" width="60" height="45" fill="#0f172a" rx="4" />
+                        <rect width="40" height="25" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="2" rx="2" />
+                        <text x="-20" y="10" text-anchor="end" class="text-[10px] font-black fill-sky-400 leading-none code-font">
+                            <tspan x="-20" dy="0">WLC</tspan>
+                            <tspan x="-20" dy="12">Crystal</tspan>
+                        </text>
+                    </g>
+
+                    <!-- Motorized Delay Stage -->
+                    <g id="stage-group" transform="translate(0, 450)">
+                        <!-- Rail -->
+                        <rect x="230" y="-15" width="400" height="60" fill="#1e293b" stroke="#334155" stroke-width="4" rx="4" />
+                        <rect x="240" y="-5" width="380" height="40" fill="#0f172a" rx="2" />
+                        
+                        <!-- Retroreflector Mirrors -->
+                        <polygon points="250,-5 230,20 270,20" class="prism" />
+                        <polygon points="600,-5 580,20 620,20" class="prism" />
+                        
+                        <!-- Stage Engine -->
+                        <g transform="translate(680, 0)">
+                            <line x1="0" y1="-20" x2="0" y2="35" stroke="#64748b" stroke-width="4" />
+                            <rect x="-15" y="-30" width="30" height="15" fill="url(#metalGrad)" rx="2" />
+                            <rect x="-15" y="30" width="30" height="15" fill="url(#metalGrad)" rx="2" />
+                            <text x="25" y="5" class="text-[10px] font-black fill-slate-400 uppercase tracking-widest leading-tight code-font">
+                                <tspan x="25" dy="0">Delay</tspan>
+                                <tspan x="25" dy="12">Stage</tspan>
+                            </text>
+                        </g>
+                    </g>
+
+                    <!-- Sample Cell -->
+                    <g transform="translate(600, 170)">
+                        <rect x="-25" y="-25" width="50" height="50" fill="#0f172a" rx="4" />
+                        <rect id="sample-cell" x="-18" y="-18" width="36" height="36" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="2" rx="2" />
+                        <text x="0" y="45" text-anchor="middle" class="text-[11px] font-black fill-slate-300 uppercase code-font tracking-widest">Sample</text>
+                    </g>
+                    
+                    <!-- Spectrometer / Detector -->
+                    <path d="M 600 170 L 600 60 L 520 60" class="opt-path" />
+                    <g transform="translate(560, 30)">
+                        <rect x="-10" y="-10" width="100" height="80" fill="#0f172a" rx="4" />
+                        <rect width="80" height="60" fill="url(#metalGrad)" stroke="#64748b" rx="4" />
+                        <text x="40" y="30" text-anchor="middle" class="text-[10px] font-black fill-slate-300 uppercase leading-none code-font">
+                            <tspan x="40" dy="0">Spectro-</tspan>
+                            <tspan x="40" dy="12">graph</tspan>
+                        </text>
+                    </g>
+                    <g transform="translate(440, 45)">
+                        <rect width="60" height="30" fill="#020617" stroke="#3b82f6" stroke-width="2" rx="4" filter="drop-shadow(0 0 4px rgba(59,130,246,0.3))"/>
+                        <rect x="60" y="10" width="20" height="10" fill="#1e3a8a" />
+                        <text x="30" y="20" text-anchor="middle" class="text-[10px] font-black fill-blue-400 uppercase code-font">CCD</text>
+                    </g>
+
+                    <!-- Pulses (Hidden initially) -->
+                    <g id="pulses" visibility="hidden">
+                        <circle id="pump-dot" cx="0" cy="0" r="6" class="pulse-pump" />
+                        <circle id="probe-dot" cx="0" cy="0" r="5" class="pulse-probe" />
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Stage Control Slider Bar -->
+            <div class="bg-slate-800/80 p-6 rounded-3xl shadow-lg border border-slate-700 backdrop-blur-md">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="font-black text-slate-300 uppercase tracking-widest text-xs code-font">Stage Position (Optical Delay)</span>
+                    <button id="btn-fire" class="bg-purple-600 hover:bg-purple-500 text-white px-10 py-3.5 rounded-2xl font-black transition-all active:scale-95 flex items-center gap-3 shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+                        <div class="w-2.5 h-2.5 bg-white rounded-full animate-pulse"></div>
+                        <span>펄스 발사 (Fire)</span>
+                    </button>
+                </div>
+                <input type="range" id="stage-slider" min="300" max="550" value="380" class="w-full">
+                <div class="flex justify-between text-[10px] font-bold text-slate-500 mt-4 uppercase tracking-widest code-font">
+                    <span>Baseline (0 ps)</span>
+                    <span>Max Delay (~1666 ps)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Analytics & Data (Oscilloscope style) -->
+        <div class="w-96 flex flex-col gap-6 overflow-y-auto z-10">
+            
+            <!-- Excited State Monitor -->
+            <div class="bg-slate-900 p-6 rounded-3xl border border-slate-700 shadow-2xl shrink-0">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest code-font">Transient Absorption</h3>
+                    <div class="w-2 h-2 bg-red-500 rounded-full" id="sensor-status"></div>
+                </div>
+                <!-- LED Bar graph style -->
+                <div class="relative h-20 w-full bg-slate-950 rounded-xl overflow-hidden flex items-end mb-4 border border-slate-800 p-1">
+                    <div id="signal-bar" class="w-full bg-gradient-to-t from-red-600 to-red-400 transition-all duration-300 rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.5)]" style="height: 0%;"></div>
+                    <div class="absolute inset-0 bg-[linear-gradient(transparent_90%,rgba(255,255,255,0.05)_100%)] bg-[length:100%_4px] pointer-events-none"></div>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-xs text-slate-500 font-bold">Signal Intensity \([A^*]\)</span>
+                    <div class="text-right font-black code-font text-3xl text-white">
+                        <span id="readout-signal">0.00</span><span class="text-lg text-slate-500 ml-1">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Chart.js Graph -->
+            <div class="bg-slate-900 p-6 rounded-3xl border border-slate-700 shadow-2xl flex-1 flex flex-col min-h-[280px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest code-font">Kinetics Decay Curve</h3>
+                    <button id="btn-scan" class="bg-blue-600/20 text-blue-400 border border-blue-500/30 px-4 py-1.5 rounded-lg text-[10px] font-black hover:bg-blue-600 hover:text-white transition-colors uppercase tracking-widest code-font">
+                        Auto Scan
+                    </button>
+                </div>
+                
+                <div class="relative flex-1 w-full bg-slate-950 rounded-xl border border-slate-800 p-3 overflow-hidden">
+                    <canvas id="decayChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Bottom Tools -->
+            <div class="mt-auto flex justify-end">
+                <button id="btn-reset" class="text-[11px] font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest transition-colors flex items-center justify-center gap-2 bg-slate-800 px-6 py-3 rounded-xl border border-slate-700 code-font">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Reset Data
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /**
+         * Flash Photolysis Animation & Data Logic
+         */
+        const stageSlider = document.getElementById('stage-slider');
+        const stageGroup = document.getElementById('stage-group');
+        const probeGuide = document.getElementById('path-probe-guide');
+        
+        const valDiff = document.getElementById('val-diff');
+        const valTime = document.getElementById('val-time');
+        
+        const readoutSignal = document.getElementById('readout-signal');
+        const signalBar = document.getElementById('signal-bar');
+        const sensorStatus = document.getElementById('sensor-status');
+        
+        const btnFire = document.getElementById('btn-fire');
+        const btnScan = document.getElementById('btn-scan');
+        const btnReset = document.getElementById('btn-reset');
+        
+        const pulsesGroup = document.getElementById('pulses');
+        const pumpDot = document.getElementById('pump-dot');
+        const probeDot = document.getElementById('probe-dot');
+        const sampleCell = document.getElementById('sample-cell');
+
+        const PS_PER_MM = 3.3333; // ~3.33 ps per 1mm of path difference
+        const DECAY_TAU = 500.0; // Excited state lifetime
+        
+        let stageY = 380;
+        let isAnimating = false;
+
+        // Chart.js Setup
+        let decayChart;
+        let scatterData = [];
+        let theoreticalData = [];
+
+        function initChart() {
+            const ctx = document.getElementById('decayChart').getContext('2d');
+            Chart.defaults.color = '#64748b';
+            Chart.defaults.font.family = "'JetBrains Mono', monospace";
+            
+            // Pre-calculate theoretical curve for background reference
+            for (let y = 300; y <= 550; y += 2) {
+                let t = 2 * (y - 300) * PS_PER_MM;
+                let sig = 100 * Math.exp(-t / DECAY_TAU);
+                theoreticalData.push({x: t, y: sig});
+            }
+
+            decayChart = new Chart(ctx, {
+                data: {
+                    datasets: [
+                        {
+                            type: 'scatter',
+                            label: 'Measured Data',
+                            data: scatterData,
+                            backgroundColor: '#38bdf8', // Sky blue dots
+                            borderColor: 'rgba(255,255,255,0.8)',
+                            borderWidth: 1,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            type: 'line',
+                            label: 'Theoretical Fit',
+                            data: theoreticalData,
+                            borderColor: 'rgba(148, 163, 184, 0.4)', // Faint slate line
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false, // Turn off for real-time appending
+                    scales: {
+                        x: { 
+                            type: 'linear',
+                            title: { display: false },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            min: 0, max: 1700
+                        },
+                        y: { 
+                            min: -10, max: 120,
+                            title: { display: false },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    },
+                    plugins: { 
+                        legend: { position: 'top', align: 'end', labels: { boxWidth: 12, font: { size: 9 } } },
+                        tooltip: { enabled: true } 
+                    }
+                }
+            });
+        }
+
+        // Stage movement calculates optical delay
+        function updateStage() {
+            stageY = parseInt(stageSlider.value);
+            stageGroup.setAttribute('transform', `translate(0, ${stageY})`);
+            probeGuide.setAttribute('d', `M 250 170 L 250 ${stageY} L 600 ${stageY} L 600 170`);
+            
+            const pathDifferenceMm = 2 * (stageY - 300); 
+            const timeDelayPs = pathDifferenceMm * PS_PER_MM;
+
+            valDiff.textContent = Math.max(0, pathDifferenceMm);
+            valTime.textContent = Math.max(0, timeDelayPs).toFixed(1);
+        }
+
+        stageSlider.addEventListener('input', updateStage);
+
+        // Coordinate paths for animation
+        function getPumpCoords(dist) {
+            if (dist <= 200) return { x: 50 + dist, y: 170 }; 
+            if (dist <= 550) return { x: 250 + (dist - 200), y: 170 }; 
+            return null;
+        }
+
+        function getProbeCoords(dist, sY) {
+            let d = dist;
+            if (d <= 200) return { x: 50 + d, y: 170 }; d -= 200; 
+            let v1 = sY - 170;
+            if (d <= v1) return { x: 250, y: 170 + d }; d -= v1; 
+            if (d <= 350) return { x: 250 + d, y: sY }; d -= 350; 
+            let v2 = sY - 170;
+            if (d <= v2) return { x: 600, y: sY - d }; d -= v2; 
+            if (d <= 110) return { x: 600, y: 170 - d }; d -= 110; 
+            if (d <= 80) return { x: 600 - d, y: 60 }; 
+            return null;
+        }
+
+        // Fire single pulse measurement
+        function triggerFire(isAutoScan = false) {
+            if (isAnimating) return;
+            isAnimating = true;
+            
+            stageSlider.disabled = true;
+            btnFire.disabled = true;
+            if(!isAutoScan) btnScan.disabled = true;
+            btnFire.classList.replace('bg-purple-600', 'bg-slate-700');
+
+            pulsesGroup.setAttribute('visibility', 'visible');
+            let distance = 0;
+            const SPEED = isAutoScan ? 45 : 15; 
+            
+            const PUMP_ARRIVAL = 550; 
+            const PROBE_ARRIVAL = 200 + (stageY - 170) + 350 + (stageY - 170); 
+
+            let sampleHit = false;
+            let measurementTaken = false;
+
+            function animateLoop() {
+                distance += SPEED;
+
+                // Pump Pulse Logic
+                const pumpPos = getPumpCoords(distance);
+                if (pumpPos) {
+                    pumpDot.setAttribute('cx', pumpPos.x); 
+                    pumpDot.setAttribute('cy', pumpPos.y);
+                    pumpDot.setAttribute('display', 'block');
+                } else {
+                    pumpDot.setAttribute('display', 'none');
+                    if (!sampleHit) { 
+                        sampleHit = true; 
+                        sampleCell.setAttribute('fill', '#f43f5e'); 
+                        sampleCell.style.filter = 'drop-shadow(0 0 15px rgba(244,63,94,0.8))';
+                    }
+                }
+
+                // Sample glow decay
+                if (distance > PUMP_ARRIVAL) {
+                    const dt = (distance - PUMP_ARRIVAL) * (PS_PER_MM / 2); 
+                    const decayVal = 100 * Math.exp(-dt / (DECAY_TAU/2));
+                    sampleCell.style.opacity = Math.max(0.1, decayVal/100);
+                }
+
+                // Probe Pulse Logic
+                const probePos = getProbeCoords(distance, stageY);
+                if (probePos) {
+                    probeDot.setAttribute('cx', probePos.x); 
+                    probeDot.setAttribute('cy', probePos.y);
+                    probeDot.setAttribute('display', 'block');
+                } else {
+                    probeDot.setAttribute('display', 'none');
+                }
+
+                // Measurement Logic
+                if (!measurementTaken && distance >= PROBE_ARRIVAL) {
+                    measurementTaken = true;
+                    // Flash LED
+                    sensorStatus.classList.replace('bg-red-500', 'bg-emerald-400');
+                    sensorStatus.classList.add('animate-ping');
+                    setTimeout(() => {
+                        sensorStatus.classList.replace('bg-emerald-400', 'bg-red-500');
+                        sensorStatus.classList.remove('animate-ping');
+                    }, 200);
+
+                    const exactDelay = Math.max(0, 2 * (stageY - 300) * PS_PER_MM);
+                    
+                    // Add experimental noise (+/- 2%)
+                    const noise = (Math.random() - 0.5) * 4;
+                    const finalSignal = Math.max(0, 100 * Math.exp(-exactDelay / DECAY_TAU) + noise);
+                    
+                    signalBar.style.height = `${finalSignal}%`;
+                    readoutSignal.textContent = finalSignal.toFixed(2);
+                    
+                    // Push to Chart.js
+                    scatterData.push({ x: exactDelay, y: finalSignal });
+                    decayChart.update();
+                }
+
+                // Check termination
+                if (distance < PROBE_ARRIVAL + 300) { 
+                    requestAnimationFrame(animateLoop);
+                } else {
+                    isAnimating = false;
+                    stageSlider.disabled = false; 
+                    btnFire.disabled = false; 
+                    btnScan.disabled = false;
+                    btnFire.classList.replace('bg-slate-700', 'bg-purple-600');
+                    
+                    sampleCell.setAttribute('fill', 'rgba(56,189,248,0.1)'); 
+                    sampleCell.style.filter = 'none';
+                    sampleCell.style.opacity = "1";
+                    pulsesGroup.setAttribute('visibility', 'hidden');
+                }
+            }
+            animateLoop();
+        }
+
+        // Automated scanning mechanism
+        async function runAutoScan() {
+            if (isAnimating) return;
+            
+            // Visual indicator on button
+            btnScan.innerHTML = `<span class="animate-pulse text-rose-400">SCANNING...</span>`;
+            scatterData.length = 0; // Clear previous data
+            decayChart.update();
+            
+            // Finer steps for a smooth curve mapping
+            for (let y = 300; y <= 550; y += 10) {
+                stageSlider.value = y;
+                updateStage();
+                triggerFire(true);
+                
+                await new Promise(r => {
+                    const i = setInterval(() => { if (!isAnimating) { clearInterval(i); r(); } }, 20);
+                });
+                await new Promise(r => setTimeout(r, 40)); 
+            }
+            
+            // Reset button text
+            btnScan.innerHTML = `Auto Scan`;
+        }
+
+        // Event Listeners
+        btnFire.addEventListener('click', () => triggerFire(false));
+        btnScan.addEventListener('click', runAutoScan);
+        btnReset.addEventListener('click', () => {
+            scatterData.length = 0;
+            decayChart.update();
+            readoutSignal.textContent = "0.00";
+            signalBar.style.height = "0%";
+        });
+
+        // Initialize
+        initChart();
+        updateStage();
+    </script>
+</body>
+</html>

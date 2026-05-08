@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductivity And Mobility</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(3, 105, 161, 0.1);
+        }
+
+        .math-box {
+            background-color: #ffffff;
+            border-left: 4px solid #10b981;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        }
+
+        .derivation-line {
+            padding: 0.75rem 0;
+            border-bottom: 1px dashed #f1f5f9;
+        }
+        .derivation-line:last-child { border-bottom: none; }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border: 2px solid white;
+        }
+
+        canvas { image-rendering: auto; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 p-5 px-10 shadow-sm z-10 shrink-0 flex justify-between items-center">
+        <div class="text-left">
+            <div class="unified-module-badge lab-font">16A.11 - Ionic Transport</div>
+            <h1 class="text-3xl font-black tracking-tight text-slate-900">Conductivity And Mobility</h1>
+            <p class="text-xs text-slate-400 mt-1 font-medium italic">이온의 드리프트 속도와 몰 전도도 간의 정량적 상관관계 분석</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 px-6 py-3 rounded-2xl text-right shadow-sm">
+            <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Faraday Constant (\(F\))</p>
+            <p class="text-xl font-black text-emerald-900 lab-font">96,485 <span class="text-xs font-bold">C/mol</span></p>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden w-full p-6 gap-6">
+        
+        <!-- Left Panel: 3D Visualization & Controls -->
+        <div class="flex-1 flex flex-col gap-6 min-w-0">
+            
+            <!-- Real-time 3D Viewport -->
+            <div class="relative flex-[1.4] bg-slate-950 rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-2xl">
+                <canvas id="fluxCanvas" class="w-full h-full block"></canvas>
+
+                <!-- Dashboard Overlay -->
+                <div class="absolute bottom-8 left-8 right-8 grid grid-cols-3 gap-4">
+                    <div class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center">
+                        <p class="text-[9px] uppercase font-black text-emerald-400 mb-1 tracking-widest">Current (\(I\))</p>
+                        <p id="disp_I" class="text-2xl font-black text-white lab-font">0.00 <span class="text-xs font-normal">mA</span></p>
+                    </div>
+                    <div class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center">
+                        <p class="text-[9px] uppercase font-black text-blue-400 mb-1 tracking-widest">Conductivity (\(\kappa\))</p>
+                        <p id="disp_K" class="text-2xl font-black text-white lab-font">0.00 <span class="text-xs font-normal">S/m</span></p>
+                    </div>
+                    <div class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center">
+                        <p class="text-[9px] uppercase font-black text-amber-400 mb-1 tracking-widest">Molar Conductivity (\(\lambda\))</p>
+                        <p id="disp_L" class="text-2xl font-black text-white lab-font">0.00 <span class="text-xs font-normal">S·cm²/mol</span></p>
+                    </div>
+                </div>
+
+                <!-- Area Indicator Label -->
+                <div class="absolute top-8 right-8 text-right pointer-events-none opacity-40">
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] lab-font">Drift Motion Viewport</p>
+                </div>
+            </div>
+            
+            <!-- Parameter Control Panel -->
+            <div class="glass-panel p-8 rounded-[2.5rem] shadow-xl border border-slate-200 flex-1 overflow-y-auto">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 lab-font border-b border-slate-100 pb-2">Real-World Parameters</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                    <div class="space-y-5">
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Drift Speed (\(s\))</span>
+                                <span id="sDisp" class="text-[10px] font-bold text-emerald-600 lab-font">50.0 μm/s</span>
+                            </div>
+                            <input type="range" id="sSlider" min="5" max="300" step="1" value="50" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Window Time (\(\Delta t\))</span>
+                                <span id="dtDisp" class="text-[10px] font-bold text-emerald-600 lab-font">10.0 s</span>
+                            </div>
+                            <input type="range" id="dtSlider" min="1" max="60" step="1" value="10" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Area (\(A\))</span>
+                                <span id="aDisp" class="text-[10px] font-bold text-emerald-600 lab-font">1.0 cm²</span>
+                            </div>
+                            <input type="range" id="aSlider" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Concentration (\(c\))</span>
+                                <span id="cDisp" class="text-[10px] font-bold text-emerald-600 lab-font">0.10 M</span>
+                            </div>
+                            <input type="range" id="cSlider" min="0.01" max="1.0" step="0.01" value="0.1" class="w-full">
+                        </label>
+                    </div>
+                    <div class="space-y-5">
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Path Length (\(l\))</span>
+                                <span id="lDisp" class="text-[10px] font-bold text-blue-600 lab-font">1.0 cm</span>
+                            </div>
+                            <input type="range" id="lSlider" min="0.1" max="10.0" step="0.1" value="1.0" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Voltage (\(V\))</span>
+                                <span id="vDisp" class="text-[10px] font-bold text-blue-600 lab-font">1.0 V</span>
+                            </div>
+                            <input type="range" id="vSlider" min="0.1" max="12.0" step="0.1" value="1.0" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Charge (\(z\))</span>
+                                <span id="zDisp" class="text-[10px] font-bold text-purple-600 lab-font">1</span>
+                            </div>
+                            <input type="range" id="zSlider" min="1" max="3" step="1" value="1" class="w-full">
+                        </label>
+                        <label class="block">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Stoichiometry (\(\nu\))</span>
+                                <span id="nuDisp" class="text-[10px] font-bold text-purple-600 lab-font">1</span>
+                            </div>
+                            <input type="range" id="nuSlider" min="1" max="3" step="1" value="1" class="w-full">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Step-by-Step Derivation -->
+        <div class="w-[30rem] p-8 overflow-y-auto bg-white border border-slate-200 rounded-[2.5rem] shadow-xl">
+            <div id="derivation-container" class="space-y-10">
+                
+                <header class="mb-6 border-b border-slate-100 pb-4">
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Step-by-Step Derivation</h2>
+                </header>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black lab-font">01</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">전류와 드리프트 속도 (\(I\))</h3>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed font-medium mb-3">
+                        시간 \(\Delta t\) 동안 단면적 \(A\)를 통과하는 부피는 \(s \Delta t A\)입니다. 이 부피 내의 이온들이 운반하는 전하량을 계산하여 전류를 정의합니다.
+                    </p>
+                    <div class="math-box border-emerald-400 bg-emerald-50/30">
+                        <div class="derivation-line">
+                            <p class="text-[10px] font-bold text-emerald-600 uppercase mb-1">Molar Flow</p>
+                            \( n_{\text{ion}} = s \Delta t A \cdot c\nu \)
+                        </div>
+                        <div class="derivation-line">
+                            <p class="text-[10px] font-bold text-emerald-600 uppercase mb-1">Charge \(Q = n \cdot zF\)</p>
+                            \( Q = s \Delta t A c z \nu F \)
+                        </div>
+                        <div class="derivation-line pt-4">
+                            <p class="text-[10px] font-black text-emerald-800 uppercase mb-2">Final Current (\(I = Q / \Delta t\))</p>
+                            <span class="text-xl font-black text-emerald-700">\( I = s A c z \nu F \)</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-black lab-font">02</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">전도도 정의 (\(\kappa\))</h3>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed font-medium mb-3">
+                        전도도 \(\kappa\)는 전도도 \(G = I/V\)와 기하학적 인자 \(l/A\)의 곱으로 정의됩니다.
+                    </p>
+                    <div class="math-box border-blue-400 bg-blue-50/30">
+                        <div class="derivation-line">
+                            \( \kappa \frac{A}{l} = \frac{I}{V} \implies \kappa = \frac{I \cdot l}{V \cdot A} \)
+                        </div>
+                        <div class="derivation-line pt-4">
+                            <p class="text-[10px] font-bold text-blue-800 uppercase mb-2">Substitute \(I\) from Step 1</p>
+                            <span class="text-xl font-black text-blue-700">\( \kappa = s c z \nu F \frac{l}{V} \)</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-black lab-font">03</span>
+                        <h3 class="text-lg font-bold text-slate-800 tracking-tight">몰 전도도와 이동도 (\(\lambda\))</h3>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed font-medium mb-3">
+                        몰 전도도 \(\lambda\)는 전도도를 농도로 나눈 값이며, 드리프트 속도 \(s\)는 이동도 \(u\)와 전기장 \(E = V/l\)의 곱으로 표현됩니다.
+                    </p>
+                    <div class="math-box border-amber-400 bg-amber-50/30">
+                        <div class="derivation-line">
+                            \( \lambda = \frac{\kappa}{\nu c} = z s F \frac{l}{V} \)
+                        </div>
+                        <div class="derivation-line pt-4">
+                            <p class="text-[10px] font-bold text-amber-800 uppercase mb-2">Using \(s = u E\) and \(E = V/l\)</p>
+                            <span class="text-xl font-black text-amber-700">\( \lambda = z u F \)</span>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('fluxCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const disp_I = document.getElementById('disp_I');
+            const disp_K = document.getElementById('disp_K');
+            const disp_L = document.getElementById('disp_L');
+            
+            const sliders = {
+                s: document.getElementById('sSlider'),
+                dt: document.getElementById('dtSlider'),
+                a: document.getElementById('aSlider'),
+                c: document.getElementById('cSlider'),
+                l: document.getElementById('lSlider'),
+                v: document.getElementById('vSlider'),
+                z: document.getElementById('zSlider'),
+                nu: document.getElementById('nuSlider')
+            };
+            
+            const displays = {
+                s: document.getElementById('sDisp'),
+                dt: document.getElementById('dtDisp'),
+                a: document.getElementById('aDisp'),
+                c: document.getElementById('cDisp'),
+                l: document.getElementById('lDisp'),
+                v: document.getElementById('vDisp'),
+                z: document.getElementById('zDisp'),
+                nu: document.getElementById('nuDisp')
+            };
+
+            const dpr = window.devicePixelRatio || 1;
+            function setupCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+            }
+
+            let params = {
+                s: 50, dt: 10, A: 1.0, c: 0.1, l: 1.0, V: 1.0, z: 1, v: 1,
+                F: 96485.33
+            };
+
+            let particles = [];
+
+            function updateParams() {
+                params.s = parseFloat(sliders.s.value);
+                params.dt = parseFloat(sliders.dt.value);
+                params.A = parseFloat(sliders.a.value);
+                params.c = parseFloat(sliders.c.value);
+                params.l = parseFloat(sliders.l.value);
+                params.V = parseFloat(sliders.v.value);
+                params.z = parseInt(sliders.z.value);
+                params.v = parseInt(sliders.nu.value);
+
+                displays.s.innerText = params.s.toFixed(1) + " μm/s";
+                displays.dt.innerText = params.dt.toFixed(1) + " s";
+                displays.a.innerText = params.A.toFixed(1) + " cm²";
+                displays.c.innerText = params.c.toFixed(2) + " M";
+                displays.l.innerText = params.l.toFixed(1) + " cm";
+                displays.v.innerText = params.V.toFixed(1) + " V";
+                displays.z.innerText = params.z;
+                displays.nu.innerText = params.v;
+
+                calculateMetrics();
+                spawnParticles(); 
+            }
+
+            function calculateMetrics() {
+                const s_m = params.s * 1e-6;         // μm/s -> m/s
+                const A_m2 = params.A * 1e-4;        // cm² -> m²
+                const c_m3 = params.c * 1000;        // M -> mol/m³
+                const l_m = params.l * 1e-2;         // cm -> m
+                
+                const I = s_m * A_m2 * c_m3 * params.z * params.v * params.F;
+                const K = (I * l_m) / (params.V * A_m2);
+                const L = K / (params.v * c_m3);
+
+                const I_disp = I * 1000; 
+                const L_disp = L * 10000; // S m²/mol to S cm²/mol
+
+                disp_I.innerHTML = I_disp.toFixed(2) + ' <span class="text-[10px] font-bold opacity-60">mA</span>';
+                disp_K.innerHTML = K.toFixed(4) + ' <span class="text-[10px] font-bold opacity-60">S/m</span>';
+                disp_L.innerHTML = L_disp.toFixed(2) + ' <span class="text-[10px] font-bold opacity-60">S·cm²/mol</span>';
+            }
+
+            function spawnParticles() {
+                const targetCount = Math.floor(params.c * params.A * 300);
+                if (particles.length < targetCount) {
+                    for(let i=0; i < targetCount - particles.length; i++) {
+                        particles.push({
+                            x: Math.random() * 300 - 150, 
+                            y: (Math.random() - 0.5) * 120 * Math.sqrt(params.A), 
+                            z: (Math.random() - 0.5) * 120 * Math.sqrt(params.A)
+                        });
+                    }
+                } else if (particles.length > targetCount) {
+                    particles.splice(0, particles.length - targetCount);
+                }
+            }
+
+            function project(x, y, z) {
+                const angleX = Math.PI / 6.5; 
+                const angleZ = Math.PI / 6.5; 
+                const px = x * Math.cos(angleX) - z * Math.cos(angleZ);
+                const py = x * Math.sin(angleX) + z * Math.sin(angleZ) - y;
+                return { x: px, y: py };
+            }
+
+            function drawIsoBox(ctx, cx, cy, lenX, widthZ, heightY, color, isWireframe=false) {
+                const pts = [
+                    project(-lenX, -heightY, -widthZ), project(lenX, -heightY, -widthZ),
+                    project(lenX, heightY, -widthZ), project(-lenX, heightY, -widthZ),
+                    project(-lenX, -heightY, widthZ), project(lenX, -heightY, widthZ),
+                    project(lenX, heightY, widthZ), project(-lenX, heightY, widthZ)
+                ];
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                
+                if (!isWireframe) {
+                    ctx.fillStyle = color;
+                    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.lineTo(pts[3].x, pts[3].y); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[5].x, pts[5].y); ctx.lineTo(pts[4].x, pts[4].y); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[3].x, pts[3].y); ctx.lineTo(pts[7].x, pts[7].y); ctx.lineTo(pts[4].x, pts[4].y); ctx.fill();
+                }
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.lineTo(pts[3].x, pts[3].y); ctx.closePath();
+                ctx.moveTo(pts[4].x, pts[4].y); ctx.lineTo(pts[5].x, pts[5].y); ctx.lineTo(pts[6].x, pts[6].y); ctx.lineTo(pts[7].x, pts[7].y); ctx.closePath();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[4].x, pts[4].y);
+                ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[5].x, pts[5].y);
+                ctx.moveTo(pts[2].x, pts[2].y); ctx.lineTo(pts[6].x, pts[6].y);
+                ctx.moveTo(pts[3].x, pts[3].y); ctx.lineTo(pts[7].x, pts[7].y);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+
+            function drawIsoPlane(ctx, cx, cy, xOffset, widthZ, heightY, color) {
+                const pts = [
+                    project(xOffset, -heightY, -widthZ), project(xOffset, heightY, -widthZ),
+                    project(xOffset, heightY, widthZ), project(xOffset, -heightY, widthZ)
+                ];
+                ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = color;
+                ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.lineTo(pts[3].x, pts[3].y); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.restore();
+            }
+
+            function animate() {
+                const w = canvas.width / dpr;
+                const h = canvas.height / dpr;
+                ctx.clearRect(0, 0, w, h);
+                
+                const cx = w / 2;
+                const cy = h / 2 + 20; 
+                const tubeLen = 180;
+                const baseRadius = 45;
+                const curRadius = baseRadius * Math.sqrt(params.A); 
+
+                // Increased visual speed scaling for better dynamics
+                const visualSpeed = 0.5 + (params.s / 300) * 4.5;
+                
+                particles.forEach(p => {
+                    p.x += visualSpeed;
+                    if (p.x > tubeLen) p.x = -tubeLen;
+                });
+
+                drawIsoBox(ctx, cx, cy, tubeLen, curRadius, curRadius, 'transparent', true);
+
+                const visualVolLength = visualSpeed * params.dt * 1.5; 
+                drawIsoBox(ctx, cx, cy, visualVolLength/2, curRadius, curRadius, 'rgba(16, 185, 129, 0.15)', false);
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                particles.sort((a,b) => project(a.x, a.y, a.z).y - project(b.x, b.y, b.z).y);
+
+                particles.forEach(p => {
+                    if(p.x > -tubeLen && p.x < tubeLen) {
+                        const projPt = project(p.x, p.y, p.z);
+                        let color = '#475569'; 
+                        let size = 2.2;
+                        if (p.x <= 0 && p.x >= -visualVolLength) {
+                            color = '#10b981'; // Flowing through window
+                            size = 3.5;
+                        }
+                        
+                        ctx.beginPath(); ctx.arc(projPt.x, projPt.y, size, 0, Math.PI*2);
+                        ctx.fillStyle = color; ctx.fill();
+                    }
+                });
+                ctx.restore();
+
+                drawIsoPlane(ctx, cx, cy, 0, curRadius, curRadius, 'rgba(250, 204, 21, 0.3)');
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                const planeTop = project(0, curRadius + 15, 0);
+                ctx.fillStyle = '#facc15'; ctx.font = 'bold 12px sans-serif';
+                ctx.fillText('Detection Area A', planeTop.x - 40, planeTop.y - 10);
+
+                const volEnd = project(-visualVolLength, -curRadius, curRadius); 
+                ctx.fillStyle = '#10b981';
+                ctx.fillText(`Cylindrical Volume`, volEnd.x - 50, volEnd.y + 25);
+                
+                ctx.strokeStyle = '#10b981'; ctx.beginPath();
+                ctx.lineWidth = 1;
+                const p1 = project(0, -curRadius - 10, curRadius);
+                const p2 = project(-visualVolLength, -curRadius - 10, curRadius);
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                
+                ctx.restore();
+                requestAnimationFrame(animate);
+            }
+
+            Object.values(sliders).forEach(s => s.addEventListener('input', updateParams));
+            window.addEventListener('resize', setupCanvas);
+
+            setupCanvas();
+            updateParams();
+            animate();
+        });
+    </script>
+</body>
+</html>

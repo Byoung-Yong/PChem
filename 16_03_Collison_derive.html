@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collision Formula From Molecular Kinetics</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* [2025-07-30] English fonts only for CSS font-family */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        .lab-font { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e2e8f0;
+        }
+
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #f1f5f9;
+            color: #475569;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* [No Edges] Plain box style with uniform border only - Strictly Followed */
+        .math-box {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 1.5rem;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        }
+
+        .step-content {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .step-content.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        canvas { image-rendering: auto; display: block; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden p-4 md:p-8">
+
+    <!-- Header -->
+    <header class="text-center mb-8 shrink-0">
+        <div class="unified-module-badge lab-font">16A.3 - Collision Theory</div>
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-left">
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900 uppercase">Collision Frequency Derivation</h1>
+                <p class="mt-2 text-sm text-slate-500 font-medium italic">기체 분자 운동론을 바탕으로 한 충돌 빈도(\(Z_{\text{W}}\)) 공식의 단계별 유도</p>
+            </div>
+            <div class="flex gap-1.5 p-2 bg-white rounded-2xl border border-slate-200 shadow-sm" id="step-indicators"></div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden w-full max-w-7xl mx-auto gap-8">
+        
+        <!-- Left Column: Visual Simulation & Local Dist -->
+        <div class="w-full lg:w-1/2 flex flex-col gap-6 min-h-0">
+            <!-- Simulation Viewport -->
+            <div id="simContainer" class="relative flex-[1.6] bg-slate-950 rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl">
+                <canvas id="simCanvas" class="w-full h-full"></canvas>
+                
+                <!-- Target Wall -->
+                <div class="absolute right-0 top-0 w-2 h-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.4)]"></div>
+                
+                <div class="absolute top-6 left-8 flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                    <span class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_8px_#818cf8]"></span>
+                    <span class="text-[9px] text-indigo-300 font-black tracking-widest uppercase lab-font">Physics Engine Active</span>
+                </div>
+
+                <!-- Legend (Active only in step 3+) -->
+                <div id="sim-legend" class="absolute bottom-8 left-8 bg-black/60 backdrop-blur-md p-4 rounded-2xl border border-white/5 text-[9px] text-slate-300 space-y-1.5 opacity-0 transition-opacity duration-500">
+                    <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_5px_#f43f5e]"></span> 충돌 확정 (\(x + v_x \Delta t \ge L\))</div>
+                    <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_5px_#38bdf8]"></span> 우측 이동 (원거리)</div>
+                </div>
+            </div>
+            
+            <!-- Velocity Distribution View -->
+            <div class="flex-1 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl relative overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Velocity Probability Density \(f(v_x)\)</h3>
+                </div>
+                <div class="flex-1 min-h-0 relative">
+                    <canvas id="distChart" class="w-full h-full"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Step-by-step Educational Content -->
+        <div class="w-full lg:w-1/2 p-8 overflow-y-auto bg-white border border-slate-200 rounded-[2.5rem] shadow-xl flex flex-col">
+            
+            <div id="derivation-container" class="flex-1">
+                <!-- Step 1: Definition -->
+                <div id="step-1" class="step-content active">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6">01. 충돌 빈도의 정의</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                        충돌 빈도(\(Z_{\text{W}}\))는 단위 시간당, 단위 면적당 벽면에 충돌하는 입자의 수로 정의됩니다. 이를 계산하기 위해 먼저 개별 입자의 속도 분포를 고려해야 합니다.
+                    </p>
+                    <div class="math-box">
+                        <div class="text-center font-black text-xl py-2 text-slate-800">
+                            \[ Z_{\text{W}} = \frac{N_{\text{hits}}}{\Delta t \cdot A} \]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Distribution -->
+                <div id="step-2" class="step-content">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6">02. 1차원 속도 분포 함수</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                        맥스웰-볼츠만 분포에 따르면, \(x\)-방향 속도 성분 \(v_x\)를 가질 확률 밀도 \(f(v_x)\)는 다음과 같이 가우시안 형태를 띱니다.
+                    </p>
+                    <div class="math-box">
+                        <div class="text-center font-black text-lg py-2 text-slate-800">
+                            \[ f(v_x) = \left( \frac{m}{2\pi k_{\text{B}}T} \right)^{1/2} e^{-\frac{mv_x^2}{2k_{\text{B}}T}} \]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Collision Volume -->
+                <div id="step-3" class="step-content">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6">03. 기하학적 충돌 조건</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                        시간 \(\Delta t\) 동안 벽에 충돌하려면 입자가 벽으로부터 \(v_x \Delta t\) 거리 이내에 있어야 합니다. 따라서 충돌 가능한 부피(Volume)는 다음과 같습니다.
+                    </p>
+                    <div class="math-box">
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center text-xs font-bold text-slate-400 border-b border-slate-50 pb-2">
+                                <span>이동 거리</span>
+                                <span class="text-slate-800">\( d = v_x \Delta t \)</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+                                <span>충돌 부피</span>
+                                <span class="text-indigo-600 text-lg">\( V = A \cdot v_x \Delta t \)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Integration -->
+                <div id="step-4" class="step-content">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6">04. 전체 충돌수 합산</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                        특정 속도 \(v_x\)를 가진 입자 중 충돌하는 수는 (밀도 \(\times\) 부피 \(\times\) 확률)입니다. 모든 양의 속도(\(0 \to \infty\))에 대해 이를 적분합니다.
+                    </p>
+                    <div class="math-box">
+                        <div class="text-center font-black text-lg py-2 text-slate-800">
+                            \[ Z_{\text{W}} = \mathcal{N} \int_{0}^{\infty} v_x f(v_x) dv_x \]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Result -->
+                <div id="step-5" class="step-content">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6">05. 적분 수행 결과</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                        가우시안 적분 공식을 사용하여 위 식을 풀면, 수 밀도(\(\mathcal{N}\))와 온도(\(T\))에 대한 최종 관계식을 얻을 수 있습니다.
+                    </p>
+                    <div class="math-box">
+                        <div class="text-center font-black text-2xl py-4 text-indigo-700">
+                            \[ Z_{\text{W}} = \mathcal{N} \left( \frac{k_{\text{B}}T}{2\pi m} \right)^{1/2} \]
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Final Form -->
+                <div id="step-6" class="step-content">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6">06. 압력에 관한 표현식</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">
+                        이상 기체 상태 방정식 \(\mathcal{N} = p / k_{\text{B}}T\)를 대입하면, 실제 실험에서 측정 가능한 압력(\(p\))에 대한 수식으로 정리됩니다.
+                    </p>
+                    <div class="math-box border-slate-900 bg-slate-50">
+                        <div class="text-center font-black text-2xl py-4 text-slate-900">
+                            \[ Z_{\text{W}} = \frac{p}{(2\pi m k_{\text{B}} T)^{1/2}} \]
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="mt-8 pt-8 border-t border-slate-100 flex justify-between items-center shrink-0">
+                <button id="prevBtn" class="px-6 py-3 rounded-2xl border border-slate-200 text-slate-400 font-bold text-xs uppercase tracking-widest transition-all hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed lab-font">Back</button>
+                <div class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] lab-font">
+                    Step <span id="currentStepText" class="text-slate-900">1</span> / 6
+                </div>
+                <button id="nextBtn" class="px-8 py-3 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95 lab-font">Next</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('simCanvas');
+            const ctx = canvas.getContext('2d');
+            const chartCanvas = document.getElementById('distChart');
+            const chartCtx = chartCanvas.getContext('2d');
+            const simLegend = document.getElementById('sim-legend');
+
+            let particles = [];
+            let currentStep = 1;
+            const totalSteps = 6;
+
+            const T = 500;
+            const m = 15;
+            const kb = 1.0; 
+            const dt_window = 65;
+
+            class Particle {
+                constructor() {
+                    this.reset(true);
+                }
+
+                reset(randomPos = false) {
+                    this.x = randomPos ? Math.random() * canvas.width : -10;
+                    this.y = Math.random() * canvas.height;
+                    const sigma = Math.sqrt(kb * T / m);
+                    // Gaussian velocity using Box-Muller
+                    this.vx = Math.abs(this.randomNormal() * sigma * 0.8); 
+                    this.vy = (Math.random() - 0.5) * 1.5;
+                }
+
+                randomNormal() {
+                    let u = 0, v = 0;
+                    while(u === 0) u = Math.random();
+                    while(v === 0) v = Math.random();
+                    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                }
+
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+                    if (this.x > canvas.width) this.reset();
+                }
+
+                draw() {
+                    const dpr = window.devicePixelRatio || 1;
+                    const w = canvas.width / dpr;
+                    const h = canvas.height / dpr;
+
+                    if (currentStep >= 3) {
+                        const reach = this.vx * dt_window;
+                        const willHit = (this.x + reach >= w);
+                        
+                        if (willHit) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = 'rgba(244, 63, 94, 0.15)'; // rose-500
+                            ctx.lineWidth = 1;
+                            ctx.moveTo(this.x, this.y);
+                            ctx.lineTo(this.x + reach, this.y);
+                            ctx.stroke();
+                        }
+                        
+                        ctx.fillStyle = willHit ? '#f43f5e' : '#38bdf8';
+                        if (willHit) {
+                            ctx.shadowBlur = 4;
+                            ctx.shadowColor = '#f43f5e';
+                        }
+                    } else {
+                        ctx.fillStyle = '#cbd5e1';
+                        ctx.shadowBlur = 0;
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            function resize() {
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = canvas.parentElement.clientWidth * dpr;
+                canvas.height = canvas.parentElement.clientHeight * dpr;
+                ctx.scale(dpr, dpr);
+
+                chartCanvas.width = chartCanvas.parentElement.clientWidth * dpr;
+                chartCanvas.height = chartCanvas.parentElement.clientHeight * dpr;
+                chartCtx.scale(dpr, dpr);
+            }
+
+            function drawChart() {
+                const dpr = window.devicePixelRatio || 1;
+                const w = chartCanvas.width / dpr;
+                const h = chartCanvas.height / dpr;
+                
+                chartCtx.clearRect(0, 0, w, h);
+                const sigma = Math.sqrt(kb * T / m) * 0.8;
+
+                // X-axis
+                chartCtx.strokeStyle = '#f1f5f9';
+                chartCtx.lineWidth = 1;
+                chartCtx.beginPath();
+                chartCtx.moveTo(0, h - 1);
+                chartCtx.lineTo(w, h - 1);
+                chartCtx.stroke();
+
+                // Main Curve
+                chartCtx.beginPath();
+                chartCtx.strokeStyle = '#6366f1'; // indigo-500
+                chartCtx.lineWidth = 2.5;
+
+                for (let x = 0; x < w; x++) {
+                    const vx = (x / w) * 15;
+                    const val = Math.exp(-(vx * vx) / (2 * sigma * sigma));
+                    const py = h - (val * (h - 25)) - 5;
+                    if (x === 0) chartCtx.moveTo(x, py);
+                    else chartCtx.lineTo(x, py);
+                }
+                chartCtx.stroke();
+                
+                if (currentStep >= 2) {
+                    chartCtx.lineTo(w, h);
+                    chartCtx.lineTo(0, h);
+                    chartCtx.fillStyle = 'rgba(99, 102, 241, 0.05)';
+                    chartCtx.fill();
+                }
+            }
+
+            function animate() {
+                const dpr = window.devicePixelRatio || 1;
+                const w = canvas.width / dpr;
+                const h = canvas.height / dpr;
+                ctx.clearRect(0, 0, w, h);
+
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+
+                drawChart();
+                requestAnimationFrame(animate);
+            }
+
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const currentStepText = document.getElementById('currentStepText');
+
+            function updateStep() {
+                document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+                const target = document.getElementById(`step-${currentStep}`);
+                if (target) target.classList.add('active');
+                
+                currentStepText.textContent = currentStep;
+                prevBtn.disabled = currentStep === 1;
+                nextBtn.textContent = currentStep === totalSteps ? 'Finish' : 'Next';
+                
+                simLegend.style.opacity = currentStep >= 3 ? '1' : '0';
+
+                updateIndicators();
+                if (window.MathJax) window.MathJax.typesetPromise().catch(e => console.log(e));
+            }
+
+            function createIndicators() {
+                const container = document.getElementById('step-indicators');
+                for (let i = 1; i <= totalSteps; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = `w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === 1 ? 'bg-indigo-600 scale-125' : 'bg-slate-200'}`;
+                    dot.id = `indicator-${i}`;
+                    container.appendChild(dot);
+                }
+            }
+
+            function updateIndicators() {
+                for (let i = 1; i <= totalSteps; i++) {
+                    const dot = document.getElementById(`indicator-${i}`);
+                    if (i === currentStep) {
+                        dot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-600 scale-150 shadow-[0_0_8px_rgba(99,102,241,0.5)]';
+                    } else if (i < currentStep) {
+                        dot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-200';
+                    } else {
+                        dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-200';
+                    }
+                }
+            }
+
+            nextBtn.onclick = () => {
+                if (currentStep < totalSteps) currentStep++;
+                else currentStep = 1;
+                updateStep();
+            };
+
+            prevBtn.onclick = () => {
+                if (currentStep > 1) currentStep--;
+                updateStep();
+            };
+
+            resize();
+            particles = Array.from({length: 100}, () => new Particle());
+            createIndicators();
+            updateStep();
+            animate();
+
+            window.addEventListener('resize', resize);
+        });
+    </script>
+</body>
+</html>

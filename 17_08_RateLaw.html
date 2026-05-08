@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Law Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for formula rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS font-family uses English font names only */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .formula-card {
+            background-color: #f8fafc;
+            border-left: 4px solid #6366f1;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        input[type="range"] {
+            accent-color: #6366f1;
+        }
+        .active-label {
+            color: #6366f1;
+            font-weight: bold;
+        }
+        .unified-module-badge {
+            display: inline-block;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <header class="mb-8 text-center">
+            <div class="unified-module-badge">17A.8 - Rate Analysis</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Rate Law Analysis</h1>
+            <div class="h-1 w-20 bg-indigo-600 mx-auto mb-4"></div>
+            <p class="mt-3 text-sm md:text-base leading-relaxed">실험적인 농도-시간 거동으로부터 반응 차수와 속도 상수를 추출하는 과정을 분석하세요.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- 왼쪽: 설정 및 공식 (4/12) -->
+            <div class="lg:col-span-4 space-y-6">
+                <!-- 반응 선택 및 설정 -->
+                <section class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                    <h2 class="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                        반응 차수 선택
+                    </h2>
+                    
+                    <div class="mb-6">
+                        <select id="orderSelect" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold">
+                            <optgroup label="단일 반응물 (A -> P)">
+                                <option value="0">0차 반응 (Zero-Order)</option>
+                                <option value="0.5">1/2차 반응 (Half-Order)</option>
+                                <option value="1">1차 반응 (First-Order)</option>
+                                <option value="2_A">2차 반응 (Second-Order)</option>
+                                <option value="n_order">n차 반응 (General n-Order)</option>
+                            </optgroup>
+                            <optgroup label="복합 반응물">
+                                <option value="2_AB">2차 v = k[A][B]</option>
+                                <option value="2_A2B">2차 v = k[A][B] (A+2B)</option>
+                                <option value="3_A2B">3차 v = k[A][B]² (A+2B)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div id="nValueControl" class="hidden pb-4 border-b border-slate-100">
+                            <div class="flex justify-between mb-2 text-indigo-600 font-bold">
+                                <span class="text-sm">차수 (n)</span>
+                                <span id="nValText">2.5</span>
+                            </div>
+                            <input type="range" id="nRange" min="1.1" max="4.0" step="0.1" value="2.5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span class="text-sm font-bold text-slate-600">초기 농도 [A]₀</span>
+                                <span id="a0Text" class="text-indigo-600 font-mono font-bold">1.0</span>
+                            </div>
+                            <input type="range" id="a0Range" min="0.1" max="2.0" step="0.1" value="1.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div id="b0Control" class="hidden">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-sm font-bold text-slate-600">초기 농도 [B]₀</span>
+                                <span id="b0Text" class="text-emerald-600 font-mono font-bold">1.5</span>
+                            </div>
+                            <input type="range" id="b0Range" min="0.1" max="2.0" step="0.1" value="1.5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span class="text-sm font-bold text-slate-600">속도 상수 (\(k_r\))</span>
+                                <span id="kText" class="text-rose-600 font-mono font-bold">0.10</span>
+                            </div>
+                            <input type="range" id="kRange" min="0.01" max="0.5" step="0.01" value="0.1" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 선택된 공식 표시 -->
+                <section class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4 text-slate-800">화학 반응 및 속도식</h2>
+                    <div id="formulaContainer" class="formula-card text-center">
+                        <!-- Chemical Equation Display -->
+                        <div id="equationDisplay" class="text-xl font-bold text-indigo-600 mb-2"></div>
+                        <!-- Integrated Rate Law Display -->
+                        <div id="formulaDisplay" class="text-sm text-slate-700"></div>
+                    </div>
+                    <div class="p-4 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800 italic" id="orderFeature"></div>
+                </section>
+            </div>
+
+            <!-- 오른쪽: 그래프 (8/12) -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- 메인 농도 그래프 -->
+                <div class="bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4">농도 변화 곡선 (\([A], [B], [P]\))</h2>
+                    <div class="h-[350px]">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 선형화 그래프 -->
+                <div class="bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4">선형화 분석 (Linearization)</h2>
+                    <div class="h-[300px]">
+                        <canvas id="linearChart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">기울기 (Slope)</span>
+                            <span id="slopeDisplay" class="text-xl font-mono text-red-500 font-bold">-</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">반감기 (\(t_{1/2}\))</span>
+                            <span id="halfLifeDisplay" class="text-xl font-mono text-indigo-600 font-bold">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ctxMain = document.getElementById('mainChart').getContext('2d');
+        const ctxLinear = document.getElementById('linearChart').getContext('2d');
+        
+        const orderSelect = document.getElementById('orderSelect');
+        const a0Range = document.getElementById('a0Range');
+        const b0Range = document.getElementById('b0Range');
+        const kRange = document.getElementById('kRange');
+        const nRange = document.getElementById('nRange');
+        
+        const nValueControl = document.getElementById('nValueControl');
+        const b0Control = document.getElementById('b0Control');
+        const a0Text = document.getElementById('a0Text');
+        const b0Text = document.getElementById('b0Text');
+        const kText = document.getElementById('kText');
+        const nValText = document.getElementById('nValText');
+        const equationDisplay = document.getElementById('equationDisplay');
+        const formulaDisplay = document.getElementById('formulaDisplay');
+        const orderFeature = document.getElementById('orderFeature');
+        const slopeDisplay = document.getElementById('slopeDisplay');
+        const halfLifeDisplay = document.getElementById('halfLifeDisplay');
+
+        let mainChart, linearChart;
+
+        const reactionData = {
+            '0': {
+                equation: "\\[ A \\rightarrow P \\]",
+                formula: "\\[ v = k_r \\implies [A] = [A]_0 - k_rt \\]",
+                linearLabel: "Concentration [A]",
+                feature: "0차 반응: 농도가 시간에 따라 선형적으로 감소합니다. 기울기가 속도 상수입니다."
+            },
+            '0.5': {
+                equation: "\\[ A \\rightarrow P \\]",
+                formula: "\\[ v = k_r[A]^{1/2} \\implies [A]^{1/2} = [A]_0^{1/2} - \\frac{1}{2}k_rt \\]",
+                linearLabel: "[A]^{1/2}",
+                feature: "1/2차 반응: 농도의 제곱근이 시간에 따라 선형적으로 감소합니다."
+            },
+            '1': {
+                equation: "\\[ A \\rightarrow P \\]",
+                formula: "\\[ v = k_r[A] \\implies \\ln[A] = \\ln[A]_0 - k_rt \\]",
+                linearLabel: "ln[A]",
+                feature: "1차 반응: ln[A]가 시간에 따라 선형적으로 감소하며, 반감기가 농도에 관계없이 일정합니다."
+            },
+            '2_A': {
+                equation: "\\[ 2A \\rightarrow P \\]",
+                formula: "\\[ v = k_r[A]^2 \\implies \\frac{1}{[A]} = \\frac{1}{[A]_0} + k_rt \\]",
+                linearLabel: "1/[A]",
+                feature: "2차 반응 (A): 1/[A]가 시간에 따라 선형적으로 증가합니다."
+            },
+            'n_order': {
+                equation: "\\[ A \\rightarrow P \\]",
+                formula: "\\[ k_rt = \\frac{1}{n-1} \\left[ \\frac{1}{[A]^{n-1}} - \\frac{1}{[A]_0^{n-1}} \\right] \\]",
+                linearLabel: "1/[A]^(n-1)",
+                feature: "n차 반응: n이 커질수록 농도 곡선이 더 급격하게 휘어집니다."
+            },
+            '2_AB': {
+                equation: "\\[ A + B \\rightarrow P \\]",
+                formula: "\\[ v = k_r[A][B] \\implies \\ln \\frac{[B]/[B]_0}{[A]/[A]_0} = ([B]_0 - [A]_0)k_rt \\]",
+                linearLabel: "ln([B]/[B]_0 / [A]/[A]_0)",
+                feature: "2차 반응 (A+B): 두 반응물 농도에 모두 의존하는 속도 법칙입니다."
+            },
+            '2_A2B': {
+                equation: "\\[ A + 2B \\rightarrow P \\]",
+                formula: "\\[ v = k_r[A][B] \\implies \\text{Linearization (complex)} \\]",
+                linearLabel: "Log term (A+2B)",
+                feature: "A+2B 모델 (v=k[A][B]): 화학양론적 계수가 고려된 2차 반응 거동입니다."
+            },
+            '3_A2B': {
+                equation: "\\[ A + 2B \\rightarrow P \\]",
+                formula: "\\[ v = k_r[A][B]^2 \\]",
+                linearLabel: "Product [P] accumulation",
+                feature: "A+2B 모델 (v=k[A][B]²): [B]의 농도 변화에 더욱 민감한 3차 반응입니다."
+            }
+        };
+
+        function initCharts() {
+            mainChart = new Chart(ctxMain, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: '[A]', data: [], borderColor: '#6366f1', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.1 },
+                        { label: '[B]', data: [], borderColor: '#10b981', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.1, hidden: true },
+                        { label: '[P]', data: [], borderColor: '#f59e0b', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', min: 0, max: 20, title: { display: true, text: 'Time (s)' } },
+                        y: { beginAtZero: true, title: { display: true, text: 'Concentration (M)' }, max: 2.2 }
+                    },
+                    plugins: { 
+                        legend: { 
+                            position: 'top', 
+                            labels: { 
+                                boxWidth: 35, 
+                                boxHeight: 2, 
+                                font: { family: "'Segoe UI'" },
+                                generateLabels: (chart) => {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    labels.forEach(label => {
+                                        const isHidden = chart.getDatasetMeta(label.datasetIndex).hidden;
+                                        label.hidden = false;
+                                        if (isHidden) {
+                                            label.text = label.text;
+                                            label.fillStyle = '#e2e8f0';
+                                            label.strokeStyle = '#cbd5e1';
+                                            label.fontColor = '#94a3b8';
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            } 
+                        }
+                    }
+                }
+            });
+
+            linearChart = new Chart(ctxLinear, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{ label: 'Linear Plot', data: [], borderColor: '#ef4444', borderWidth: 3, pointRadius: 0, tension: 0, fill: false }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: 'Time (s)' }, min: 0, max: 20 },
+                        y: { title: { display: true, text: 'Analyzed Value' } }
+                    },
+                    plugins: { 
+                        legend: { position: 'top', labels: { boxWidth: 35, boxHeight: 2, font: { family: "'Segoe UI'" } } }
+                    }
+                }
+            });
+        }
+
+        function updateSimulation() {
+            const order = orderSelect.value;
+            const a0 = parseFloat(a0Range.value);
+            const b0 = parseFloat(b0Range.value);
+            const k = parseFloat(kRange.value);
+            const n = parseFloat(nRange.value);
+            
+            a0Text.innerText = a0.toFixed(1);
+            b0Text.innerText = b0.toFixed(1);
+            kText.innerText = k.toFixed(2);
+            nValText.innerText = n.toFixed(1);
+
+            equationDisplay.innerHTML = reactionData[order].equation;
+            formulaDisplay.innerHTML = reactionData[order].formula;
+            orderFeature.innerText = reactionData[order].feature;
+            
+            if (window.MathJax) {
+                MathJax.typesetPromise([equationDisplay, formulaDisplay]);
+            }
+
+            const isComplex = (order === '2_AB' || order === '2_A2B' || order === '3_A2B');
+            b0Control.className = isComplex ? 'block' : 'hidden';
+            nValueControl.className = (order === 'n_order') ? 'block' : 'hidden';
+            mainChart.data.datasets[1].hidden = !isComplex;
+            linearChart.data.datasets[0].label = reactionData[order].linearLabel;
+
+            const dataA = [], dataB = [], dataP = [], dataLinear = [];
+            let slope = 0, tHalf = "-";
+
+            for (let t = 0; t <= 20; t += 0.5) {
+                let a, b, p, lin;
+                
+                if (order === '0') {
+                    a = Math.max(0, a0 - k * t);
+                    p = a0 - a; lin = a; slope = -k;
+                    tHalf = (a0 / (2 * k)).toFixed(2);
+                } else if (order === '0.5') {
+                    const sqrtA = Math.max(0, Math.sqrt(a0) - 0.5 * k * t);
+                    a = Math.pow(sqrtA, 2);
+                    p = a0 - a; lin = sqrtA; slope = -0.5 * k;
+                    tHalf = (2 * (1 - 1/Math.sqrt(2)) * Math.sqrt(a0) / k).toFixed(2);
+                } else if (order === '1') {
+                    a = a0 * Math.exp(-k * t);
+                    p = a0 - a; lin = Math.log(Math.max(0.0001, a)); slope = -k;
+                    tHalf = (Math.LN2 / k).toFixed(2);
+                } else if (order === '2_A') {
+                    a = a0 / (1 + k * t * a0);
+                    p = a0 - a; lin = 1 / Math.max(0.0001, a); slope = k;
+                    tHalf = (1 / (k * a0)).toFixed(2);
+                } else if (order === 'n_order') {
+                    a = Math.pow(Math.pow(a0, 1 - n) + (n - 1) * k * t, 1 / (1 - n));
+                    p = a0 - a; lin = 1 / Math.pow(Math.max(0.0001, a), n - 1); slope = (n - 1) * k;
+                    tHalf = ((Math.pow(2, n - 1) - 1) / ((n - 1) * k * Math.pow(a0, n - 1))).toFixed(2);
+                } else if (order === '2_AB' || order === '2_A2B' || order === '3_A2B') {
+                    const steps = 100;
+                    const dt = t / steps;
+                    let tempA = a0, tempB = b0;
+                    if (t > 0) {
+                        for(let i=0; i<steps; i++) {
+                            let rate;
+                            if (order === '2_AB') rate = k * tempA * tempB;
+                            else if (order === '2_A2B') rate = k * tempA * tempB;
+                            else if (order === '3_A2B') rate = k * tempA * tempB * tempB;
+                            
+                            tempA -= rate * dt;
+                            if (order === '2_AB') tempB -= rate * dt;
+                            else tempB -= 2 * rate * dt;
+                            
+                            if(tempA < 0) tempA = 0; if(tempB < 0) tempB = 0;
+                        }
+                    }
+                    a = tempA; b = tempB; p = a0 - a;
+                    
+                    if (order === '2_AB') lin = Math.log((b / b0) / (Math.max(0.0001, a) / a0));
+                    else if (order === '2_A2B') lin = Math.log((a0 * (b0 - 2 * p)) / (Math.max(0.0001, a0 - p) * b0));
+                    else lin = p; 
+                    slope = (order === '2_AB') ? (b0 - a0) * k : (order === '2_A2B' ? (b0 - 2*a0) * k : 0);
+                }
+
+                dataA.push({x: t, y: a});
+                if(isComplex) dataB.push({x: t, y: b});
+                dataP.push({x: t, y: p});
+                dataLinear.push({x: t, y: lin});
+            }
+
+            slopeDisplay.innerText = (slope !== 0) ? slope.toFixed(4) : "N/A";
+            halfLifeDisplay.innerText = tHalf !== "-" ? tHalf + "s" : "별도 계산 필요";
+
+            mainChart.data.datasets[0].data = dataA;
+            mainChart.data.datasets[1].data = dataB;
+            mainChart.data.datasets[2].data = dataP;
+            mainChart.update('none');
+
+            linearChart.data.datasets[0].data = dataLinear;
+            linearChart.options.scales.y.title.text = reactionData[order].linearLabel;
+            linearChart.update('none');
+        }
+
+        [orderSelect, a0Range, b0Range, kRange, nRange].forEach(el => {
+            el.addEventListener('input', updateSimulation);
+        });
+
+        window.onload = () => {
+            initCharts();
+            updateSimulation();
+        };
+    </script>
+</body>
+</html>
