@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>16장 분자들의 운동 | 물리화학3</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0f172a; --panel:rgba(30,41,59,.72); --line:rgba(148,163,184,.22); --text:#f8fafc; --muted:#94a3b8; --accent:#34d399; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:"Pretendard","Noto Sans KR","Segoe UI","Apple SD Gothic Neo",sans-serif; background:radial-gradient(circle at 50% -10%,rgba(52,211,153,.18),transparent 35rem),linear-gradient(to right,rgba(52,211,153,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(52,211,153,.05) 1px,transparent 1px),var(--bg); background-size:auto,40px 40px,40px 40px,auto; color:var(--text); }
+    main { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:44px 0 48px; }
+    nav a { color:var(--accent); text-decoration:none; font-weight:800; font-size:14px; }
+    header { margin:28px 0 32px; }
+    .eyebrow { color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { margin:12px 0 12px; font-size:clamp(34px,6vw,58px); line-height:1; letter-spacing:0; }
+    .lead { margin:0; max-width:760px; color:var(--muted); line-height:1.7; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
+    .card { display:flex; min-height:220px; flex-direction:column; justify-content:space-between; padding:24px; color:inherit; text-decoration:none; background:var(--panel); border:1px solid var(--line); border-radius:8px; transition:transform 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
+    .card:hover { transform:translateY(-3px); border-color:rgba(52,211,153,.65); box-shadow:0 18px 40px -24px rgba(52,211,153,.8); }
+    .tag { min-width:72px; height:56px; display:inline-grid; place-items:center; padding:0 12px; border-radius:8px; background:rgba(52,211,153,.14); color:var(--accent); font-size:18px; font-weight:900; }
+    h2 { margin:32px 0 12px; font-size:23px; line-height:1.35; letter-spacing:0; }
+    p { margin:0; color:var(--muted); font-size:15px; line-height:1.7; }
+    @media (max-width:1040px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+    @media (max-width:780px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr;} main{padding-top:30px;} }
+  </style>
+</head>
+<body>
+  <main>
+    <nav><a href="index.html">← 전체 챕터</a></nav>
+    <header>
+      <span class="eyebrow">Chapter 16</span>
+      <h1>분자들의 운동</h1>
+      <p class="lead">기체 수송, 충돌, 확산, 점성, 전도도와 무작위 보행을 다루는 인터랙티브 자료입니다.</p>
+    </header>
+    <section class="grid" aria-label="16장 자료 목록">
+      <a class="card" href="16_01_GasTransfer.html"><div><span class="tag">16_01</span><h2>평균 속도와 평균 자유 행로</h2><p>온도, 압력, 몰질량, 충돌 단면적이 기체 수송 길이와 속도에 주는 영향을 봅니다.</p></div></a>
+      <a class="card" href="16_02_FluxDefinition.html"><div><span class="tag">16_02</span><h2>플럭스의 정의</h2><p>관 흐름 모델로 유량과 면적에서 플럭스가 어떻게 정의되는지 확인합니다.</p></div></a>
+      <a class="card" href="16_03_Collison_derive.html"><div><span class="tag">16_03</span><h2>충돌식 유도</h2><p>분자 운동론 관점에서 충돌 빈도 식이 만들어지는 과정을 따라갑니다.</p></div></a>
+      <a class="card" href="16_04_MaxwellBoltzmannDistribution.html"><div><span class="tag">16_04</span><h2>맥스웰-볼츠만 속도 분포</h2><p>온도와 분자량에 따라 속도 분포가 이동하고 넓어지는 모습을 확인합니다.</p></div></a>
+      <a class="card" href="16_06_MeanFreePath.html"><div><span class="tag">16_06</span><h2>평균 자유 행로</h2><p>압력과 충돌 단면적이 평균 자유 행로를 어떻게 짧게 만드는지 살펴봅니다.</p></div></a>
+      <a class="card" href="16_08_Viscosity.html"><div><span class="tag">16_08</span><h2>점성</h2><p>운동량 수송 개념으로 점성의 온도 의존성을 비교합니다.</p></div></a>
+      <a class="card" href="16_09_Drift.html"><div><span class="tag">16_09</span><h2>드리프트 속도</h2><p>무작위 열운동 위에 약한 방향성 운동이 더해지는 과정을 시각화합니다.</p></div></a>
+      <a class="card" href="16_10_Grotthuss.html"><div><span class="tag">16_10</span><h2>그로투스 메커니즘</h2><p>양성자 홉핑이 단계적 또는 협동적으로 진행되는 그림을 비교합니다.</p></div></a>
+      <a class="card" href="16_11_Conductivity.html"><div><span class="tag">16_11</span><h2>전도도와 이동도</h2><p>이온계에서 이동도, 전하 수송, 전도도가 어떻게 연결되는지 확인합니다.</p></div></a>
+      <a class="card" href="16_13_Collison.html"><div><span class="tag">16_13</span><h2>충돌 플럭스</h2><p>표면에 도달하는 입자 수를 시뮬레이션하고 충돌 플럭스로 해석합니다.</p></div></a>
+      <a class="card" href="16_14_RandomWalk_1D.html"><div><span class="tag">16_14</span><h2>1차원 무작위 보행</h2><p>1차원 무작위 보행이 확산형 분포로 넓어지는 과정을 봅니다.</p></div></a>
+      <a class="card" href="16_15_RandomWalk_3D.html"><div><span class="tag">16_15</span><h2>3차원 무작위 보행</h2><p>3차원에서 입자 퍼짐과 평균 제곱 변위를 추적합니다.</p></div></a>
+    </section>
+  </main>
+</body>
+</html>

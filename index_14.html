@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>14장 분자간 상호 작용 | 물리화학3</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0f172a; --panel:rgba(30,41,59,.72); --line:rgba(148,163,184,.22); --text:#f8fafc; --muted:#94a3b8; --accent:#60a5fa; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:"Pretendard","Noto Sans KR","Segoe UI","Apple SD Gothic Neo",sans-serif; background:radial-gradient(circle at 50% -10%,rgba(96,165,250,.18),transparent 35rem),linear-gradient(to right,rgba(96,165,250,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(96,165,250,.05) 1px,transparent 1px),var(--bg); background-size:auto,40px 40px,40px 40px,auto; color:var(--text); }
+    main { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:44px 0 48px; }
+    nav a { color:var(--accent); text-decoration:none; font-weight:800; font-size:14px; }
+    header { margin:28px 0 32px; }
+    .eyebrow { color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { margin:12px 0 12px; font-size:clamp(34px,6vw,58px); line-height:1; letter-spacing:0; }
+    .lead { margin:0; max-width:760px; color:var(--muted); line-height:1.7; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
+    .card { display:flex; min-height:220px; flex-direction:column; justify-content:space-between; padding:24px; color:inherit; text-decoration:none; background:var(--panel); border:1px solid var(--line); border-radius:8px; transition:transform 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
+    .card:hover { transform:translateY(-3px); border-color:rgba(96,165,250,.65); box-shadow:0 18px 40px -24px rgba(96,165,250,.8); }
+    .tag { min-width:72px; height:56px; display:inline-grid; place-items:center; padding:0 12px; border-radius:8px; background:rgba(96,165,250,.14); color:var(--accent); font-size:18px; font-weight:900; }
+    h2 { margin:32px 0 12px; font-size:23px; line-height:1.35; letter-spacing:0; }
+    p { margin:0; color:var(--muted); font-size:15px; line-height:1.7; }
+    @media (max-width:1040px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+    @media (max-width:780px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr;} main{padding-top:30px;} }
+  </style>
+</head>
+<body>
+  <main>
+    <nav><a href="index.html">← 전체 챕터</a></nav>
+    <header>
+      <span class="eyebrow">Chapter 14</span>
+      <h1>분자간 상호 작용</h1>
+      <p class="lead">분자 표면, 편극, 수소 결합, 퍼텐셜과 액체 성질을 다루는 인터랙티브 자료입니다.</p>
+    </header>
+    <section class="grid" aria-label="14장 자료 목록">
+      <a class="card" href="14_01.html"><div><span class="tag">14_01</span><h2>표면 전하와 쌍극자 읽기</h2><p>분자 표면의 전하 치우침, 부분전하, 쌍극자 벡터합을 3D 시각화로 정리합니다.</p></div></a>
+      <a class="card" href="14_02_Polarizability.html"><div><span class="tag">14_02</span><h2>편극도 시각화</h2><p>전자구름 재배치가 편극도와 유발 쌍극자를 어떻게 바꾸는지 보여줍니다.</p></div></a>
+      <a class="card" href="14_03_Polarization.html"><div><span class="tag">14_03</span><h2>편극 시각화</h2><p>일그러짐 편극과 배향 편극이 전기장, 온도, 주파수에 따라 어떻게 달라지는지 탐색합니다.</p></div></a>
+      <a class="card" href="14_04_Interactions.html"><div><span class="tag">14_04</span><h2>분자간 상호작용</h2><p>이온, 쌍극자, Debye, London 상호작용의 거리 의존성을 비교합니다.</p></div></a>
+      <a class="card" href="14_05_HBond.html"><div><span class="tag">14_05</span><h2>수소 결합</h2><p>수소 결합의 거리, 각도, 방향성이 결합 강도와 구조에 주는 영향을 살펴봅니다.</p></div></a>
+      <a class="card" href="14_06_3Body.html"><div><span class="tag">14_06</span><h2>3체 분산 상호작용</h2><p>Axilrod-Teller-Muto 3체항이 입자 배열 각도에 따라 어떻게 바뀌는지 보여줍니다.</p></div></a>
+      <a class="card" href="14_07_Potential.html"><div><span class="tag">14_07</span><h2>분자간 퍼텐셜 모델</h2><p>강체구, Lennard-Jones, Mie, Buckingham 퍼텐셜을 같은 화면에서 비교합니다.</p></div></a>
+      <a class="card" href="14_08_Liquid.html"><div><span class="tag">14_08</span><h2>액체</h2><p>액체의 구조와 분자간 상호작용이 물성으로 이어지는 과정을 확인합니다.</p></div></a>
+      <a class="card" href="14_09_Surface_Tension.html"><div><span class="tag">14_09</span><h2>표면 장력</h2><p>표면 장력과 계면 현상을 분자 수준의 상호작용 관점에서 살펴봅니다.</p></div></a>
+    </section>
+  </main>
+</body>
+</html>

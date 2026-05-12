@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>13장 통계열역학 | 물리화학3</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0f172a; --panel:rgba(30,41,59,.72); --line:rgba(148,163,184,.22); --text:#f8fafc; --muted:#94a3b8; --accent:#22d3ee; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:"Pretendard","Noto Sans KR","Segoe UI","Apple SD Gothic Neo",sans-serif; background:radial-gradient(circle at 50% -10%,rgba(34,211,238,.18),transparent 35rem),linear-gradient(to right,rgba(56,189,248,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(56,189,248,.05) 1px,transparent 1px),var(--bg); background-size:auto,40px 40px,40px 40px,auto; color:var(--text); }
+    main { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:44px 0 48px; }
+    nav a { color:var(--accent); text-decoration:none; font-weight:800; font-size:14px; }
+    header { margin:28px 0 32px; }
+    .eyebrow { color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { margin:12px 0 12px; font-size:clamp(34px,6vw,58px); line-height:1; letter-spacing:0; }
+    .lead { margin:0; max-width:760px; color:var(--muted); line-height:1.7; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
+    .card { display:flex; min-height:220px; flex-direction:column; justify-content:space-between; padding:24px; color:inherit; text-decoration:none; background:var(--panel); border:1px solid var(--line); border-radius:8px; transition:transform 160ms ease,border-color 160ms ease,box-shadow 160ms ease; }
+    .card:hover { transform:translateY(-3px); border-color:rgba(34,211,238,.65); box-shadow:0 18px 40px -24px rgba(34,211,238,.8); }
+    .tag { min-width:72px; height:56px; display:inline-grid; place-items:center; padding:0 12px; border-radius:8px; background:rgba(34,211,238,.12); color:var(--accent); font-size:18px; font-weight:900; }
+    h2 { margin:32px 0 12px; font-size:23px; line-height:1.35; letter-spacing:0; }
+    p { margin:0; color:var(--muted); font-size:15px; line-height:1.7; }
+    @media (max-width:1040px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+    @media (max-width:780px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+    @media (max-width:560px){ .grid{grid-template-columns:1fr;} main{padding-top:30px;} }
+  </style>
+</head>
+<body>
+  <main>
+    <nav><a href="index.html">← 전체 챕터</a></nav>
+    <header>
+      <span class="eyebrow">Chapter 13</span>
+      <h1>통계열역학</h1>
+      <p class="lead">미시상태, 볼츠만 분포, 분배함수와 앙상블을 다루는 인터랙티브 자료입니다.</p>
+    </header>
+    <section class="grid" aria-label="13장 자료 목록">
+      <a class="card" href="13_1_coin.html"><div><span class="tag">13_1</span><h2>동전 던지기와 정규분포</h2><p>대수의 법칙과 중심극한 경향을 실시간 샘플링으로 확인합니다.</p></div></a>
+      <a class="card" href="13_2_Configuration.html"><div><span class="tag">13_2</span><h2>배치와 가중치</h2><p>입자 배치 수와 가중치 W가 상태 점유에 주는 영향을 살펴봅니다.</p></div></a>
+      <a class="card" href="13_3_Statistical.html"><div><span class="tag">13_3</span><h2>몬테카를로 분포 진화</h2><p>무작위 갱신이 반복될 때 분포가 평형으로 수렴하는 과정을 시각화합니다.</p></div></a>
+      <a class="card" href="13_4_Sterling.html"><div><span class="tag">13_4</span><h2>스털링 근사</h2><p>ln N! 근사의 정확도와 적용 범위를 비교합니다.</p></div></a>
+      <a class="card" href="13_5_Wmax.html"><div><span class="tag">13_5</span><h2>ln W 최대화</h2><p>가장 우세한 거시상태가 어떻게 결정되는지 최대 가중치 조건으로 설명합니다.</p></div></a>
+      <a class="card" href="13_6_Boltzmann.html"><div><span class="tag">13_6</span><h2>볼츠만 분포</h2><p>온도 변화에 따라 볼츠만 가중이 점유확률을 어떻게 바꾸는지 확인합니다.</p></div></a>
+      <a class="card" href="13_7_MolecularPartitionFunction.html"><div><span class="tag">13_7</span><h2>분자 분배함수 q</h2><p>병진, 회전, 진동 성분이 전체 분배함수에 기여하는 비율을 분석합니다.</p></div></a>
+      <a class="card" href="13_8_Translational_Q.html"><div><span class="tag">13_8</span><h2>병진 분배함수</h2><p>에너지 준위 합이 적분 근사로 넘어가는 과정을 수치적으로 비교합니다.</p></div></a>
+      <a class="card" href="13_9_RotationalMotion_Classic.html"><div><span class="tag">13_9</span><h2>고전적 회전 운동</h2><p>분자의 회전 운동을 고전 모델로 이해하고 온도 의존성을 확인합니다.</p></div></a>
+      <a class="card" href="13_10_RotationalMotion_Quantum.html"><div><span class="tag">13_10</span><h2>양자 회전 운동</h2><p>양자수에 따른 회전 준위와 점유 변화를 시각적으로 탐색합니다.</p></div></a>
+      <a class="card" href="13_11_Rotational_Q.html"><div><span class="tag">13_11</span><h2>회전 분배함수와 근사</h2><p>이산 합과 고온 적분 근사의 차이를 온도별로 비교합니다.</p></div></a>
+      <a class="card" href="13_12_VibrationalMotion.html"><div><span class="tag">13_12</span><h2>진동 운동과 양자화</h2><p>조화진동자 모델에서 에너지 양자화와 점유 통계를 확인합니다.</p></div></a>
+      <a class="card" href="13_13_Ensemble.html"><div><span class="tag">13_13</span><h2>앙상블 시뮬레이터</h2><p>상태분포, 가중치, 샘플링 변동을 통해 앙상블 개념을 통합적으로 학습합니다.</p></div></a>
+      <a class="card" href="13_14_Residual_Entropy.html"><div><span class="tag">13_14</span><h2>얼음의 잔류 엔트로피</h2><p>얼음 규칙을 만족하는 미시상태 수가 엔트로피로 이어지는 과정을 확인합니다.</p></div></a>
+      <a class="card" href="13_15_ChemicalEquilibrium.html"><div><span class="tag">13_15</span><h2>분배함수와 화학 평형</h2><p>에너지 바닥 차이와 상태 수 증가가 분배함수와 평형상수를 어떻게 바꾸는지 탐색합니다.</p></div></a>
+      <a class="card" href="13_RotationalQuantumReact.html"><div><span class="tag">13_extra</span><h2>회전 양자 반응</h2><p>회전 양자 상태와 반응 관련 개념을 별도 자료로 확인합니다.</p></div></a>
+    </section>
+  </main>
+</body>
+</html>
