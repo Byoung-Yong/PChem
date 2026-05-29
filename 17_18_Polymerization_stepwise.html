@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>단계 중합 | 물리화학3</title>
+  <style>
+    body{
+      margin:0;
+      font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:radial-gradient(circle at 50% -10%, rgba(251, 191, 36, .16), transparent 34rem),linear-gradient(to right, rgba(251, 191, 36, .045) 1px, transparent 1px),linear-gradient(to bottom, rgba(251, 191, 36, .045) 1px, transparent 1px),#0f172a;background-size:auto,40px 40px,40px 40px,auto;color:#f8fafc;
+    }
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:24px 18px 50px;
+    }
+    .back{display:inline-block;margin-bottom:18px;color:#fbbf24;text-decoration:none;font-size:14px;font-weight:800;} h1{margin:0 0 8px;font-size:clamp(34px,6vw,58px);line-height:1;letter-spacing:0;}
+    .lead{margin:0 0 18px;color:#444;line-height:1.65;font-size:17px;}
+    .card{
+      background:rgba(30,41,59,.76);
+      border:1px solid rgba(148,163,184,.22); border-radius:8px;
+      padding:20px;
+      box-shadow:0 8px 24px rgba(0,0,0,.06);
+      margin-bottom:18px;
+    }
+    .title{font-size:21px;font-weight:850;color:#fbbf24;margin-bottom:12px;}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+    button{
+      border:0;border-radius:999px;padding:12px 18px;font-size:16px;font-weight:900;
+      cursor:pointer;background:#2f75b5;color:white;
+    }
+    button:hover{background:#245f93;}
+    button:disabled{background:#aab4c0;cursor:not-allowed;}
+    .reset{background:#666;}.reset:hover{background:#444;}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;}
+    @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr);}}
+    .stat{background:#fafafa;border:1px solid #ddd;border-radius:14px;padding:12px;}
+    .stat .label{font-size:13px;color:#666;font-weight:750;line-height:1.35;}
+    .stat .value{margin-top:4px;font-size:28px;font-weight:950;color:#fbbf24;}
+    .reactionBox{
+      margin-bottom:16px;padding:14px 16px;border-radius:16px;background:#fff7ee;
+      border:1px solid #efcfaa;line-height:1.75;font-size:16px;
+    }
+    .reactionBox .small{font-size:14px;color:#666;font-weight:800;margin-bottom:5px;}
+    .water{
+      display:inline-block;margin-left:8px;padding:5px 10px;border-radius:999px;
+      background:#dff8ff;color:#0e7189;border:1px solid #a9e6f1;font-weight:900;
+    }
+    .boardTitle{font-weight:900;margin:12px 0 8px;color:#333;}
+    .grid5{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:10px;
+      padding:14px;
+      border:2px dashed #cfd7e3;
+      border-radius:18px;
+      background:#fbfdff;
+    }
+    .cell{
+      min-height:92px;
+      border:1px solid #d8e1ec;
+      border-radius:14px;
+      background:rgba(30,41,59,.76);
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      overflow:hidden;
+      position:relative;
+      transition:.2s;
+    }
+    .cell.empty{
+      background:#f0f2f5;
+      border-style:dashed;
+      color:#aaa;
+    }
+    .cell.selected{
+      border:3px solid #ff7a3d;
+      background:#fff3eb;
+      transform:scale(1.03);
+    }
+    .cell.product{
+      border:3px solid #2f75b5;
+      background:#eef6ff;
+      animation:pop .22s ease-out;
+    }
+    .cellNo{
+      position:absolute;
+      top:5px;left:7px;
+      font-size:11px;color:#9aa4b2;font-weight:800;
+    }
+    .chain{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+      gap:2px;
+      padding-top:10px;
+    }
+    .end{
+      font-size:10px;font-weight:950;color:white;padding:3px 5px;border-radius:999px;
+      line-height:1;white-space:nowrap;
+    }
+    .oh{background:#13989b;}.cooh{background:#c54f79;}
+    .rUnit{
+      width:16px;height:16px;border-radius:4px;border:1px solid #9fb6d6;
+      background:#edf4ff;color:#1d4f84;font-size:10px;font-weight:950;
+      display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+    }
+    .len{
+      margin-top:5px;font-size:12px;color:#555;font-weight:900;
+    }
+    .eqbox{
+      margin-top:16px;border:1px solid #d8e1eb;background:#f8fafc;border-radius:16px;padding:16px;
+    }
+    .eqMain{
+      font-family:"Times New Roman",serif;font-size:30px;font-weight:700;line-height:1.45;
+    }
+    .eqSub{margin-top:8px;color:#444;line-height:1.7;font-size:15px;}
+    .note{margin-top:12px;color:#555;font-size:14px;line-height:1.6;}
+    @keyframes pop{from{transform:scale(.92);opacity:.4;}to{transform:scale(1);opacity:1;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="index_17.html">← 17장 목록</a>
+    <h1>단계 중합</h1>
+    <p class="lead">축합 반응이 진행되며 사슬 길이와 작용기 수가 어떻게 변하는지 추적합니다.</p>
+
+    <div class="card">
+      <div class="title">1. 5×5 격자 속 random 축합반응</div>
+      <div class="controls">
+        <button id="reactBtn">축합반응 1회 random</button>
+        <button id="autoBtn">자동 진행</button>
+        <button id="resetBtn" class="reset">처음으로</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">초기 monomer</div><div class="value">25</div></div>
+        <div class="stat"><div class="label">현재 사슬 수<br>= A = [COOH]</div><div class="value" id="aText">25</div></div>
+        <div class="stat"><div class="label">현재 [OH]</div><div class="value" id="ohText">25</div></div>
+        <div class="stat"><div class="label">생성된 H₂O</div><div class="value" id="waterText">0</div></div>
+        <div class="stat"><div class="label">가장 긴 사슬<br>R 개수</div><div class="value" id="maxText">1</div></div>
+      </div>
+
+      <div class="reactionBox" id="reactionBox">
+        <div class="small">이번 반응</div>
+        아직 반응 전
+      </div>
+
+      <div class="boardTitle">반응 용기: 25개 위치를 5×5로 표시</div>
+      <div class="grid5" id="grid"></div>
+
+      <div class="note">
+        빈칸은 그 위치의 사슬이 다른 사슬과 합쳐져 사라진 자리입니다. 반응이 진행될수록 <b>빈칸은 늘고</b>, 남은 사슬 중 일부는 <b>R 블록이 많은 긴 고분자</b>로 성장합니다.
+      </div>
+
+      <div class="eqbox">
+        <div class="eqMain" id="eqMain">d[A]/dt = −kᵣ[OH][A] = −kᵣ(25)(25)</div>
+        <div class="eqSub" id="eqSub">
+          각 사슬은 HO–(R)n–COOH 꼴이므로 사슬 하나마다 –OH 1개와 –COOH 1개가 있습니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const N = 25;
+  let cells = [];
+  let waterCount = 0;
+  let lastReaction = null;
+  let selectedCells = [];
+  let productCell = null;
+  let autoTimer = null;
+  let autoRunning = false;
+
+  const grid = document.getElementById("grid");
+  const reactBtn = document.getElementById("reactBtn");
+  const autoBtn = document.getElementById("autoBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const aText = document.getElementById("aText");
+  const ohText = document.getElementById("ohText");
+  const waterText = document.getElementById("waterText");
+  const maxText = document.getElementById("maxText");
+  const reactionBox = document.getElementById("reactionBox");
+  const eqMain = document.getElementById("eqMain");
+  const eqSub = document.getElementById("eqSub");
+
+  function livingIndices(){
+    return cells.map((c,i)=>c ? i : -1).filter(i=>i>=0);
+  }
+
+  function rUnits(len){
+    let html = "";
+    for(let i=0;i<len;i++) html += '<span class="rUnit">R</span>';
+    return html;
+  }
+
+  function drawGrid(){
+    grid.innerHTML = "";
+    cells.forEach((len, idx)=>{
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if(!len) cell.classList.add("empty");
+      if(selectedCells.includes(idx)) cell.classList.add("selected");
+      if(productCell === idx) cell.classList.add("product");
+
+      const no = document.createElement("div");
+      no.className = "cellNo";
+      no.textContent = idx + 1;
+      cell.appendChild(no);
+
+      if(len){
+        cell.innerHTML += `
+          <div class="chain">
+            <span class="end oh">OH</span>
+            ${rUnits(len)}
+            <span class="end cooh">COOH</span>
+          </div>
+          <div class="len">R × ${len}</div>
+        `;
+      }else{
+        cell.innerHTML += `<div style="font-weight:900;color:#bbb;">empty</div>`;
+      }
+      grid.appendChild(cell);
+    });
+  }
+
+  function updateStats(){
+    const A = livingIndices().length;
+    const OH = A;
+    const maxLen = Math.max(...cells.filter(Boolean));
+    aText.textContent = A;
+    ohText.textContent = OH;
+    waterText.textContent = waterCount;
+    maxText.textContent = maxLen;
+
+    eqMain.textContent = `d[A]/dt = −kᵣ[OH][A] = −kᵣ(${OH})(${A})`;
+    eqSub.textContent =
+      `현재 살아 있는 사슬 수는 ${A}개입니다. 각 사슬은 말단 –OH 1개와 –COOH 1개를 가지므로 [OH] = ${OH}, A = [COOH] = ${A}입니다. ` +
+      `따라서 [OH] = A 이고, d[A]/dt = −kᵣ[A]²로 쓸 수 있습니다.`;
+
+    reactBtn.disabled = A < 2;
+    reactBtn.textContent = A < 2 ? "반응 완료" : "축합반응 1회 random";
+  }
+
+  function updateReactionBox(){
+    if(!lastReaction){
+      reactionBox.innerHTML = `<div class="small">이번 반응</div>아직 반응 전`;
+      return;
+    }
+    reactionBox.innerHTML = `
+      <div class="small">이번 반응</div>
+      ${lastReaction.i + 1}번 칸의 HO–[R]${lastReaction.a}–COOH
+      &nbsp;+&nbsp;
+      ${lastReaction.j + 1}번 칸의 HO–[R]${lastReaction.b}–COOH
+      &nbsp;→&nbsp;
+      ${lastReaction.target + 1}번 칸의 HO–[R]${lastReaction.product}–COOH
+      <span class="water">H₂O 생성</span>
+      <div style="margin-top:8px;font-size:15px;color:#444;">
+        두 사슬이 하나로 합쳐져 사슬 수가 1 감소했습니다. 그래서 A와 [OH]도 각각 1씩 감소합니다.
+      </div>
+    `;
+  }
+
+  function drawAll(){
+    drawGrid();
+    updateStats();
+    updateReactionBox();
+  }
+
+  function reactOnce(){
+    const alive = livingIndices();
+    if(alive.length < 2) return;
+
+    const pick1 = alive[Math.floor(Math.random() * alive.length)];
+    let pick2;
+    do{
+      pick2 = alive[Math.floor(Math.random() * alive.length)];
+    }while(pick2 === pick1);
+
+    const a = cells[pick1];
+    const b = cells[pick2];
+    const product = a + b;
+
+    // product는 첫 번째로 선택된 칸에 놓고, 두 번째 칸은 빈칸으로 둔다.
+    cells[pick1] = product;
+    cells[pick2] = null;
+
+    waterCount++;
+    selectedCells = [pick1, pick2];
+    productCell = pick1;
+    lastReaction = { i:pick1, j:pick2, target:pick1, a, b, product };
+    drawAll();
+
+    setTimeout(()=>{
+      selectedCells = [];
+      productCell = null;
+      drawAll();
+    }, 450);
+
+    if(livingIndices().length < 2 && autoRunning) toggleAuto();
+  }
+
+  function toggleAuto(){
+    autoRunning = !autoRunning;
+    if(autoRunning){
+      autoBtn.textContent = "자동 정지";
+      autoTimer = setInterval(reactOnce, 650);
+    }else{
+      autoBtn.textContent = "자동 진행";
+      clearInterval(autoTimer);
+    }
+  }
+
+  function resetAll(){
+    cells = Array(N).fill(1);
+    waterCount = 0;
+    lastReaction = null;
+    selectedCells = [];
+    productCell = null;
+    if(autoRunning) toggleAuto();
+    drawAll();
+  }
+
+  reactBtn.addEventListener("click", reactOnce);
+  autoBtn.addEventListener("click", toggleAuto);
+  resetBtn.addEventListener("click", resetAll);
+  resetAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>린데만 메커니즘 II | 물리화학3</title>
+    <!-- MathJax 수식 지원 로딩 -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: "Pretendard", "Noto Sans KR", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            background:
+                radial-gradient(circle at 50% -10%, rgba(251, 191, 36, 0.16), transparent 34rem),
+                linear-gradient(to right, rgba(251, 191, 36, 0.045) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(251, 191, 36, 0.045) 1px, transparent 1px),
+                #0f172a;
+            background-size: auto, 40px 40px, 40px 40px, auto;
+            color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .dashboard-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        /* 메인 2분할 레이아웃 */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 800px) {
+            .main-layout {
+                grid-template-columns: 1fr 1.2fr;
+            }
+        }
+
+        /* 개별 영역 카드 스타일 */
+        .panel {
+            background-color: #1e293b;
+            border-radius: 16px;
+            border: 1px solid #334155;
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 캔버스 공통 스타일 */
+        canvas {
+            background-color: #0b0f19;
+            border-radius: 12px;
+            border: 1px solid #1e293b;
+            width: 100%;
+            height: auto;
+        }
+
+        /* 슬라이더 컨트롤러 */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .control-label .val {
+            color: #38bdf8;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            outline: none;
+            accent-color: #38bdf8;
+            cursor: pointer;
+        }
+
+        /* 범례 표시용 */
+        .legend-container {
+            display: flex;
+            justify-content: space-around;
+            background: #0f172a;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            font-size: 0.78rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }        .module-nav {
+            max-width: 1100px;
+            width: 100%;
+            margin-bottom: 18px;
+        }
+        .module-nav a {
+            color: #fbbf24;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+        .module-header {
+            max-width: 1100px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .module-header .eyebrow {
+            color: #fbbf24;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        .module-header h1 {
+            margin: 10px 0 8px;
+            font-size: clamp(2rem, 5vw, 3.4rem);
+            line-height: 1;
+        }
+        .module-header p {
+            margin: 0;
+            color: #cbd5e1;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <nav class="module-nav"><a href="index_17.html">← 17장 목록</a></nav>
+    <header class="module-header">
+        <div class="eyebrow">Chapter 17</div>
+        <h1>린데만 메커니즘 II</h1>
+        <p>압력 변화에 따른 관측 속도 상수와 fall-off 거동을 시뮬레이션합니다.</p>
+    </header><div class="dashboard-container">
+        <div class="main-layout">
+            <!-- 왼쪽: 입자 충돌 물리 반응기 및 변수 조작계 -->
+            <div class="panel">
+                <canvas id="sandboxCanvas" width="400" height="300"></canvas>
+                
+                <div class="legend-container">
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: radial-gradient(circle, #fbcfe8, #db2777);"></span>
+                        <span>A (반응물)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: radial-gradient(circle, #f3e8ff, #7e22ce);"></span>
+                        <span>A* (들뜬 중간체)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background: radial-gradient(circle, #ccfbf1, #0f766e);"></span>
+                        <span>P (생성물)</span>
+                    </div>
+                </div>
+
+                <!-- 매개변수 실시간 로그 스케일 제어 슬라이더 -->
+                <div class="controls">
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>초기 농도 (압력) $\log([A]/\text{mol}\cdot\text{dm}^{-3})$</span>
+                            <span class="val" id="valA0">-2.50</span>
+                        </div>
+                        <input type="range" id="sliderA0" min="-5.00" max="-0.50" step="0.05" value="-2.50" oninput="onParametersUpdate()">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>활성화 상수 $\log(k_a)$</span>
+                            <span class="val" id="valKa">5.00</span>
+                        </div>
+                        <input type="range" id="sliderKa" min="3.00" max="6.00" step="0.05" value="5.00" oninput="onParametersUpdate()">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>비활성화 상수 $\log(k'_a)$</span>
+                            <span class="val" id="valKaPrime">4.50</span>
+                        </div>
+                        <input type="range" id="sliderKaPrime" min="3.00" max="6.00" step="0.05" value="4.50" oninput="onParametersUpdate()">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>분해상수 $\log(k_b)$</span>
+                            <span class="val" id="valKb">1.35</span>
+                        </div>
+                        <input type="range" id="sliderKb" min="0.00" max="3.00" step="0.05" value="1.35" oninput="onParametersUpdate()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 교재의 실제 Log-Log Fall-off 실험 데이터 플롯 -->
+            <div class="panel">
+                <canvas id="falloffCanvas" width="480" height="425"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 캔버스 레퍼런스
+        const sandboxCanvas = document.getElementById('sandboxCanvas');
+        const sCtx = sandboxCanvas.getContext('2d');
+        const falloffCanvas = document.getElementById('falloffCanvas');
+        const fCtx = falloffCanvas.getContext('2d');
+
+        // 로그 파라미터 상태
+        let logParams = {
+            A0: -2.50,       // log[A]
+            ka: 5.00,        // log(ka)
+            kaPrime: 4.50,   // log(ka')
+            kb: 1.35         // log(kb)
+        };
+
+        // 분자 물리엔진 상태 변수
+        const MOLECULE_RADIUS = 7.5;
+        let molecules = [];
+        let splashEffects = [];
+
+        // 분자 클래스 정의
+        class Molecule {
+            constructor(x, y, state = 'A') {
+                this.x = x;
+                this.y = y;
+                this.radius = MOLECULE_RADIUS;
+                this.state = state; // 'A' | 'A*' | 'P'
+                
+                // 가벼운 열 운동 속도 벡터 생성
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1.0 + Math.random() * 1.5;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.decayTimer = 0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 벽 충돌 연산
+                if (this.x - this.radius < 0) { this.x = this.radius; this.vx *= -1; }
+                if (this.x + this.radius > sandboxCanvas.width) { this.x = sandboxCanvas.width - this.radius; this.vx *= -1; }
+                if (this.y - this.radius < 0) { this.y = this.radius; this.vy *= -1; }
+                if (this.y + this.radius > sandboxCanvas.height) { this.y = sandboxCanvas.height - this.radius; this.vy *= -1; }
+
+                // 들뜬 상태(A*)의 자발적 붕괴 확률 연산 (kb 비례)
+                if (this.state === 'A*') {
+                    const kbValue = Math.pow(10, logParams.kb);
+                    // 시각적 붕괴 타이밍을 위한 확률 필터링
+                    if (Math.random() < kbValue * 0.0003) {
+                        this.state = 'P';
+                        createSplash(this.x, this.y, '#0f766e');
+                        this.decayTimer = 40; // 생성물 형태를 잠시 유지하고 회수되기 위한 카운트다운
+                    }
+                }
+
+                // 생성물(P)은 잠시 후 다시 기본 반응물(A)로 벽면 리사이클링
+                if (this.state === 'P') {
+                    this.decayTimer--;
+                    if (this.decayTimer <= 0) {
+                        this.state = 'A';
+                        // 벽 근처에서 다시 생성하여 겹침 방지
+                        this.x = Math.random() < 0.5 ? this.radius * 2 : sandboxCanvas.width - this.radius * 2;
+                        this.y = Math.random() * (sandboxCanvas.height - this.radius * 4) + this.radius * 2;
+                        const angle = Math.random() * Math.PI * 2;
+                        this.vx = Math.cos(angle) * 1.5;
+                        this.vy = Math.sin(angle) * 1.5;
+                    }
+                }
+            }
+
+            draw() {
+                sCtx.save();
+                let grad = sCtx.createRadialGradient(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    this.radius * 0.1,
+                    this.x,
+                    this.y,
+                    this.radius
+                );
+
+                if (this.state === 'A') {
+                    grad.addColorStop(0, '#fbcfe8');
+                    grad.addColorStop(1, '#db2777'); // 기본 분자 분홍색
+                } else if (this.state === 'A*') {
+                    grad.addColorStop(0, '#f3e8ff');
+                    grad.addColorStop(1, '#7e22ce'); // 들뜬 분자 짙은 보라색
+                } else if (this.state === 'P') {
+                    grad.addColorStop(0, '#ccfbf1');
+                    grad.addColorStop(1, '#0f766e'); // 생성물 청록색
+                }
+
+                sCtx.beginPath();
+                sCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                sCtx.fillStyle = grad;
+                sCtx.fill();
+                sCtx.strokeStyle = '#ffffff';
+                sCtx.lineWidth = 0.8;
+                sCtx.stroke();
+                sCtx.closePath();
+                sCtx.restore();
+            }
+        }
+
+        // 이펙트 시스템
+        function createSplash(x, y, color) {
+            splashEffects.push({ x, y, r: 2, alpha: 0.8, color });
+        }
+
+        function drawEffects() {
+            sCtx.save();
+            for (let i = splashEffects.length - 1; i >= 0; i--) {
+                let e = splashEffects[i];
+                sCtx.beginPath();
+                sCtx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+                sCtx.strokeStyle = e.color;
+                sCtx.globalAlpha = e.alpha;
+                sCtx.lineWidth = 1.5;
+                sCtx.stroke();
+                
+                e.r += 1.5;
+                e.alpha -= 0.04;
+                if (e.alpha <= 0) splashEffects.splice(i, 1);
+            }
+            sCtx.restore();
+        }
+
+        // 반응조 분자 정밀 충돌 법칙
+        function handleSandboxPhysics() {
+            const len = molecules.length;
+            for (let i = 0; i < len; i++) {
+                for (let j = i + 1; j < len; j++) {
+                    let m1 = molecules[i];
+                    let m2 = molecules[j];
+
+                    if (m1.state === 'P' || m2.state === 'P') continue;
+
+                    let dx = m2.x - m1.x;
+                    let dy = m2.y - m1.y;
+                    let dist = Math.hypot(dx, dy);
+                    let minDist = m1.radius + m2.radius;
+
+                    if (dist < minDist) {
+                        let nx = dx / dist;
+                        let ny = dy / dist;
+                        let kx = m1.vx - m2.vx;
+                        let ky = m1.vy - m2.vy;
+                        let vn = kx * nx + ky * ny;
+
+                        if (vn > 0) {
+                            let impulse = 2 * vn / 2;
+                            m1.vx -= impulse * nx;
+                            m1.vy -= impulse * ny;
+                            m2.vx += impulse * nx;
+                            m2.vy += impulse * ny;
+                        }
+
+                        let overlap = minDist - dist;
+                        m1.x -= nx * overlap * 0.5;
+                        m1.y -= ny * overlap * 0.5;
+                        m2.x += nx * overlap * 0.5;
+                        m2.y += ny * overlap * 0.5;
+
+                        const kaVal = Math.pow(10, logParams.ka);
+                        const kaPrimeVal = Math.pow(10, logParams.kaPrime);
+
+                        // 1단계: A + A -> A* + A (활성화)
+                        if (m1.state === 'A' && m2.state === 'A') {
+                            if (Math.random() < kaVal * 0.000005) {
+                                if (Math.random() < 0.5) m1.state = 'A*';
+                                else m2.state = 'A*';
+                                createSplash((m1.x + m2.x)/2, (m1.y + m2.y)/2, '#7e22ce');
+                            }
+                        }
+                        // 2단계: A* + A -> A + A (비활성화 진정)
+                        else if ((m1.state === 'A*' && m2.state === 'A') || (m1.state === 'A' && m2.state === 'A*')) {
+                            if (Math.random() < kaPrimeVal * 0.000005) {
+                                m1.state = 'A';
+                                m2.state = 'A';
+                                createSplash((m1.x + m2.x)/2, (m1.y + m2.y)/2, '#db2777');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 반응물 밀도 개수 분산 재배치
+        function syncMoleculeDensity() {
+            const targetCount = Math.round(((logParams.A0 - (-5.0)) / 4.5) * 86) + 4;
+            
+            while (molecules.length < targetCount) {
+                let x = Math.random() * (sandboxCanvas.width - MOLECULE_RADIUS * 4) + MOLECULE_RADIUS * 2;
+                let y = Math.random() * (sandboxCanvas.height - MOLECULE_RADIUS * 4) + MOLECULE_RADIUS * 2;
+                molecules.push(new Molecule(x, y));
+            }
+            while (molecules.length > targetCount) {
+                molecules.pop();
+            }
+        }
+
+        // --- 우측 교재 정밀 실험 데이터 플로팅 렌더링 ---
+        function renderFalloffPlot() {
+            fCtx.clearRect(0, 0, falloffCanvas.width, falloffCanvas.height);
+
+            const margin = { top: 40, right: 30, bottom: 50, left: 60 };
+            const plotW = falloffCanvas.width - margin.left - margin.right;
+            const plotH = falloffCanvas.height - margin.top - margin.bottom;
+
+            const xMin = -5.0, xMax = -0.5;
+            const yMin = 0.0, yMax = 2.0;
+
+            function getCanvasX(val) { return margin.left + ((val - xMin) / (xMax - xMin)) * plotW; }
+            function getCanvasY(val) { return margin.top + plotH - ((val - yMin) / (yMax - yMin)) * plotH; }
+
+            // 1. 축 그리드 눈금선 (클리핑 바깥)
+            fCtx.strokeStyle = '#1e293b';
+            fCtx.lineWidth = 1;
+            fCtx.fillStyle = '#64748b';
+            fCtx.font = '11px Arial';
+
+            // X축 그리드 및 라벨
+            for (let x = -5.0; x <= -0.5; x += 0.5) {
+                let cx = getCanvasX(x);
+                fCtx.beginPath();
+                fCtx.moveTo(cx, margin.top);
+                fCtx.lineTo(cx, margin.top + plotH);
+                fCtx.stroke();
+                
+                fCtx.textAlign = 'center';
+                fCtx.fillText(x.toFixed(1), cx, margin.top + plotH + 18);
+            }
+
+            // Y축 그리드 및 라벨
+            for (let y = 0.0; y <= 2.0; y += 0.5) {
+                let cy = getCanvasY(y);
+                fCtx.beginPath();
+                fCtx.moveTo(margin.left, cy);
+                fCtx.lineTo(margin.left + plotW, cy);
+                fCtx.stroke();
+                
+                fCtx.textAlign = 'right';
+                fCtx.fillText(y.toFixed(1), margin.left - 10, cy + 4);
+            }
+
+            // 차트 영역의 기본 테두리
+            fCtx.strokeStyle = '#475569';
+            fCtx.lineWidth = 1.5;
+            fCtx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+            // 2. 물리화학 변수 기반 곡선 연산식
+            const ka = Math.pow(10, logParams.ka);
+            const kaPrime = Math.pow(10, logParams.kaPrime);
+            const kb = Math.pow(10, logParams.kb);
+
+            function calcLogKobs(logA) {
+                const a = Math.pow(10, logA);
+                const k_obs = (ka * kb * a) / (kaPrime * a + kb);
+                return Math.log10(k_obs);
+            }
+
+            // ================= [버그 수정 포인트: 플롯 영역 내부 클리핑 패스 적용] =================
+            fCtx.save();
+            fCtx.beginPath();
+            fCtx.rect(margin.left, margin.top, plotW, plotH);
+            fCtx.clip(); // 이 범위 외부로 선이 삐져나가는 현상을 완전 차단
+
+            // 3. 점근선 (Asymptotes) 드로잉 (교재 이미지 수식 대응)
+            fCtx.strokeStyle = '#475569';
+            fCtx.lineWidth = 1.5;
+            fCtx.setLineDash([4, 4]);
+
+            // [저압 극한] log k_obs = log ka + log [A] (기울기 1)
+            fCtx.beginPath();
+            for (let x = xMin; x <= xMax + 0.0001; x += 0.1) {
+                let y = logParams.ka + x;
+                let cx = getCanvasX(x);
+                let cy = getCanvasY(y);
+                if (x === xMin) fCtx.moveTo(cx, cy);
+                else fCtx.lineTo(cx, cy);
+            }
+            fCtx.stroke();
+
+            // [고압 극한] log k_obs = log (ka * kb / ka') (수평선)
+            const highY = logParams.ka + logParams.kb - logParams.kaPrime;
+            fCtx.beginPath();
+            fCtx.moveTo(getCanvasX(xMin), getCanvasY(highY));
+            fCtx.lineTo(getCanvasX(xMax), getCanvasY(highY));
+            fCtx.stroke();
+            fCtx.setLineDash([]); // 점선 스타일 리셋
+
+            // 4. 전체 실험 데이터 Fall-off 곡선
+            fCtx.beginPath();
+            fCtx.strokeStyle = '#38bdf8'; // 산뜻한 청색 곡선
+            fCtx.lineWidth = 3;
+            let first = true;
+            for (let x = xMin; x <= xMax + 0.0001; x += 0.05) {
+                let y = calcLogKobs(x);
+                let cx = getCanvasX(x);
+                let cy = getCanvasY(y);
+                if (first) {
+                    fCtx.moveTo(cx, cy);
+                    first = false;
+                } else {
+                    fCtx.lineTo(cx, cy);
+                }
+            }
+            fCtx.stroke();
+
+            // 5. 교재 형태의 백색 동그라미 실험 관측 데이터 포인트 복제 매핑
+            fCtx.fillStyle = '#ffffff';
+            fCtx.strokeStyle = '#38bdf8';
+            fCtx.lineWidth = 1.5;
+            for (let x = xMin; x <= xMax + 0.0001; x += 0.15) {
+                let y = calcLogKobs(x);
+                fCtx.beginPath();
+                fCtx.arc(getCanvasX(x), getCanvasY(y), 4, 0, Math.PI * 2);
+                fCtx.fill();
+                fCtx.stroke();
+            }
+
+            // 6. 실시간 위치 포인터 (붉은색 하이라이팅)
+            let curX = logParams.A0;
+            let curY = calcLogKobs(curX);
+            let cx = getCanvasX(curX);
+            let cy = getCanvasY(curY);
+
+            fCtx.shadowBlur = 10;
+            fCtx.shadowColor = '#f43f5e';
+            fCtx.fillStyle = '#f43f5e';
+            fCtx.beginPath();
+            fCtx.arc(cx, cy, 7, 0, Math.PI * 2);
+            fCtx.fill();
+            fCtx.strokeStyle = '#ffffff';
+            fCtx.lineWidth = 1.5;
+            fCtx.stroke();
+
+            fCtx.restore(); // 클리핑 복구
+            // ==============================================================================
+
+            // 점근선 가이드라인 텍스트 라벨 배치 (클리핑 외부 영역 짤림 방지)
+            fCtx.fillStyle = '#94a3b8';
+            fCtx.font = '10px Arial';
+            fCtx.textAlign = 'left';
+
+            // 저압 극한 텍스트 안전 범위 내 유도 정렬
+            let lowTextX = yMin + 0.4 - logParams.ka;
+            if (lowTextX < xMin) lowTextX = xMin + 0.1;
+            if (lowTextX > xMax - 1.5) lowTextX = xMax - 1.5;
+            let lowTextY = logParams.ka + lowTextX;
+            if (lowTextY >= yMin && lowTextY <= yMax - 0.2) {
+                fCtx.fillText("low [A]: log k_obs = log ka + log [A]", getCanvasX(lowTextX), getCanvasY(lowTextY) - 10);
+            }
+
+            // 고압 극한 텍스트 위치 정렬
+            if (highY >= yMin && highY <= yMax - 0.1) {
+                fCtx.fillText("high [A]: log k_obs = log (ka * kb / ka')", getCanvasX(-2.5), getCanvasY(highY) - 8);
+            }
+
+            // 축 메인 라벨링
+            fCtx.fillStyle = '#cbd5e1';
+            fCtx.font = 'bold 12px Arial';
+            fCtx.textAlign = 'center';
+            fCtx.fillText("log ( [A] / mol · dm^-3 )", margin.left + plotW/2, margin.top + plotH + 40);
+
+            fCtx.save();
+            fCtx.translate(margin.left - 42, margin.top + plotH/2);
+            fCtx.rotate(-Math.PI / 2);
+            fCtx.fillText("log ( k_obs / s^-1 )", 0, 0);
+            fCtx.restore();
+        }
+
+        // --- 파라미터 업데이트 수치 동기화 ---
+        function onParametersUpdate() {
+            logParams.A0 = parseFloat(document.getElementById('sliderA0').value);
+            logParams.ka = parseFloat(document.getElementById('sliderKa').value);
+            logParams.kaPrime = parseFloat(document.getElementById('sliderKaPrime').value);
+            logParams.kb = parseFloat(document.getElementById('sliderKb').value);
+
+            // 텍스트 디스플레이 출력 포맷 동기화
+            document.getElementById('valA0').innerText = logParams.A0.toFixed(2);
+            document.getElementById('valKa').innerText = logParams.ka.toFixed(2);
+            document.getElementById('valKaPrime').innerText = logParams.kaPrime.toFixed(2);
+            document.getElementById('valKb').innerText = logParams.kb.toFixed(2);
+
+            // 물리 시뮬레이션 분자수 자동 증감
+            syncMoleculeDensity();
+
+            // 데이터 플롯 실시간 재연산
+            renderFalloffPlot();
+        }
+
+        // --- 애니메이션 메인 프레임 루프 ---
+        function physicsFrameLoop() {
+            // 반응기 초기화
+            sCtx.clearRect(0, 0, sandboxCanvas.width, sandboxCanvas.height);
+
+            // 분자 상태 업데이트 및 충돌 물리법칙 구현
+            molecules.forEach(m => {
+                m.update();
+                m.draw();
+            });
+
+            handleSandboxPhysics();
+            drawEffects();
+
+            requestAnimationFrame(physicsFrameLoop);
+        }
+
+        // 초기 시작 동기화
+        window.addEventListener('DOMContentLoaded', () => {
+            onParametersUpdate();
+            physicsFrameLoop();
+        });
+    </script>
+</body>
+</html>

@@ -16,6 +16,7 @@
       --blue: #60a5fa;
       --green: #34d399;
       --amber: #fbbf24;
+      --rose: #fb7185;
     }
     * { box-sizing: border-box; }
     body {
@@ -60,7 +61,7 @@
     }
     .chapters {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 18px;
     }
     .chapter {
@@ -95,6 +96,7 @@
     .chapter:nth-child(2) .number { background: rgba(96, 165, 250, 0.14); color: var(--blue); }
     .chapter:nth-child(3) .number { background: rgba(52, 211, 153, 0.14); color: var(--green); }
     .chapter:nth-child(4) .number { background: rgba(251, 191, 36, 0.14); color: var(--amber); }
+    .chapter:nth-child(5) .number { background: rgba(251, 113, 133, 0.14); color: var(--rose); }
     h2 {
       margin: 22px 0 8px;
       font-size: 24px;
@@ -168,7 +170,15 @@
           <h2>반응 속도론</h2>
           <p>속도 법칙, 반응 차수, 완화법, Arrhenius 식, 전이 상태 자료입니다.</p>
         </div>
-        <div class="count">15 modules</div>
+        <div class="count">19 modules</div>
+      </a>
+      <a class="chapter" href="index_18.html">
+        <div>
+          <div class="number">18</div>
+          <h2>반응 동역학</h2>
+          <p>분자 충돌, 유효 충돌 단면적, 반응 가능한 충돌 조건을 시뮬레이션합니다.</p>
+        </div>
+        <div class="count">2 modules</div>
       </a>
     </section>
 

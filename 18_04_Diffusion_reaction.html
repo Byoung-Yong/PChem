@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion-Controlled Reaction Simulation</title>
+    <!-- Use English font names as requested -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+        }
+        canvas {
+            display: block;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        input[type=range] {
+            width: 100%;
+            accent-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center">
+
+    <div class="max-w-6xl w-full bg-white rounded-xl shadow-lg overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-gray-800 text-white p-6">
+            <h1 class="text-2xl font-bold mb-2">확산 지배 반응 시뮬레이션 (Smoluchowski Model)</h1>
+            <p class="text-gray-300 text-sm">
+                <strong>(유한 구형 영역의 Dirichlet 경계조건)</strong> 분자 B가 3차원 공간에서 Brownian 확산을 하다가 A의 반응 반경 <strong>R*</strong>에 도달하면 즉시 반응하여 사라집니다. 외곽 경계 <strong>Rout</strong>에서는 벌크 농도 <strong>[B]₀</strong>가 유지된다고 두며, 비교 곡선은 <strong>[B](R*) = 0</strong>, <strong>[B](Rout) = [B]₀</strong> 조건을 만족하는 유한 경계 해입니다.
+            </p>
+        </div>
+
+        <div class="flex flex-col lg:flex-row p-6 gap-6">
+            
+            <!-- Left: Simulation Canvas -->
+            <div class="flex-1 flex flex-col items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4">3D 구면 확산 (실제 반지름 기준 표시)</h2>
+                <div class="relative bg-white border shadow-inner rounded-full overflow-hidden" style="width: 400px; height: 400px;">
+                    <canvas id="simCanvas" width="400" height="400"></canvas>
+                </div>
+                
+                <!-- Real-time Stats -->
+                <div class="mt-6 flex w-full justify-around bg-white p-4 rounded border">
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500 uppercase font-bold">반응 횟수</p>
+                        <p class="text-2xl font-black text-red-500" id="stat-reactions">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500 uppercase font-bold">현재 반응 속도 (v)</p>
+                        <p class="text-2xl font-black text-blue-600" id="stat-rate">0 <span class="text-sm font-normal text-gray-500">/sec</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Controls & Graph -->
+            <div class="flex-1 flex flex-col gap-6">
+                
+                <!-- Controls -->
+                <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">시뮬레이션 조작</h2>
+                    
+                    <div class="mb-5">
+                        <div class="slider-label">
+                            <span>확산 계수 (Diffusion Coefficient, D)</span>
+                            <span id="val-diffusion">5.0 px²/step</span>
+                        </div>
+                        <input type="range" id="slider-diffusion" min="1" max="15" step="0.5" value="5.0">
+                        <p class="text-xs text-gray-500 mt-1">Brownian motion에서 한 축 변위의 분산은 2DΔt입니다. 여기서는 Δt = 1 step으로 계산합니다.</p>
+                    </div>
+
+                    <div class="mb-5">
+                        <div class="slider-label">
+                            <span>반응 반경 (Reaction Radius, R*)</span>
+                            <span id="val-radius">20 px</span>
+                        </div>
+                        <input type="range" id="slider-radius" min="10" max="60" step="1" value="20">
+                        <p class="text-xs text-gray-500 mt-1">A와 B가 반응을 일으키는 임계 거리입니다.</p>
+                    </div>
+
+                    <div>
+                        <div class="slider-label">
+                            <span>B 분자 개수 기준 (Bulk Concentration)</span>
+                            <span id="val-particles">2000</span>
+                        </div>
+                        <input type="range" id="slider-particles" min="500" max="5000" step="100" value="2000">
+                    </div>
+                </div>
+
+                <!-- Concentration Graph -->
+                <div class="bg-white p-4 rounded-lg border border-gray-200 flex-1 flex flex-col">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">정상 상태 농도 프로필 [B](r)</h2>
+                    <p class="text-xs text-gray-500 mb-4">중심 A로부터의 거리(반경)에 따른 B 분자의 상대적 밀도입니다. 유한한 외곽 경계 Rout에서 [B]₀가 유지됩니다.</p>
+                    <div class="flex-1 relative w-full h-48">
+                        <canvas id="graphCanvas"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Simulation Core Logic ---
+        const simCanvas = document.getElementById('simCanvas');
+        const simCtx = simCanvas.getContext('2d');
+        const width = simCanvas.width;
+        const height = simCanvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        const arenaRadius = width / 2; // 200px
+        const bufferThickness = 15; // 외곽 농도 유지를 위한 버퍼(저장소) 두께
+        const R_buffer_inner = arenaRadius - bufferThickness; // 185px
+        const R_buffer_outer = arenaRadius; // 200px
+        const bufferBins = 8; // 외곽 reservoir를 반지름 방향으로 나누어 국소 농도 조건을 유지
+        const simulationDt = 0.2; // Brownian motion 계산용 시간 간격
+        const subStepsPerFrame = 5; // 한 animation frame 안에서 작은 시간 간격으로 나누어 계산
+
+        // Settings
+        let D = parseFloat(document.getElementById('slider-diffusion').value); // px^2/step
+        let R_star = parseFloat(document.getElementById('slider-radius').value);
+        let baseParticleCount = parseInt(document.getElementById('slider-particles').value);
+
+        // State
+        let particles = [];
+        let totalReactions = 0;
+        let reactionsThisSecond = 0;
+        let reactionRate = 0;
+        let lastRateTime = performance.now();
+
+        // 이론적 벌크 밀도 (rho_0) 계산
+        // 사용자가 슬라이더로 정한 개수는 전체 구의 부피에 균일 농도 [B]0가 있을 때의 기준 입자 수로 정의
+        const totalArenaVolume = (4/3) * Math.PI * Math.pow(arenaRadius, 3);
+        let rho_0 = baseParticleCount / totalArenaVolume;
+
+        // 버퍼(Reservoir)의 체적과 목표 입자 수
+        const bufferVolume = (4/3) * Math.PI * (Math.pow(R_buffer_outer, 3) - Math.pow(R_buffer_inner, 3));
+        let targetBufferParticles = 0;
+
+        // Profiling for graph
+        const NUM_BINS = 40; // 구간 개수 고정
+        let smoothedY = new Array(NUM_BINS).fill(0);
+
+        function gaussianRandom() {
+            let u = 0;
+            let v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        function stochasticRound(value) {
+            const base = Math.floor(value);
+            const fraction = value - base;
+            return base + (Math.random() < fraction ? 1 : 0);
+        }
+
+        function relativeConcentration(r) {
+            // 유한 구형 영역의 정상 상태 해:
+            // c(r)/c0 = (1 - R*/r) / (1 - R*/Rout)
+            // 경계조건: c(R*) = 0, c(Rout) = c0
+            if (r <= R_star) return 0;
+            if (r >= arenaRadius) return 1;
+            const denominator = 1 - R_star / arenaRadius;
+            return Math.max(0, Math.min(1, (1 - R_star / r) / denominator));
+        }
+
+        function expectedParticlesBetween(rInner, rOuter) {
+            // N = rho_0 * ∫ c(r)/c0 * 4πr² dr
+            // c(r)/c0 = (1 - R*/r) / (1 - R*/Rout)
+            const denominator = 1 - R_star / arenaRadius;
+            const primitive = (r) => Math.pow(r, 3) / 3 - R_star * Math.pow(r, 2) / 2;
+            return rho_0 * 4 * Math.PI * (primitive(rOuter) - primitive(rInner)) / denominator;
+        }
+
+        function segmentIntersectsReactionSphere(x0, y0, z0, x1, y1, z1) {
+            // 한 step 동안 반응 반경 R*를 통과했는지 검사한다.
+            // 최종 위치만 검사하면 큰 step에서 흡수 구를 통과하고도 살아남는 오류가 생긴다.
+            const dx = x1 - x0;
+            const dy = y1 - y0;
+            const dz = z1 - z0;
+            const a = dx * dx + dy * dy + dz * dz;
+            if (a === 0) {
+                return Math.hypot(x0, y0, z0) <= R_star;
+            }
+
+            const b = 2 * (x0 * dx + y0 * dy + z0 * dz);
+            const c = x0 * x0 + y0 * y0 + z0 * z0 - R_star * R_star;
+            const disc = b * b - 4 * a * c;
+            if (disc < 0) return false;
+
+            const sqrtDisc = Math.sqrt(disc);
+            const t1 = (-b - sqrtDisc) / (2 * a);
+            const t2 = (-b + sqrtDisc) / (2 * a);
+            return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+        }
+
+        function sampleRadiusWithSteadyProfile(rInner, rOuter) {
+            // 부피에 균일한 후보 r을 만든 뒤, 유한 경계 정상 상태 농도 c(r)/c0에 비례하도록 acceptance-rejection 적용
+            while (true) {
+                const u = Math.random();
+                const r = Math.cbrt(u * (Math.pow(rOuter, 3) - Math.pow(rInner, 3)) + Math.pow(rInner, 3));
+                if (Math.random() < relativeConcentration(r)) {
+                    return r;
+                }
+            }
+        }
+
+        class Particle {
+            constructor(spawnInBuffer = false) {
+                let r, theta, phi;
+                if (spawnInBuffer) {
+                    // 외곽 reservoir 영역의 국소 농도를 유한 경계 정상 상태 해에 맞추어 보정
+                    r = sampleRadiusWithSteadyProfile(R_buffer_inner, R_buffer_outer);
+                } else {
+                    // 초기 입자도 유한 경계 정상 상태 농도 분포를 따르도록 생성
+                    r = sampleRadiusWithSteadyProfile(R_star, arenaRadius);
+                }
+                
+                theta = Math.random() * 2 * Math.PI;
+                phi = Math.acos(2 * Math.random() - 1);
+                
+                this.x = r * Math.sin(phi) * Math.cos(theta);
+                this.y = r * Math.sin(phi) * Math.sin(theta);
+                this.z = r * Math.cos(phi);
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                // 3D Brownian random walk
+                // 각 좌표의 평균은 0, 분산은 2DΔt이다.
+                // 큰 한 번의 이동 대신 작은 substep으로 나누어 흡수 경계 통과 오류를 줄인다.
+                const stepStd = Math.sqrt(2 * D * simulationDt);
+
+                for (let s = 0; s < subStepsPerFrame; s++) {
+                    const x0 = this.x;
+                    const y0 = this.y;
+                    const z0 = this.z;
+                    const x1 = x0 + gaussianRandom() * stepStd;
+                    const y1 = y0 + gaussianRandom() * stepStd;
+                    const z1 = z0 + gaussianRandom() * stepStd;
+
+                    if (segmentIntersectsReactionSphere(x0, y0, z0, x1, y1, z1)) {
+                        // 반응 반경 R*에 도달하거나 통과하면 즉시 반응하여 사라진다.
+                        totalReactions++;
+                        reactionsThisSecond++;
+                        this.markedForDeletion = true;
+                        return;
+                    }
+
+                    this.x = x1;
+                    this.y = y1;
+                    this.z = z1;
+
+                    const dist = Math.hypot(this.x, this.y, this.z);
+
+                    if (dist > arenaRadius) {
+                        // 외곽 경계 밖으로 나간 입자는 벌크 reservoir로 빠져나간 것으로 처리한다.
+                        // 이후 reservoir 보정에서 Dirichlet 경계 농도를 다시 유지한다.
+                        this.markedForDeletion = true;
+                        return;
+                    }
+                }
+            }
+
+            draw() {
+                // 실제 3D 거리 r을 2D 반지름으로 표시한다.
+                // 단순 x-y 투영을 쓰면 r > R*인 입자도 화면 중앙에 투영되어 반응 반경 안에 있는 것처럼 보일 수 있다.
+                const dist = Math.hypot(this.x, this.y, this.z);
+                if (dist <= R_star || dist >= arenaRadius) return;
+
+                const angle = Math.atan2(this.y, this.x);
+                const drawX = centerX + dist * Math.cos(angle);
+                const drawY = centerY + dist * Math.sin(angle);
+
+                simCtx.fillStyle = 'rgba(59, 130, 246, 0.65)';
+                simCtx.beginPath();
+                simCtx.arc(drawX, drawY, 1.8, 0, Math.PI * 2);
+                simCtx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            totalReactions = 0;
+            reactionsThisSecond = 0;
+            reactionRate = 0;
+            lastRateTime = performance.now();
+
+            rho_0 = baseParticleCount / totalArenaVolume;
+            targetBufferParticles = expectedParticlesBetween(R_buffer_inner, R_buffer_outer);
+            
+            // 유한 경계 정상 상태 농도 프로필에 맞추어 초기 입자 수 계산
+            const initialCount = stochasticRound(expectedParticlesBetween(R_star, arenaRadius));
+            
+            for (let i = 0; i < initialCount; i++) {
+                particles.push(new Particle(false));
+            }
+            smoothedY.fill(0); // 그래프 스무딩 초기화
+
+            document.getElementById('stat-reactions').textContent = totalReactions;
+            document.getElementById('stat-rate').textContent = reactionRate;
+        }
+
+        // --- Chart.js Setup ---
+        const graphCtx = document.getElementById('graphCanvas').getContext('2d');
+        const concentrationChart = new Chart(graphCtx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: '유한 경계 이론값',
+                        data: [],
+                        borderColor: '#984058',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.3
+                    },
+                    {
+                        label: '시뮬레이션 [B](r)/[B]₀',
+                        data: [],
+                        borderColor: 'rgba(59, 130, 246, 0.8)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: '반지름, r/R*', font: {size: 13, family: 'Inter'} },
+                        min: 0,
+                        // max: 동적으로 업데이트 됨
+                        grid: { color: '#a8c6d6' }
+                    },
+                    y: {
+                        title: { display: true, text: '농도, [B](r)/[B]₀', font: {size: 13, family: 'Inter'} },
+                        min: 0,
+                        max: 1.1,
+                        ticks: { stepSize: 0.2 },
+                        grid: { color: '#a8c6d6' }
+                    }
+                },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: {usePointStyle: true} }
+                }
+            }
+        });
+
+        // --- Main Update Loop ---
+        function calculateAndDrawProfile() {
+            // X축의 최대값을 캔버스의 논리적 끝부분까지만 딱 맞춤
+            const X_MAX = arenaRadius / R_star;
+            concentrationChart.options.scales.x.max = Math.ceil(X_MAX);
+
+            // 1. 이론 곡선 업데이트
+            // 유한 경계조건: c(R*) = 0, c(Rout) = c0
+            // c(r)/c0 = (1 - R*/r) / (1 - R*/Rout)
+            const theoreticalData = [];
+            theoreticalData.push({x: 1, y: 0});
+            const denominator = 1 - 1 / X_MAX;
+            for (let x = 1.05; x <= X_MAX; x += 0.05) {
+                theoreticalData.push({x: x, y: (1 - 1 / x) / denominator});
+            }
+            theoreticalData.push({x: X_MAX, y: 1});
+            concentrationChart.data.datasets[0].data = theoreticalData;
+
+            // 2. 시뮬레이션 데이터 수집 (구간별 입자 수)
+            let binCounts = new Array(NUM_BINS).fill(0);
+            const bin_step = (X_MAX - 1) / NUM_BINS;
+
+            for (let p of particles) {
+                const dist = Math.hypot(p.x, p.y, p.z);
+                const x_val = dist / R_star;
+                if (x_val >= 1 && x_val < X_MAX) {
+                    const bin = Math.floor((x_val - 1) / bin_step);
+                    if (bin >= 0 && bin < NUM_BINS) {
+                        binCounts[bin]++;
+                    }
+                }
+            }
+
+            // 3. 밀도 계산 및 스무딩
+            let simData = [];
+            simData.push({ x: 1, y: 0 }); // 흡수 경계 조건 [B](R*) = 0
+
+            for (let i = 0; i < NUM_BINS; i++) {
+                const x_inner = 1 + i * bin_step;
+                const x_outer = x_inner + bin_step;
+                const x_mid = (x_inner + x_outer) / 2;
+
+                const r_inner = x_inner * R_star;
+                const r_outer = x_outer * R_star;
+
+                const volume = (4/3) * Math.PI * (Math.pow(r_outer, 3) - Math.pow(r_inner, 3));
+                const density = volume > 0 ? binCounts[i] / volume : 0;
+                
+                // 기준 벌크 농도 rho_0로 정규화
+                const normalizedY = density / rho_0;
+
+                // 시각적 안정을 위한 지수 이동 평균
+                smoothedY[i] = smoothedY[i] * 0.98 + normalizedY * 0.02;
+
+                simData.push({ x: x_mid, y: smoothedY[i] });
+            }
+
+            concentrationChart.data.datasets[1].data = simData;
+            concentrationChart.update();
+        }
+
+        function addParticleInShell(rInner, rOuter) {
+            const p = new Particle(true);
+            const r = sampleRadiusWithSteadyProfile(rInner, rOuter);
+            const theta = Math.random() * 2 * Math.PI;
+            const phi = Math.acos(2 * Math.random() - 1);
+            p.x = r * Math.sin(phi) * Math.cos(theta);
+            p.y = r * Math.sin(phi) * Math.sin(theta);
+            p.z = r * Math.cos(phi);
+            particles.push(p);
+        }
+
+        function enforceBoundaryProfile() {
+            // 외곽 reservoir는 하나의 총량이 아니라 반지름 방향의 국소 농도를 맞춘다.
+            // 이렇게 해야 특정 구간에 입자가 과잉 축적되어 [B](r)/[B]0가 1을 넘는 오류를 줄일 수 있다.
+            const shellWidth = bufferThickness / bufferBins;
+
+            for (let b = 0; b < bufferBins; b++) {
+                const rInner = R_buffer_inner + b * shellWidth;
+                const rOuter = R_buffer_inner + (b + 1) * shellWidth;
+                const target = expectedParticlesBetween(rInner, rOuter);
+                let current = 0;
+
+                for (let p of particles) {
+                    const dist = Math.hypot(p.x, p.y, p.z);
+                    if (dist >= rInner && dist < rOuter) {
+                        current++;
+                    }
+                }
+
+                const diff = target - current;
+
+                if (diff > 0) {
+                    const nAdd = stochasticRound(diff);
+                    for (let i = 0; i < nAdd; i++) {
+                        addParticleInShell(rInner, rOuter);
+                    }
+                } else if (diff < 0) {
+                    let toRemove = stochasticRound(Math.abs(diff));
+                    for (let i = particles.length - 1; i >= 0 && toRemove > 0; i--) {
+                        const dist = Math.hypot(particles[i].x, particles[i].y, particles[i].z);
+                        if (dist >= rInner && dist < rOuter) {
+                            particles[i].markedForDeletion = true;
+                            toRemove--;
+                        }
+                    }
+                }
+            }
+        }
+
+        function update() {
+            const now = performance.now();
+            const dt = now - lastRateTime;
+
+            simCtx.clearRect(0, 0, width, height);
+
+            // Target A
+            simCtx.fillStyle = '#ef4444';
+            simCtx.beginPath();
+            simCtx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+            simCtx.fill();
+
+            // Reaction Radius R*
+            simCtx.strokeStyle = '#ef4444';
+            simCtx.lineWidth = 2;
+            simCtx.setLineDash([5, 5]);
+            simCtx.beginPath();
+            simCtx.arc(centerX, centerY, R_star, 0, Math.PI * 2);
+            simCtx.stroke();
+            simCtx.setLineDash([]); 
+
+            simCtx.fillStyle = '#ef4444';
+            simCtx.font = '12px "Inter", sans-serif';
+            simCtx.fillText('R*', centerX + R_star + 5, centerY - R_star - 5);
+
+            // Update Particle positions
+            for (let p of particles) {
+                p.update();
+            }
+
+            // Remove particles marked for deletion (reacted or left the arena)
+            particles = particles.filter(p => !p.markedForDeletion);
+
+            // Enforce boundary concentration profile
+            enforceBoundaryProfile();
+
+            // Remove particles marked during boundary enforcement
+            particles = particles.filter(p => !p.markedForDeletion);
+
+            // Draw particles
+            for (let p of particles) {
+                p.draw();
+            }
+
+            calculateAndDrawProfile();
+
+            if (dt >= 1000) {
+                reactionRate = reactionsThisSecond;
+                reactionsThisSecond = 0;
+                lastRateTime = now;
+                
+                document.getElementById('stat-reactions').textContent = totalReactions;
+                document.getElementById('stat-rate').textContent = reactionRate;
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('slider-diffusion').addEventListener('input', (e) => {
+            D = parseFloat(e.target.value);
+            document.getElementById('val-diffusion').textContent = D.toFixed(1) + ' px²/step';
+        });
+
+        document.getElementById('slider-radius').addEventListener('input', (e) => {
+            R_star = parseFloat(e.target.value);
+            document.getElementById('val-radius').textContent = R_star + ' px';
+            smoothedY.fill(0); // R* 변경 시 그래프 리셋
+            initParticles(); // 공간 비율이 달라지므로 입자 전체 재배치
+        });
+
+        document.getElementById('slider-particles').addEventListener('change', (e) => {
+            baseParticleCount = parseInt(e.target.value);
+            document.getElementById('val-particles').textContent = baseParticleCount;
+            initParticles();
+        });
+        
+        document.getElementById('slider-particles').addEventListener('input', (e) => {
+            document.getElementById('val-particles').textContent = e.target.value;
+        });
+
+        // Start
+        initParticles();
+        requestAnimationFrame(update);
+
+    </script>
+</body>
+</html>

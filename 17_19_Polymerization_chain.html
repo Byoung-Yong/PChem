@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>연쇄 중합 | 물리화학3</title>
+  <style>
+    body{
+      margin:0;
+      font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:radial-gradient(circle at 50% -10%, rgba(251, 191, 36, .16), transparent 34rem),linear-gradient(to right, rgba(251, 191, 36, .045) 1px, transparent 1px),linear-gradient(to bottom, rgba(251, 191, 36, .045) 1px, transparent 1px),#0f172a;background-size:auto,40px 40px,40px 40px,auto;color:#f8fafc;
+    }
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:24px 18px 50px;
+    }
+    .back{display:inline-block;margin-bottom:18px;color:#fbbf24;text-decoration:none;font-size:14px;font-weight:800;} h1{margin:0 0 8px;font-size:clamp(34px,6vw,58px);line-height:1;letter-spacing:0;}
+    .lead{margin:0 0 18px;color:#444;line-height:1.65;font-size:17px;}
+    .card{
+      background:rgba(30,41,59,.76);
+      border:1px solid rgba(148,163,184,.22); border-radius:8px;
+      padding:20px;
+      margin-bottom:18px;
+      box-shadow:0 8px 24px rgba(0,0,0,.06);
+    }
+    .title{font-size:21px;font-weight:850;color:#fbbf24;margin-bottom:12px;}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+    button{
+      border:0;border-radius:999px;padding:12px 18px;font-size:16px;font-weight:900;
+      cursor:pointer;background:#2f75b5;color:white;
+    }
+    button:hover{background:#245f93;}
+    button:disabled{background:#aab4c0;cursor:not-allowed;}
+    .reset{background:#666;}.reset:hover{background:#444;}
+    .auto{background:#2d8a57;}.auto:hover{background:#216741;}
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(6,1fr);
+      gap:10px;
+      margin-bottom:16px;
+    }
+    @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr);}}
+    .stat{background:#fafafa;border:1px solid #ddd;border-radius:14px;padding:12px;}
+    .stat .label{font-size:13px;color:#666;font-weight:750;line-height:1.35;}
+    .stat .value{margin-top:4px;font-size:28px;font-weight:950;color:#fbbf24;}
+
+    .layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:980px){.layout{grid-template-columns:1fr;}}
+    .subcard{border:1px solid #ddd;border-radius:16px;padding:14px;background:#fcfdff;}
+    .subcard h3{margin:0 0 10px;font-size:17px;color:#333;}
+
+    .initiatorRow{display:flex;gap:8px;flex-wrap:wrap;min-height:60px;align-items:flex-start;}
+    .initiator{
+      padding:8px 12px;border-radius:999px;background:#ffe8cd;border:1px solid #f1c48a;
+      color:#8a5300;font-weight:900;animation:pop .22s ease-out;
+    }
+
+    .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;min-height:270px;}
+    .cell{
+      min-height:78px;border:1px solid #d8e1ec;border-radius:14px;background:white;padding:6px;
+      display:flex;flex-direction:column;justify-content:center;align-items:center;position:relative;transition:.2s;
+    }
+    .cell.empty{background:#f0f2f5;border-style:dashed;color:#b3b3b3;}
+    .mLabel{font-size:12px;font-weight:900;color:#1f5a8a;background:#e8f2ff;border:1px solid #c9dcf7;border-radius:999px;padding:4px 8px;}
+    .cellNo{position:absolute;top:5px;left:7px;font-size:11px;color:#9aa4b2;font-weight:800;}
+
+    .chainList{display:flex;flex-direction:column;gap:10px;max-height:340px;overflow:auto;padding-right:4px;}
+    .chainRow{border:1px solid #d8e1ec;border-radius:14px;background:white;padding:8px 10px;animation:pop .22s ease-out;}
+    .chainRow.activeHighlight{border:3px solid #ff7b3d;background:#fff4ec;}
+    .chainRow.deadHighlight{border:3px solid #2f75b5;background:#eef6ff;}
+    .chainInner{display:flex;align-items:center;flex-wrap:wrap;gap:3px;}
+    .unit{
+      width:18px;height:18px;border-radius:4px;border:1px solid #9fb6d6;background:#edf4ff;color:#1d4f84;
+      font-size:10px;font-weight:950;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+    }
+    .end{font-size:11px;font-weight:950;color:#fff;padding:4px 6px;border-radius:999px;line-height:1;white-space:nowrap;}
+    .oh{background:#13989b;}.radical{background:#cc4b4b;padding:4px 8px;}.deadEnd{background:#6b7280;padding:4px 8px;}
+    .len{margin-top:5px;font-size:12px;color:#555;font-weight:900;}
+
+    .reactionBox{margin-top:16px;padding:14px 16px;border-radius:16px;background:#fff7ee;border:1px solid #efcfaa;line-height:1.75;font-size:16px;}
+    .reactionBox .small{font-size:14px;color:#666;font-weight:800;margin-bottom:5px;}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:900;margin-right:8px;color:white;}
+    .b-init{background:#d97706;}.b-prop{background:#2563eb;}.b-term{background:#7c3aed;}
+
+    .steps{display:grid;gap:10px;}
+    .step{border:1px solid #ddd;border-radius:14px;padding:14px 16px;background:rgba(30,41,59,.76);}
+    .step.active{border:3px solid #ff7b3d;background:#fff4ec;}
+    .explain{color:#444;line-height:1.6;font-size:15px;}
+
+    /* 수식 렌더링용: MathJax 없이 HTML sub/sup만으로 깨지지 않게 표현 */
+    .math,
+    .eqMain,
+    .eqSmall{
+      font-family:"Times New Roman","Cambria Math","STIX Two Math",serif;
+      font-weight:700;
+      line-height:1.55;
+      letter-spacing:.01em;
+    }
+    .math{font-size:26px;margin-bottom:6px;}
+    .eqMain{font-size:30px;color:#0f4779;}
+    .eqSmall{margin-top:12px;font-size:26px;color:#fbbf24;}
+    .eqSub{margin-top:8px;color:#444;line-height:1.7;font-size:15px;}
+    .frac{
+      display:inline-grid;
+      grid-template-rows:auto 1px auto;
+      align-items:center;
+      text-align:center;
+      vertical-align:middle;
+      margin:0 .12em;
+    }
+    .frac .bar{background:currentColor;height:1px;width:100%;}
+    sup,sub{font-size:.65em;line-height:0;position:relative;vertical-align:baseline;}
+    sup{top:-.55em;} sub{bottom:-.2em;}
+    .sqrt{border-top:1.5px solid currentColor;padding-left:4px;position:relative;}
+    .sqrt::before{content:"√";margin-right:2px;}
+    .paren{font-size:1.25em;vertical-align:-.06em;}
+    .dotM{white-space:nowrap;}
+    .eqbox{margin-top:16px;border:1px solid #d8e1eb;background:#f8fafc;border-radius:16px;padding:16px;}
+    .note{margin-top:12px;color:#555;font-size:14px;line-height:1.6;}
+    @keyframes pop{from{transform:scale(.92);opacity:.4;}to{transform:scale(1);opacity:1;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="index_17.html">← 17장 목록</a>
+    <h1>연쇄 중합</h1>
+    <p class="lead">개시, 전파, 종결 단계가 활성 라디칼과 고분자 사슬을 어떻게 바꾸는지 봅니다.</p>
+
+
+    <div class="card">
+      <div class="title">1. 반응 그림</div>
+      <div class="controls">
+        <button id="randomBtn">random 반응 1회</button>
+        <button id="initBtn">개시</button>
+        <button id="propBtn">전파</button>
+        <button id="termBtn">종결</button>
+        <button id="autoBtn" class="auto">자동 진행</button>
+        <button id="resetBtn" class="reset">처음으로</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Initiator<br>[In]</div><div class="value" id="inText">6</div></div>
+        <div class="stat"><div class="label">Monomer<br>[M]</div><div class="value" id="mText">25</div></div>
+        <div class="stat"><div class="label">Active radicals<br>[M&bull;]</div><div class="value" id="radText">0</div></div>
+        <div class="stat"><div class="label">Dead polymer</div><div class="value" id="deadText">0</div></div>
+        <div class="stat"><div class="label">종결 횟수</div><div class="value" id="termCountText">0</div></div>
+        <div class="stat"><div class="label">가장 긴 사슬<br>R 개수</div><div class="value" id="maxText">0</div></div>
+      </div>
+
+      <div class="layout">
+        <div class="subcard">
+          <h3>Initiator</h3>
+          <div class="initiatorRow" id="initiatorRow"></div>
+        </div>
+        <div class="subcard">
+          <h3>Monomer 5×5</h3>
+          <div class="grid5" id="monomerGrid"></div>
+        </div>
+      </div>
+
+      <div class="layout" style="margin-top:16px;">
+        <div class="subcard">
+          <h3>Active chains: 끝에 라디칼 &bull;</h3>
+          <div class="chainList" id="activeList"></div>
+        </div>
+        <div class="subcard">
+          <h3>Dead polymer: 종결된 고분자</h3>
+          <div class="chainList" id="deadList"></div>
+        </div>
+      </div>
+
+      <div class="reactionBox" id="reactionBox">
+        <div class="small">이번 반응</div>
+        아직 반응 전
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">2. 식 유도</div>
+      <div class="steps">
+        <div class="step" id="step-init">
+          <div class="math">In &rarr; 2R&bull;, &nbsp;&nbsp; R&bull; + M &rarr; M<sub>1</sub>&bull;</div>
+          <div class="explain">
+            개시제 1개가 분해되면 라디칼 2개가 생성됩니다. 각 라디칼은 monomer에 부가되어 활성 사슬을 만듭니다.
+            따라서 활성 라디칼 생성 속도는 <b>2f k<sub>i</sub>[In]</b> 꼴입니다.
+          </div>
+        </div>
+
+        <div class="step" id="step-prop">
+          <div class="math">M<sub>n</sub>&bull; + M &rarr; M<sub>n+1</sub>&bull;</div>
+          <div class="explain">
+            전파에서는 활성 사슬 하나가 monomer 하나를 먹고 길이만 1 늘어납니다.
+            <b>[M&bull;] 개수는 그대로</b>이고 <b>[M]</b>만 감소합니다.
+          </div>
+        </div>
+
+        <div class="step" id="step-term">
+          <div class="math">M<sub>n</sub>&bull; + M<sub>m</sub>&bull; &rarr; M<sub>n+m</sub></div>
+          <div class="explain">
+            종결은 활성 라디칼 2개가 만나 비활성 고분자가 되는 과정입니다.
+            한 번 일어날 때 활성 라디칼이 2개 사라지므로 소멸 항은 <b>&minus;2k<sub>t</sub>[M&bull;]<sup>2</sup></b> 입니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="eqbox">
+        <div class="eqMain" id="eq1"></div>
+        <div class="eqSub" id="eq1sub"></div>
+
+        <div class="eqSmall" id="eq2"></div>
+        <div class="eqSub" id="eq2sub"></div>
+
+        <div class="eqSmall" id="eq3"></div>
+        <div class="eqSub" id="eq3sub"></div>
+      </div>
+
+
+    </div>
+  </div>
+
+<script>
+  const INITIAL_MONOMERS = 25;
+  const INITIAL_INITIATORS = 6;
+
+  let monomers = INITIAL_MONOMERS;
+  let initiators = INITIAL_INITIATORS;
+  let activeChains = [];
+  let deadChains = [];
+  let terminationCount = 0;
+  let lastEvent = null;
+  let autoTimer = null;
+  let autoRunning = false;
+  let highlightActive = [];
+  let highlightDead = [];
+
+  const initiatorRow = document.getElementById("initiatorRow");
+  const monomerGrid = document.getElementById("monomerGrid");
+  const activeList = document.getElementById("activeList");
+  const deadList = document.getElementById("deadList");
+  const inText = document.getElementById("inText");
+  const mText = document.getElementById("mText");
+  const radText = document.getElementById("radText");
+  const deadText = document.getElementById("deadText");
+  const termCountText = document.getElementById("termCountText");
+  const maxText = document.getElementById("maxText");
+  const reactionBox = document.getElementById("reactionBox");
+  const eq1 = document.getElementById("eq1");
+  const eq1sub = document.getElementById("eq1sub");
+  const eq2 = document.getElementById("eq2");
+  const eq2sub = document.getElementById("eq2sub");
+  const eq3 = document.getElementById("eq3");
+  const eq3sub = document.getElementById("eq3sub");
+  const stepInit = document.getElementById("step-init");
+  const stepProp = document.getElementById("step-prop");
+  const stepTerm = document.getElementById("step-term");
+  const randomBtn = document.getElementById("randomBtn");
+  const initBtn = document.getElementById("initBtn");
+  const propBtn = document.getElementById("propBtn");
+  const termBtn = document.getElementById("termBtn");
+  const autoBtn = document.getElementById("autoBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  function Mdot(){ return '<span class="dotM">M&bull;</span>'; }
+  function fracHTML(top, bottom){ return `<span class="frac"><span>${top}</span><span class="bar"></span><span>${bottom}</span></span>`; }
+  function ssFormulaHTML(){
+    return `정류 상태: ${fracHTML('d['+Mdot()+']','dt')} &asymp; 0 &nbsp;&rarr;&nbsp; [` + Mdot() + `] = ` +
+      `<span class="paren">(</span>${fracHTML('f k<sub>i</sub>','k<sub>t</sub>')}<span class="paren">)</span><sup>1/2</sup>[In]<sup>1/2</sup>`;
+  }
+
+  function clearHighlights(){ highlightActive = []; highlightDead = []; }
+  function activeMaxLength(){
+    const a = activeChains.length ? Math.max(...activeChains) : 0;
+    const d = deadChains.length ? Math.max(...deadChains) : 0;
+    return Math.max(a, d);
+  }
+
+  function renderInitiators(){
+    initiatorRow.innerHTML = "";
+    for(let i=0;i<initiators;i++){
+      const div = document.createElement("div");
+      div.className = "initiator";
+      div.textContent = "In";
+      initiatorRow.appendChild(div);
+    }
+    if(initiators === 0) initiatorRow.innerHTML = '<div style="color:#aaa;font-weight:900;">no initiator left</div>';
+  }
+
+  function renderMonomerGrid(){
+    monomerGrid.innerHTML = "";
+    for(let i=0;i<INITIAL_MONOMERS;i++){
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      const no = document.createElement("div");
+      no.className = "cellNo";
+      no.textContent = i+1;
+      cell.appendChild(no);
+      if(i < monomers){
+        const m = document.createElement("div");
+        m.className = "mLabel";
+        m.textContent = "M";
+        cell.appendChild(m);
+      }else{
+        cell.classList.add("empty");
+        const t = document.createElement("div");
+        t.style.fontWeight = "900";
+        t.textContent = "used";
+        cell.appendChild(t);
+      }
+      monomerGrid.appendChild(cell);
+    }
+  }
+
+  function chainInnerHTML(len, active=true){
+    let html = '<div class="chainInner"><span class="end oh">start</span>';
+    for(let i=0;i<len;i++) html += '<span class="unit">R</span>';
+    html += active ? '<span class="end radical">&bull;</span>' : '<span class="end deadEnd">end</span>';
+    html += '</div>';
+    html += `<div class="len">R × ${len}${active ? ' / active radical' : ' / dead polymer'}</div>`;
+    return html;
+  }
+
+  function renderActiveList(){
+    activeList.innerHTML = "";
+    if(activeChains.length === 0){ activeList.innerHTML = '<div style="color:#aaa;font-weight:900;">no active radicals</div>'; return; }
+    activeChains.forEach((len, idx)=>{
+      const row = document.createElement("div");
+      row.className = "chainRow";
+      if(highlightActive.includes(idx)) row.classList.add("activeHighlight");
+      row.innerHTML = chainInnerHTML(len, true);
+      activeList.appendChild(row);
+    });
+  }
+
+  function renderDeadList(){
+    deadList.innerHTML = "";
+    if(deadChains.length === 0){ deadList.innerHTML = '<div style="color:#aaa;font-weight:900;">no dead polymer yet</div>'; return; }
+    deadChains.forEach((len, idx)=>{
+      const row = document.createElement("div");
+      row.className = "chainRow";
+      if(highlightDead.includes(idx)) row.classList.add("deadHighlight");
+      row.innerHTML = chainInnerHTML(len, false);
+      deadList.appendChild(row);
+    });
+  }
+
+  function updateStats(){
+    inText.textContent = initiators;
+    mText.textContent = monomers;
+    radText.textContent = activeChains.length;
+    deadText.textContent = deadChains.length;
+    termCountText.textContent = terminationCount;
+    maxText.textContent = activeMaxLength();
+
+    const In = initiators;
+    const Mrad = activeChains.length;
+    const M = monomers;
+    const productionProxy = 2 * In;
+    const depletionProxy = 2 * Mrad * Mrad;
+    const vpProxy = Mrad * M;
+
+    eq1.innerHTML = `${fracHTML('d['+Mdot()+']','dt')} = 2f k<sub>i</sub>[In] &minus; 2k<sub>t</sub>[${Mdot()}]<sup>2</sup>`;
+    eq1sub.innerHTML = `현재 그림에서 생성항은 대략 <b>2×[In] = ${productionProxy}</b>, 소멸항은 대략 <b>2×[M&bull;]<sup>2</sup> = ${depletionProxy}</b> 에 비례합니다.`;
+    eq2.innerHTML = ssFormulaHTML();
+
+    const diff = Math.abs(productionProxy - depletionProxy);
+    eq2sub.innerHTML = diff <= 2
+      ? `생성항과 소멸항이 비슷하므로 <b>d[M&bull;]/dt &asymp; 0</b>인 정류 상태 근사가 잘 보입니다.`
+      : `아직 생성항과 소멸항의 차이가 커서 정류 상태에 도달하기 전입니다. 그래도 정류 상태에서는 위 식처럼 <b>[M&bull;] &prop; [In]<sup>1/2</sup></b>가 됩니다.`;
+
+    eq3.innerHTML = `v<sub>p</sub> = k<sub>p</sub>[${Mdot()}][M] = k<sub>p</sub><span class="paren">(</span>${fracHTML('f k<sub>i</sub>','k<sub>t</sub>')}<span class="paren">)</span><sup>1/2</sup>[In]<sup>1/2</sup>[M]`;
+    eq3sub.innerHTML = `현재 그림에서는 전파 속도 척도가 <b>[M&bull;][M] = ${Mrad}×${M} = ${vpProxy}</b> 입니다. 활성 사슬과 monomer가 모두 많을수록 전파가 빠릅니다.`;
+
+    initBtn.disabled = !(initiators >= 1 && monomers >= 2);
+    propBtn.disabled = !(activeChains.length >= 1 && monomers >= 1);
+    termBtn.disabled = !(activeChains.length >= 2);
+    randomBtn.disabled = feasibleEvents().length === 0;
+  }
+
+  function setActiveStep(name){
+    [stepInit, stepProp, stepTerm].forEach(s=>s.classList.remove("active"));
+    if(name === "init") stepInit.classList.add("active");
+    if(name === "prop") stepProp.classList.add("active");
+    if(name === "term") stepTerm.classList.add("active");
+  }
+
+  function renderReactionBox(){
+    if(!lastEvent){ reactionBox.innerHTML = `<div class="small">이번 반응</div>아직 반응 전`; return; }
+    if(lastEvent.type === "init"){
+      reactionBox.innerHTML = `<div class="small">이번 반응</div><span class="badge b-init">개시</span>In &rarr; 2R&bull;, &nbsp; R&bull; + M &rarr; M<sub>1</sub>&bull; <b>두 번</b><div style="margin-top:8px;font-size:15px;color:#444;">개시제 1개가 사라지고 활성 사슬 2개가 새로 생겼습니다. 생성항 <b>2f k<sub>i</sub>[In]</b>과 연결됩니다.</div>`;
+      setActiveStep("init");
+    }
+    if(lastEvent.type === "prop"){
+      reactionBox.innerHTML = `<div class="small">이번 반응</div><span class="badge b-prop">전파</span>M<sub>${lastEvent.before}</sub>&bull; + M &rarr; M<sub>${lastEvent.after}</sub>&bull;<div style="margin-top:8px;font-size:15px;color:#444;">active radical 수는 그대로이고 선택된 사슬 길이만 1 증가했습니다. 따라서 전파 속도는 <b>k<sub>p</sub>[M&bull;][M]</b>입니다.</div>`;
+      setActiveStep("prop");
+    }
+    if(lastEvent.type === "term"){
+      reactionBox.innerHTML = `<div class="small">이번 반응</div><span class="badge b-term">종결</span>M<sub>${lastEvent.a}</sub>&bull; + M<sub>${lastEvent.b}</sub>&bull; &rarr; M<sub>${lastEvent.product}</sub><div style="margin-top:8px;font-size:15px;color:#444;">활성 라디칼 2개가 사라지고 dead polymer 1개가 생겼습니다. 소멸항 <b>&minus;2k<sub>t</sub>[M&bull;]<sup>2</sup></b>와 연결됩니다.</div>`;
+      setActiveStep("term");
+    }
+  }
+
+  function drawAll(){
+    renderInitiators();
+    renderMonomerGrid();
+    renderActiveList();
+    renderDeadList();
+    updateStats();
+    renderReactionBox();
+  }
+
+  function doInitiation(){
+    if(initiators < 1 || monomers < 2) return false;
+    clearHighlights();
+    initiators -= 1;
+    monomers -= 2;
+    activeChains.push(1, 1);
+    highlightActive = [activeChains.length - 2, activeChains.length - 1];
+    lastEvent = { type:"init" };
+    drawAll();
+    return true;
+  }
+
+  function doPropagation(){
+    if(activeChains.length < 1 || monomers < 1) return false;
+    clearHighlights();
+    const idx = Math.floor(Math.random() * activeChains.length);
+    const before = activeChains[idx];
+    activeChains[idx] += 1;
+    monomers -= 1;
+    highlightActive = [idx];
+    lastEvent = { type:"prop", before, after:before+1 };
+    drawAll();
+    return true;
+  }
+
+  function doTermination(){
+    if(activeChains.length < 2) return false;
+    clearHighlights();
+    let i = Math.floor(Math.random() * activeChains.length);
+    let j;
+    do{ j = Math.floor(Math.random() * activeChains.length); }while(j === i);
+    const idx1 = Math.max(i, j);
+    const idx2 = Math.min(i, j);
+    const a = activeChains[idx1];
+    const b = activeChains[idx2];
+    const product = a + b;
+    activeChains.splice(idx1, 1);
+    activeChains.splice(idx2, 1);
+    deadChains.push(product);
+    highlightDead = [deadChains.length - 1];
+    terminationCount += 1;
+    lastEvent = { type:"term", a, b, product };
+    drawAll();
+    return true;
+  }
+
+  function feasibleEvents(){
+    const arr = [];
+    if(initiators >= 1 && monomers >= 2) arr.push("init");
+    if(activeChains.length >= 1 && monomers >= 1) arr.push("prop");
+    if(activeChains.length >= 2) arr.push("term");
+    return arr;
+  }
+
+  function doRandomStep(){
+    const possible = feasibleEvents();
+    if(possible.length === 0) return;
+    const weighted = [];
+    possible.forEach(type=>{
+      if(type === "init") weighted.push(type, type);
+      if(type === "prop") weighted.push(type, type, type, type);
+      if(type === "term") weighted.push(type, type);
+    });
+    const chosen = weighted[Math.floor(Math.random() * weighted.length)];
+    if(chosen === "init") doInitiation();
+    if(chosen === "prop") doPropagation();
+    if(chosen === "term") doTermination();
+  }
+
+  function toggleAuto(){
+    autoRunning = !autoRunning;
+    if(autoRunning){
+      autoBtn.textContent = "자동 정지";
+      autoTimer = setInterval(()=>{
+        if(feasibleEvents().length === 0){ toggleAuto(); return; }
+        doRandomStep();
+      }, 700);
+    }else{
+      autoBtn.textContent = "자동 진행";
+      clearInterval(autoTimer);
+    }
+  }
+
+  function resetAll(){
+    initiators = INITIAL_INITIATORS;
+    monomers = INITIAL_MONOMERS;
+    activeChains = [];
+    deadChains = [];
+    terminationCount = 0;
+    lastEvent = null;
+    clearHighlights();
+    [stepInit, stepProp, stepTerm].forEach(s=>s.classList.remove("active"));
+    if(autoRunning) toggleAuto();
+    drawAll();
+  }
+
+  randomBtn.addEventListener("click", doRandomStep);
+  initBtn.addEventListener("click", doInitiation);
+  propBtn.addEventListener("click", doPropagation);
+  termBtn.addEventListener("click", doTermination);
+  autoBtn.addEventListener("click", toggleAuto);
+  resetBtn.addEventListener("click", resetAll);
+  resetAll();
+</script>
+</body>
+</html>

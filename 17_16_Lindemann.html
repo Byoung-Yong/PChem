@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>린데만 메커니즘 I | 물리화학3</title>
+    <!-- MathJax 인라인 수식 설정 -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <!-- MathJax CDN 로드 -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: "Pretendard", "Noto Sans KR", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            background:
+                radial-gradient(circle at 50% -10%, rgba(251, 191, 36, 0.16), transparent 34rem),
+                linear-gradient(to right, rgba(251, 191, 36, 0.045) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(251, 191, 36, 0.045) 1px, transparent 1px),
+                #0f172a;
+            background-size: auto, 40px 40px, 40px 40px, auto;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 980px;
+            width: 100%;
+            background: rgba(30, 41, 59, 0.76);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 8px;
+            box-shadow: 0 18px 40px -28px rgba(251, 191, 36, 0.7);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+            padding-bottom: 16px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            margin: 0 0 6px 0;
+            color: #f8fafc;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            margin: 0;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .main-layout {
+                grid-template-columns: 1.1fr 1fr;
+            }
+        }
+
+        .canvas-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        canvas {
+            background-color: #fdfdfd;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            touch-action: none;
+            max-width: 100%;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            background-color: #ffffff;
+        }
+
+        .button-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #334155;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button:hover {
+            background-color: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        button.active {
+            background-color: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+
+        button .sub {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            font-weight: normal;
+        }
+
+        .narration-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            min-height: 85px;
+            color: #334155;
+            transition: border-color 0.3s ease;
+            display: block; 
+            box-sizing: border-box;
+            word-break: keep-all;
+        }
+
+        .sandbox-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .sandbox-controls button {
+            flex: 1;
+            font-size: 0.8rem;
+            padding: 8px;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .legend-bar {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .formula-container {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            font-size: 0.9rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #edf2f7;
+            text-align: center;
+            align-items: center;
+        }
+
+        .active-eq {
+            color: #2563eb;
+            font-weight: bold;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <nav style="margin-bottom: 4px;"><a href="index_17.html" style="color:#fbbf24;text-decoration:none;font-size:14px;font-weight:800;">← 17장 목록</a></nav>
+        <header>
+            <h1>단분자 반응: 린데만 메커니즘 1:1 충돌 모델</h1>
+            <p>두 분자의 에너지 교환, 들뜬 상태 형성, 생성물 분해 과정을 직관적으로 확인합니다.</p>
+        </header>
+
+        <div class="main-layout">
+            <!-- 왼쪽: 반응 연출 구역 -->
+            <div class="canvas-area">
+                <canvas id="stageCanvas" width="400" height="280"></canvas>
+                
+                <!-- 범례 표시 -->
+                <div class="legend-bar">
+                    <div class="legend-item">
+                        <div class="dot" style="background: radial-gradient(circle, #fbcfe8, #db2777);"></div>
+                        <span>A (기본 분자)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="dot" style="background: radial-gradient(circle, #f3e8ff, #7e22ce);"></div>
+                        <span>A* (들뜬 중간체)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="dot" style="background: radial-gradient(circle, #ccfbf1, #0f766e);"></div>
+                        <span>P (생성물)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 학습 통제국 -->
+            <div class="control-panel">
+                <div class="panel-card">
+                    <div class="button-stack">
+                        <button id="btnStep1" onclick="loadScenario(1)" class="active">
+                            <span>1단계: 충돌 활성화</span>
+                            <span class="sub">A + A &rarr; A<sup>*</sup> + A</span>
+                        </button>
+                        <button id="btnStep2" onclick="loadScenario(2)">
+                            <span>2단계 [경로 1]: 비활성화 (진정)</span>
+                            <span class="sub">A<sup>*</sup> + A &rarr; A + A</span>
+                        </button>
+                        <button id="btnStep3" onclick="loadScenario(3)">
+                            <span>2단계 [경로 2]: 생성물 분해</span>
+                            <span class="sub">A<sup>*</sup> &rarr; P</span>
+                        </button>
+                        <button id="btnSandbox" onclick="loadSandbox()">
+                            <span>🧪 1:1 반응 자유 실험실</span>
+                            <span class="sub">직접 컨트롤</span>
+                        </button>
+                    </div>
+
+                    <!-- 샌드박 전용 리셋 도구 -->
+                    <div id="sandboxTools" class="sandbox-controls" style="display: none;">
+                        <button onclick="setSandboxState('AA')">A + A 준비</button>
+                        <button onclick="setSandboxState('AStarA')">A<sup>*</sup> + A 준비</button>
+                        <button onclick="setSandboxState('reset')">전체 리셋</button>
+                    </div>
+                </div>
+
+                <!-- 단계 수식 -->
+                <div class="formula-container">
+                    <div><span id="formula1">1) $A + A \rightarrow A^* + A$</span></div>
+                    <div><span id="formula2">2) $A^* + A \rightarrow A + A$</span></div>
+                    <div><span id="formula3">3) $A^* \rightarrow P$</span></div>
+                </div>
+
+                <!-- 실시간 흐름 내레이션 -->
+                <div class="narration-box" id="narrationText">
+                    정보를 로딩하고 있습니다...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('stageCanvas');
+        const ctx = canvas.getContext('2d');
+        const narrationText = document.getElementById('narrationText');
+        const sandboxTools = document.getElementById('sandboxTools');
+
+        const RADIUS = 28;
+        let particles = [];
+        let currentMode = 'scenario'; // 'scenario' | 'sandbox'
+        let scenarioId = 1;
+        let hasReacted = false; // 반응 전이 완료 여부 플래그
+        let timer = 0;
+        let animationFrameId = null;
+
+        // 충돌 시각 효과 구조체
+        let splashEffect = {
+            x: 0,
+            y: 0,
+            radius: 0,
+            maxRadius: 50,
+            alpha: 0,
+            active: false,
+            color: '#7e22ce'
+        };
+
+        // 드래그 제어 변수
+        let selectedParticle = null;
+        let dragOffset = { x: 0, y: 0 };
+        let lastMousePos = { x: 0, y: 0 };
+
+        // MathJax 업데이트 연동용 텍스트 주입 함수
+        function updateNarration(htmlContent, borderColor = "#3b82f6") {
+            narrationText.innerHTML = htmlContent;
+            narrationText.style.borderLeftColor = borderColor;
+            
+            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise([narrationText]).catch(err => console.warn(err));
+            }
+        }
+
+        // 1:1 정밀 구체 분자 모델 클래스
+        class Particle {
+            constructor(x, y, state, label) {
+                this.x = x;
+                this.y = y;
+                this.radius = RADIUS;
+                this.state = state; // 'A' | 'A*' | 'P'
+                this.label = label;
+                this.vx = 0;
+                this.vy = 0;
+                this.isDragged = false;
+                this.decayTimer = 0;
+                this.decayMax = 150; // 샌드박스에서 A*가 P로 바뀌기까지 걸리는 시간
+            }
+
+            update() {
+                if (!this.isDragged) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // 벽면 충돌 처리
+                    if (this.x - this.radius < 0) {
+                        this.x = this.radius;
+                        this.vx = -this.vx;
+                    } else if (this.x + this.radius > canvas.width) {
+                        this.x = canvas.width - this.radius;
+                        this.vx = -this.vx;
+                    }
+                    if (this.y - this.radius < 0) {
+                        this.y = this.radius;
+                        this.vy = -this.vy;
+                    } else if (this.y + this.radius > canvas.height) {
+                        this.y = canvas.height - this.radius;
+                        this.vy = -this.vy;
+                    }
+
+                    // 감속 마찰 적용
+                    this.vx *= 0.985;
+                    this.vy *= 0.985;
+                    if (Math.abs(this.vx) < 0.05) this.vx = 0;
+                    if (Math.abs(this.vy) < 0.05) this.vy = 0;
+                }
+
+                // 샌드박스 모드에서 A* 자발적 붕괴 메커니즘
+                if (currentMode === 'sandbox' && this.state === 'A*') {
+                    this.decayTimer++;
+                    if (this.decayTimer >= this.decayMax) {
+                        this.state = 'P';
+                        this.label = 'P';
+                        this.decayTimer = 0;
+                        triggerSplash(this.x, this.y, '#0f766e');
+                        updateNarration(
+                            "<strong>단분자 붕괴 완료!</strong> 충돌 방해를 받지 않고 일정 시간 에너지를 축적한 $A^*$ 분자가 안정한 <strong>생성물(P)</strong>로 온전히 변환되었습니다.",
+                            "#0f766e"
+                        );
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                
+                let grad = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    this.radius * 0.05,
+                    this.x,
+                    this.y,
+                    this.radius
+                );
+
+                if (this.state === 'A') {
+                    grad.addColorStop(0, '#fbcfe8');
+                    grad.addColorStop(1, '#db2777');
+                } else if (this.state === 'A*') {
+                    grad.addColorStop(0, '#f3e8ff');
+                    grad.addColorStop(1, '#7e22ce');
+                } else if (this.state === 'P') {
+                    grad.addColorStop(0, '#ccfbf1');
+                    grad.addColorStop(1, '#0f766e');
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.closePath();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 13px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.label, this.x, this.y);
+
+                if (currentMode === 'sandbox' && this.state === 'A*') {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 5, -Math.PI/2, -Math.PI/2 + (Math.PI*2)*(1 - this.decayTimer/this.decayMax));
+                    ctx.strokeStyle = '#7e22ce';
+                    ctx.lineWidth = 2.5;
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // 충돌 시각 효과 시작
+        function triggerSplash(x, y, color) {
+            splashEffect.x = x;
+            splashEffect.y = y;
+            splashEffect.radius = 5;
+            splashEffect.alpha = 0.8;
+            splashEffect.active = true;
+            splashEffect.color = color;
+        }
+
+        // 충돌 시각 효과 드로잉
+        function drawSplash() {
+            if (!splashEffect.active) return;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(splashEffect.x, splashEffect.y, splashEffect.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = splashEffect.color;
+            ctx.globalAlpha = splashEffect.alpha;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.closePath();
+            ctx.restore();
+
+            splashEffect.radius += 2.5;
+            splashEffect.alpha -= 0.03;
+
+            if (splashEffect.alpha <= 0) {
+                splashEffect.active = false;
+            }
+        }
+
+        // 물리 및 화학적 충돌 해석기
+        function resolveTwoParticlePhysics(p1, p2) {
+            let dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+            let minDist = p1.radius + p2.radius;
+
+            if (dist < minDist) {
+                let overlap = minDist - dist;
+                let nx = (p2.x - p1.x) / dist;
+                let ny = (p2.y - p1.y) / dist;
+
+                if (!p1.isDragged && !p2.isDragged) {
+                    p1.x -= nx * overlap * 0.5;
+                    p1.y -= ny * overlap * 0.5;
+                } else if (p1.isDragged) {
+                    p2.x += nx * overlap;
+                } else if (p2.isDragged) {
+                    p1.x -= nx * overlap;
+                }
+
+                let kx = p1.vx - p2.vx;
+                let ky = p1.vy - p2.vy;
+                let vn = kx * nx + ky * ny;
+
+                if (vn > 0) {
+                    let impulse = 2 * vn / 2;
+                    if (!p1.isDragged) {
+                        p1.vx -= impulse * nx;
+                        p1.vy -= impulse * ny;
+                    }
+                    if (!p2.isDragged) {
+                        p2.vx += impulse * nx;
+                        p2.vy += impulse * ny;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // 가이드 시나리오 불러오기
+        function loadScenario(id) {
+            currentMode = 'scenario';
+            scenarioId = id;
+            hasReacted = false;
+            timer = 0;
+            particles = [];
+            splashEffect.active = false;
+
+            document.querySelectorAll('.button-stack button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btnStep${id}`).classList.add('active');
+            sandboxTools.style.display = 'none';
+
+            document.querySelectorAll('.formula-container span').forEach(s => s.className = '');
+            document.getElementById(`formula${id}`).className = 'active-eq';
+
+            if (id === 1) {
+                particles.push(new Particle(70, canvas.height/2, 'A', 'A'));
+                particles.push(new Particle(330, canvas.height/2, 'A', 'A'));
+                particles[0].vx = 2.0;
+                particles[1].vx = -2.0;
+                updateNarration(
+                    "<strong>1단계 충돌 활성화:</strong> 두 반응물 분자(A)가 충분한 속도(에너지)를 갖고 마주 보며 접근합니다.",
+                    "#3b82f6"
+                );
+            } 
+            else if (id === 2) {
+                particles.push(new Particle(70, canvas.height/2, 'A*', 'A*'));
+                particles.push(new Particle(330, canvas.height/2, 'A', 'A'));
+                particles[0].vx = 2.0;
+                particles[1].vx = -2.0;
+                updateNarration(
+                    "<strong>2단계 [경로 1] 진정:</strong> 이미 큰 에너지를 품은 보라색 분자($A^*$)가 평범한 분자(A)와 한 번 더 충돌합니다.",
+                    "#3b82f6"
+                );
+            } 
+            else if (id === 3) {
+                particles.push(new Particle(canvas.width/2, canvas.height/2, 'A*', 'A*'));
+                updateNarration(
+                    "<strong>2단계 [경로 2] 생산:</strong> 주위 충돌 없이 안정된 상태를 유지하면, 들뜬 분자($A^*$)가 온전히 스스로 붕괴합니다.",
+                    "#0f766e"
+                );
+            }
+        }
+
+        // 자유 실험실 불러오기
+        function loadSandbox() {
+            currentMode = 'sandbox';
+            hasReacted = false;
+            particles = [];
+            splashEffect.active = false;
+
+            document.querySelectorAll('.button-stack button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btnSandbox').classList.add('active');
+            sandboxTools.style.display = 'flex';
+
+            document.querySelectorAll('.formula-container span').forEach(s => s.className = '');
+
+            setSandboxState('AA');
+        }
+
+        // 샌드박스 상태 제어
+        function setSandboxState(stateType) {
+            hasReacted = false;
+            particles = [];
+            
+            if (stateType === 'AA') {
+                particles.push(new Particle(100, canvas.height/2, 'A', 'A'));
+                particles.push(new Particle(300, canvas.height/2, 'A', 'A'));
+                updateNarration(
+                    "<strong>A + A 상태 준비 완료:</strong> 두 분자를 드래그하여 가볍게 마주 던져 보세요. 충돌 에너지가 새로운 $A^*$를 만듭니다.",
+                    "#db2777"
+                );
+            } 
+            else if (stateType === 'AStarA') {
+                particles.push(new Particle(100, canvas.height/2, 'A*', 'A*'));
+                particles.push(new Particle(300, canvas.height/2, 'A', 'A'));
+                updateNarration(
+                    "<strong>$A^*$ + A 상태 준비 완료:</strong> 들뜬 분자($A^*$)가 주위의 정상적인 분자와 부딪쳐 에너지를 해소하는 현상을 연습해 보세요.",
+                    "#7e22ce"
+                );
+            } 
+            else if (stateType === 'reset') {
+                setSandboxState('AA');
+            }
+        }
+
+        // 메인 루프
+        function loop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            if (currentMode === 'scenario') {
+                timer++;
+                runScenarioLogic();
+            } else {
+                runSandboxLogic();
+            }
+
+            drawSplash();
+
+            animationFrameId = requestAnimationFrame(loop);
+        }
+
+        // 가이드라인 정밀 흐름 제어
+        function runScenarioLogic() {
+            let p1 = particles[0];
+            let p2 = particles[1];
+
+            if (scenarioId === 1 && p1 && p2) {
+                let collided = resolveTwoParticlePhysics(p1, p2);
+                if (collided && !hasReacted) {
+                    p1.state = 'A*';
+                    p1.label = 'A*';
+                    hasReacted = true;
+
+                    let midX = (p1.x + p2.x) / 2;
+                    let midY = (p1.y + p2.y) / 2;
+                    triggerSplash(midX, midY, '#7e22ce');
+
+                    updateNarration(
+                        "<strong>1단계 충돌 활성 성공!</strong> 두 기본 분자(A)가 충돌하여 충돌 에너지가 한 분자로 보존되었습니다. 그 결과 높은 에너지를 지닌 <strong>들뜬 분자($A^*$)</strong>를 촉발하고 그대로 반사해 나갑니다.",
+                        "#7e22ce"
+                    );
+                }
+            } 
+            else if (scenarioId === 2 && p1 && p2) {
+                let collided = resolveTwoParticlePhysics(p1, p2);
+                if (collided && !hasReacted) {
+                    p1.state = 'A';
+                    p1.label = 'A';
+                    hasReacted = true;
+
+                    let midX = (p1.x + p2.x) / 2;
+                    let midY = (p1.y + p2.y) / 2;
+                    triggerSplash(midX, midY, '#db2777');
+
+                    updateNarration(
+                        "<strong>2단계 [경로 1] 비활성화 성공!</strong> 들뜬 분자($A^*$)가 분해되기 전에 다른 일반 분자(A)와 다시 한번 충돌하며, 가졌던 운동 에너지를 빼앗겨 기본 분자(A)로 <strong>진정</strong>된 채 튕겨 나갑니다.",
+                        "#db2777"
+                    );
+                }
+            } 
+            else if (scenarioId === 3 && p1) {
+                if (timer < 90) {
+                    p1.x += (Math.random() - 0.5) * 1.5;
+                    p1.y += (Math.random() - 0.5) * 1.5;
+                } else if (!hasReacted) {
+                    p1.state = 'P';
+                    p1.label = 'P';
+                    hasReacted = true;
+                    triggerSplash(p1.x, p1.y, '#0f766e');
+                    
+                    updateNarration(
+                        "<strong>2단계 [경로 2] 단분자 분해 성공!</strong> 충분한 시간 동안 다른 분자와의 간섭이 배제되자, 들뜬 분자($A^*$)가 스스로 구조 변화를 거쳐 <strong>생성물(P)</strong>로 온전히 변환 완료되었습니다.",
+                        "#0f766e"
+                    );
+                }
+            }
+        }
+
+        // 샌드박스 모드 충돌 전이 판정
+        function runSandboxLogic() {
+            if (particles.length === 2) {
+                let p1 = particles[0];
+                let p2 = particles[1];
+
+                let collided = resolveTwoParticlePhysics(p1, p2);
+
+                if (collided) {
+                    let midX = (p1.x + p2.x) / 2;
+                    let midY = (p1.y + p2.y) / 2;
+
+                    if (p1.state === 'A' && p2.state === 'A') {
+                        if (Math.random() < 0.5) {
+                            p1.state = 'A*'; p1.label = 'A*'; p1.decayTimer = 0;
+                        } else {
+                            p2.state = 'A*'; p2.label = 'A*'; p2.decayTimer = 0;
+                        }
+                        triggerSplash(midX, midY, '#7e22ce');
+                        updateNarration(
+                            "<strong>샌드박스 화학 현상:</strong> A + A 가 물리적 운동 에너지 충돌을 거쳐 들뜬 분자인 <strong>$A^*$ 분자</strong>를 자극 및 생성했습니다.",
+                            "#7e22ce"
+                        );
+                    } 
+                    else if ((p1.state === 'A*' && p2.state === 'A') || (p1.state === 'A' && p2.state === 'A*')) {
+                        p1.state = 'A'; p1.label = 'A'; p1.decayTimer = 0;
+                        p2.state = 'A'; p2.label = 'A'; p2.decayTimer = 0;
+                        triggerSplash(midX, midY, '#db2777');
+                        updateNarration(
+                            "<strong>샌드박스 화학 현상:</strong> 에너지를 풍부하게 머금고 있던 분자가 평범한 분자와 부딪쳐 내부 위치에너지를 잃고 <strong>진정</strong>되었습니다.",
+                            "#db2777"
+                        );
+                    }
+                }
+            }
+        }
+
+        // 드래그 이벤트 좌표 분석
+        function getEventCoords(evt) {
+            let rect = canvas.getBoundingClientRect();
+            let scaleX = canvas.width / rect.width;
+            let scaleY = canvas.height / rect.height;
+
+            let clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            let clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function onStart(evt) {
+            if (currentMode !== 'sandbox') return;
+            let pos = getEventCoords(evt);
+
+            for (let p of particles) {
+                let dist = Math.hypot(p.x - pos.x, p.y - pos.y);
+                if (dist < p.radius) {
+                    selectedParticle = p;
+                    p.isDragged = true;
+                    dragOffset.x = pos.x - p.x;
+                    dragOffset.y = pos.y - p.y;
+                    p.vx = 0;
+                    p.vy = 0;
+                    lastMousePos = { x: pos.x, y: pos.y };
+                    break;
+                }
+            }
+        }
+
+        function onMove(evt) {
+            if (!selectedParticle) return;
+            evt.preventDefault();
+            let pos = getEventCoords(evt);
+
+            selectedParticle.x = Math.max(selectedParticle.radius, Math.min(canvas.width - selectedParticle.radius, pos.x - dragOffset.x));
+            selectedParticle.y = Math.max(selectedParticle.radius, Math.min(canvas.height - selectedParticle.radius, pos.y - dragOffset.y));
+
+            selectedParticle.vx = (pos.x - lastMousePos.x) * 0.45;
+            selectedParticle.vy = (pos.y - lastMousePos.y) * 0.45;
+
+            let maxSpeed = 7.5;
+            selectedParticle.vx = Math.max(-maxSpeed, Math.min(maxSpeed, selectedParticle.vx));
+            selectedParticle.vy = Math.max(-maxSpeed, Math.min(maxSpeed, selectedParticle.vy));
+
+            lastMousePos = { x: pos.x, y: pos.y };
+        }
+
+        function onEnd() {
+            if (selectedParticle) {
+                selectedParticle.isDragged = false;
+                selectedParticle = null;
+            }
+        }
+
+        canvas.addEventListener('mousedown', onStart);
+        canvas.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+
+        canvas.addEventListener('touchstart', onStart, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadScenario(1);
+            loop();
+        });
+
+        window.onload = function() {
+            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise().catch(err => console.warn(err));
+            }
+        };
+    </script>
+</body>
+</html>

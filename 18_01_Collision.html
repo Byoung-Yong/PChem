@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>분자 운동과 충돌 | 물리화학3</title>
+    <!-- Tailwind CSS v3 CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* 사용자 지정 폰트 설정 (영문 폰트명만 사용하여 규칙 준수) */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background:radial-gradient(circle at 50% -10%, rgba(251,113,133,.14), transparent 34rem),linear-gradient(to right, rgba(251,113,133,.04) 1px, transparent 1px),linear-gradient(to bottom, rgba(251,113,133,.04) 1px, transparent 1px),#0f172a;background-size:auto,40px 40px,40px 40px,auto;
+            color: #f3f4f6;
+        }
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- 상단 헤더 내비게이션 -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                    <i data-lucide="orbit" class="w-6 h-6 animate-spin-slow"></i>
+                </div>
+                <div>
+                    <a href="index_18.html" class="text-xs font-bold text-rose-300 hover:text-rose-200">← 18장 목록</a>
+                    <h1 class="text-xl font-bold tracking-tight text-white">기체 분자 운동 및 충돌 시뮬레이터</h1>
+                    <p class="text-xs text-slate-400">눈으로 직접 확인하는 분자들의 움직임과 충돌 빈도 변화</p>
+                </div>
+            </div>
+            <!-- 핵심 탭 메뉴 -->
+            <nav class="flex gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button onclick="switchTab('sandbox')" id="tab-sandbox" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow">
+                    <span class="flex items-center gap-2"><i data-lucide="play" class="w-4 h-4"></i>분자 운동 시뮬레이션</span>
+                </button>
+                <button onclick="switchTab('cylinder')" id="tab-cylinder" class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-white">
+                    <span class="flex items-center gap-2"><i data-lucide="box" class="w-4 h-4"></i>충돌 터널(범위) 시각화</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
+
+        <!-- TAB 1: 분자 운동 시뮬레이션 -->
+        <div id="content-sandbox" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 왼쪽: 시뮬레이션 뷰포트 -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-4 relative overflow-hidden">
+                    <div class="flex justify-between items-center z-10">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span class="text-sm font-semibold tracking-wider text-slate-200">실시간 움직임 관찰 챔버</span>
+                        </div>
+                        <!-- 컨트롤 버튼들 -->
+                        <div class="flex gap-2">
+                            <button id="btn-play" onclick="togglePlay()" class="p-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-indigo-400 hover:text-indigo-300 rounded-lg border border-slate-700 transition" title="재생/일시정지">
+                                <i data-lucide="pause" id="icon-play" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="resetCounters()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 rounded-lg border border-slate-700 transition text-xs flex items-center gap-1">
+                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 계측 초기화
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 캔버스 컨테이너 -->
+                    <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                        <canvas id="sandbox-canvas" class="w-full h-full block"></canvas>
+                        <!-- 일시정지 오버레이 -->
+                        <div id="pause-overlay" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm hidden flex-col items-center justify-center gap-2">
+                            <div class="p-4 bg-indigo-600/20 text-indigo-400 rounded-full border border-indigo-500/30 animate-pulse">
+                                <i data-lucide="pause-circle" class="w-10 h-10"></i>
+                            </div>
+                            <span class="text-sm font-semibold text-slate-300">시뮬레이션 일시정지됨</span>
+                        </div>
+                    </div>
+
+                    <!-- 실시간 대시보드 메트릭 (수식 없이 직관적인 정보들만 배치) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">누적 충돌 횟수</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span id="val-total-collisions" class="text-2xl font-bold text-slate-100">0</span>
+                                <span class="text-xs text-slate-500">회</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+                            <span class="text-[10px] text-indigo-400 font-semibold uppercase tracking-wider">초당 충돌 수 (빈도)</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span id="val-sim-rate" class="text-2xl font-bold text-indigo-400">0.0</span>
+                                <span class="text-xs text-slate-500">회/초</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+                            <span class="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">평균 속력</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span id="val-avg-speed" class="text-2xl font-bold text-emerald-400">0.0</span>
+                                <span class="text-[10px] text-slate-500">정밀단위</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+                            <span class="text-[10px] text-rose-400 font-semibold uppercase tracking-wider">전체 분자 수</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span id="val-total-particles" class="text-2xl font-bold text-rose-400">80</span>
+                                <span class="text-[10px] text-slate-500">개</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 시뮬레이션 설정 토글 -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap gap-4 items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm font-medium text-slate-300">화면 표시:</span>
+                        <label class="inline-flex items-center cursor-pointer gap-2 select-none">
+                            <input type="checkbox" id="chk-show-vectors" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 relative"></div>
+                            <span class="text-xs text-slate-400 peer-checked:text-slate-200">이동 방향 표시</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer gap-2 select-none">
+                            <input type="checkbox" id="chk-show-cross" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 relative"></div>
+                            <span class="text-xs text-slate-400 peer-checked:text-slate-200">충돌 유효 반경 표시</span>
+                        </label>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="setMode('AB')" id="btn-mode-AB" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 border border-indigo-500 text-white shadow">다른 종류 분자 섞기 (A + B)</button>
+                        <button onclick="setMode('AA')" id="btn-mode-AA" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white">같은 종류 분자만 두기 (A + A)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 컨트롤러 및 실시간 충돌 빈도 기록기 -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                <!-- 제어 슬라이더 그룹 -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                    <h3 class="text-md font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i> 실험 조건 조절하기
+                    </h3>
+
+                    <!-- 온도 Slider -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-300 font-semibold">분자의 움직임 빠르기 (온도 효과)</span>
+                            <span id="lbl-temp" class="text-indigo-400 font-mono font-bold">보통</span>
+                        </div>
+                        <input type="range" id="slider-temp" min="50" max="600" value="300" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    </div>
+
+                    <!-- 개수밀도 (입자수) A & B -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-red-400 font-semibold">빨간 분자 개수</span>
+                                <span id="lbl-numA" class="font-mono font-bold">40</span>
+                            </div>
+                            <input type="range" id="slider-numA" min="5" max="100" value="40" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500">
+                        </div>
+                        <div id="control-numB" class="flex flex-col gap-1.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-cyan-400 font-semibold">파란 분자 개수</span>
+                                <span id="lbl-numB" class="font-mono font-bold">40</span>
+                            </div>
+                            <input type="range" id="slider-numB" min="5" max="100" value="40" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                        </div>
+                    </div>
+
+                    <!-- 반경 (d) A & B -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-red-400 font-semibold">빨간 분자 크기</span>
+                                <span id="lbl-radA" class="font-mono font-bold">10 px</span>
+                            </div>
+                            <input type="range" id="slider-radA" min="5" max="25" value="10" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500">
+                        </div>
+                        <div id="control-radB" class="flex flex-col gap-1.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-cyan-400 font-semibold">파란 분자 크기</span>
+                                <span id="lbl-radB" class="font-mono font-bold">14 px</span>
+                            </div>
+                            <input type="range" id="slider-radB" min="5" max="25" value="14" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                        </div>
+                    </div>
+
+                    <!-- 질량 (m) A & B -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-red-400 font-semibold">빨간 분자 무게(질량)</span>
+                                <span id="lbl-massA" class="font-mono font-bold">가벼움</span>
+                            </div>
+                            <input type="range" id="slider-massA" min="0.5" max="10" step="0.5" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500">
+                        </div>
+                        <div id="control-massB" class="flex flex-col gap-1.5">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-cyan-400 font-semibold">파란 분자 무게(질량)</span>
+                                <span id="lbl-massB" class="font-mono font-bold">무거움</span>
+                            </div>
+                            <input type="range" id="slider-massB" min="0.5" max="10" step="0.5" value="2.5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 수식 없는 데이터 트렌드 그래퍼 -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                    <h3 class="text-md font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i data-lucide="line-chart" class="w-4 h-4 text-emerald-400"></i> 실시간 충돌 빈도 트렌드
+                    </h3>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-850 h-32 relative">
+                        <!-- 미니 차트 캔버스 -->
+                        <canvas id="chart-canvas" class="w-full h-full block"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                        **💡 분자들의 조건에 따른 충돌 현상 살펴보기**<br>
+                        - 입자가 **더 많을수록**, 분자 크기가 **더 클수록**, 움직임이 **더 빠를수록** 충돌 횟수(위 그래프의 상승 곡선)가 현저히 올라가는 것을 확인할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: 충돌 실린더 모델 (쉽고 재미있는 시각적 터널 효과) -->
+        <div id="content-cylinder" class="hidden flex-col gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- 왼쪽: 시각 중심의 설명 -->
+                <div class="lg:col-span-4 flex flex-col gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                        <div class="p-2.5 bg-indigo-900/40 text-indigo-400 rounded-xl w-fit border border-indigo-700/20">
+                            <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">충돌 터널(Sweep Zone) 이야기</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            빨간 분자가 앞으로 돌진한다고 상상해봅시다. 
+                        </p>
+                        <p class="text-sm text-slate-400 leading-relaxed">
+                            이때, 단순히 자기 크기만큼만 스치는 것이 아니라, **'빨간 분자의 반지름 + 파란 분자의 반지름'** 만큼의 반경을 가진 가상의 **충돌 터널(원통)**을 휩쓸며 이동하게 됩니다.
+                        </p>
+                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-850 text-xs text-emerald-400 leading-relaxed">
+                            이 보이지 않는 터널의 영역 안에 파란 분자의 중심이 걸리게 되면, 무조건 충돌이 발생합니다!
+                        </div>
+                    </div>
+
+                    <!-- 터널 제어판 -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                        <h4 class="text-sm font-bold text-white">터널 조건 조작해보기</h4>
+                        <div class="flex flex-col gap-3">
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1">충돌 터널의 반지름(d = r_A + r_B)</label>
+                                <input type="range" id="cylinder-range-d" min="22" max="60" value="35" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                                <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                                    <span>좁은 터널 (파란 분자 작아짐)</span>
+                                    <span>넓은 터널 (파란 분자 커짐)</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="resetCylinderDemo()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition">주변 분자 재배치</button>
+                                <button onclick="triggerCylinderSweep()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold text-white transition flex items-center justify-center gap-1">
+                                    <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> 터널 전진하기
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 오른쪽: 실시간 2D Cylinder 휩쓸기 캔버스 -->
+                <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="activity" class="text-indigo-400"></i> 충돌 터널 휩쓸기 실험 챔버
+                        </span>
+                        <span class="text-[11px] text-indigo-400 bg-indigo-950/50 border border-indigo-900/30 px-2 py-0.5 rounded-md">빨간 분자를 마우스로 잡고 오른쪽으로 당겨보세요!</span>
+                    </div>
+
+                    <div class="relative w-full aspect-[2.5/1] bg-slate-950 rounded-xl overflow-hidden border border-slate-850">
+                        <canvas id="cylinder-canvas" class="w-full h-full block cursor-pointer"></canvas>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-850">
+                            <span class="text-[10px] text-slate-500 block">터널의 물리적 크기 정보</span>
+                            <span id="cyl-val-sigma" class="text-sm font-semibold text-indigo-300 font-mono">-</span>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-850">
+                            <span class="text-[10px] text-slate-500 block">이동한 터널의 전체 영역 크기</span>
+                            <span id="cyl-val-vol" class="text-sm font-semibold text-emerald-400 font-mono">0 영역 단위</span>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-850">
+                            <span class="text-[10px] text-slate-500 block">터널에 닿아 충돌된 분자 수</span>
+                            <span id="cyl-val-caught" class="text-sm font-semibold text-rose-400 font-mono">0 / 12 개</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="border-t border-slate-800 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>© 기체 분자 운동 및 실시간 반응성 충돌 가시화 자료</p>
+        </div>
+    </footer>
+
+    <!-- 로직 자바스크립트 소스 -->
+    <script>
+        // 1. 변수 선언 및 초기화
+        let isPlaying = true;
+        let activeTab = 'sandbox';
+        let simMode = 'AB'; // 'AB' or 'AA'
+
+        // 캔버스 엘리먼트들
+        const canvas = document.getElementById('sandbox-canvas');
+        const ctx = canvas.getContext('2d');
+        const cylCanvas = document.getElementById('cylinder-canvas');
+        const cylCtx = cylCanvas.getContext('2d');
+        const chartCanvas = document.getElementById('chart-canvas');
+        const chartCtx = chartCanvas.getContext('2d');
+
+        // 컨트롤 엘리먼트 참조
+        const sliderTemp = document.getElementById('slider-temp');
+        const sliderNumA = document.getElementById('slider-numA');
+        const sliderNumB = document.getElementById('slider-numB');
+        const sliderRadA = document.getElementById('slider-radA');
+        const sliderRadB = document.getElementById('slider-radB');
+        const sliderMassA = document.getElementById('slider-massA');
+        const sliderMassB = document.getElementById('slider-massB');
+
+        const lblTemp = document.getElementById('lbl-temp');
+        const lblNumA = document.getElementById('lbl-numA');
+        const lblNumB = document.getElementById('lbl-numB');
+        const lblRadA = document.getElementById('lbl-radA');
+        const lblRadB = document.getElementById('lbl-radB');
+        const lblMassA = document.getElementById('lbl-massA');
+        const lblMassB = document.getElementById('lbl-massB');
+
+        // 체크박스 제어
+        const chkShowVectors = document.getElementById('chk-show-vectors');
+        const chkShowCross = document.getElementById('chk-show-cross');
+
+        // 계측기 엘리먼트
+        const valTotalCollisions = document.getElementById('val-total-collisions');
+        const valSimRate = document.getElementById('val-sim-rate');
+        const valAvgSpeed = document.getElementById('val-avg-speed');
+        const valTotalParticles = document.getElementById('val-total-particles');
+
+        // 상태 수치 설정
+        let temperature = parseFloat(sliderTemp.value);
+        let numA = parseInt(sliderNumA.value);
+        let numB = parseInt(sliderNumB.value);
+        let radA = parseFloat(sliderRadA.value);
+        let radB = parseFloat(sliderRadB.value);
+        let massA = parseFloat(sliderMassA.value);
+        let massB = parseFloat(sliderMassB.value);
+
+        // 시뮬레이션 데이터 구조
+        let particles = [];
+        let ripples = [];
+        let totalCollisionCount = 0;
+        let collisionTimestamps = []; // 초당 충돌 계산
+        let rateHistory = Array(40).fill(0); // 차트용 데이터
+
+        // 캔버스 크기 조정
+        function resizeSandboxCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth * window.devicePixelRatio;
+            canvas.height = container.clientHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        // 2. 입자 모델링
+        class Particle {
+            constructor(type, x, y, r, m, vx, vy) {
+                this.type = type; // 'A'(적), 'B'(청)
+                this.x = x;
+                this.y = y;
+                this.radius = r;
+                this.mass = m;
+                this.vx = vx;
+                this.vy = vy;
+            }
+
+            draw() {
+                const grad = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.1,
+                    this.x, this.y, this.radius
+                );
+
+                if (this.type === 'A') {
+                    grad.addColorStop(0, '#fca5a5');
+                    grad.addColorStop(0.7, '#ef4444');
+                    grad.addColorStop(1, '#991b1b');
+                } else {
+                    grad.addColorStop(0, '#67e8f9');
+                    grad.addColorStop(0.7, '#06b6d4');
+                    grad.addColorStop(1, '#083344');
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // 속도 벡터선 그리기
+                if (chkShowVectors.checked) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x + this.vx * 3, this.y + this.vy * 3);
+                    ctx.strokeStyle = this.type === 'A' ? 'rgba(239, 68, 68, 0.7)' : 'rgba(6, 182, 212, 0.7)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                // 점선 충돌 범위 그리기
+                if (chkShowCross.checked) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 1.5, 0, Math.PI * 2);
+                    ctx.strokeStyle = this.type === 'A' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(6, 182, 212, 0.12)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            update(canvasWidth, canvasHeight) {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 벽 충돌 바운싱
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx = -this.vx;
+                } else if (this.x + this.radius > canvasWidth) {
+                    this.x = canvasWidth - this.radius;
+                    this.vx = -this.vx;
+                }
+
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                    this.vy = -this.vy;
+                } else if (this.y + this.radius > canvasHeight) {
+                    this.y = canvasHeight - this.radius;
+                    this.vy = -this.vy;
+                }
+            }
+        }
+
+        // 충돌 파장 효과
+        class Ripple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 2;
+                this.alpha = 1.0;
+            }
+            update() {
+                this.radius += 1.5;
+                this.alpha -= 0.05;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(251, 191, 36, ${this.alpha})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+
+        // 3. 속력 생성 (질량, 온도 반영)
+        function getThermalSpeed(mass) {
+            const speedScale = 0.12;
+            return Math.sqrt(temperature / mass) * speedScale;
+        }
+
+        function createParticles() {
+            particles = [];
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+
+            const spawnCountA = numA;
+            const spawnCountB = simMode === 'AB' ? numB : 0;
+
+            for (let i = 0; i < spawnCountA; i++) {
+                spawnOne('A', radA, massA, w, h);
+            }
+            for (let i = 0; i < spawnCountB; i++) {
+                spawnOne('B', radB, massB, w, h);
+            }
+            valTotalParticles.innerText = particles.length;
+        }
+
+        function spawnOne(type, r, m, w, h) {
+            let x, y, overlap;
+            let attempts = 0;
+            const speed = getThermalSpeed(m);
+            const angle = Math.random() * Math.PI * 2;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+
+            do {
+                overlap = false;
+                x = r + Math.random() * (w - r * 2);
+                y = r + Math.random() * (h - r * 2);
+                for (let p of particles) {
+                    const dist = Math.hypot(p.x - x, p.y - y);
+                    if (dist < p.radius + r + 4) {
+                        overlap = true;
+                        break;
+                    }
+                }
+                attempts++;
+            } while (overlap && attempts < 100);
+
+            particles.push(new Particle(type, x, y, r, m, vx, vy));
+        }
+
+        // 실시간 개수 조절 반응
+        function adjustParticleCounts() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+
+            let countA = particles.filter(p => p.type === 'A').length;
+            if (countA < numA) {
+                for (let i = 0; i < numA - countA; i++) spawnOne('A', radA, massA, w, h);
+            } else if (countA > numA) {
+                let diff = countA - numA;
+                for (let i = particles.length - 1; i >= 0 && diff > 0; i--) {
+                    if (particles[i].type === 'A') {
+                        particles.splice(i, 1);
+                        diff--;
+                    }
+                }
+            }
+
+            const targetB = simMode === 'AB' ? numB : 0;
+            let countB = particles.filter(p => p.type === 'B').length;
+            if (countB < targetB) {
+                for (let i = 0; i < targetB - countB; i++) spawnOne('B', radB, massB, w, h);
+            } else if (countB > targetB) {
+                let diff = countB - targetB;
+                for (let i = particles.length - 1; i >= 0 && diff > 0; i--) {
+                    if (particles[i].type === 'B') {
+                        particles.splice(i, 1);
+                        diff--;
+                    }
+                }
+            }
+            valTotalParticles.innerText = particles.length;
+        }
+
+        function syncPhysicalProperties() {
+            particles.forEach(p => {
+                if (p.type === 'A') {
+                    p.radius = radA;
+                    p.mass = massA;
+                } else {
+                    p.radius = radB;
+                    p.mass = massB;
+                }
+                const speed = getThermalSpeed(p.mass);
+                const currentSpeed = Math.hypot(p.vx, p.vy);
+                if (currentSpeed > 0) {
+                    p.vx = (p.vx / currentSpeed) * speed;
+                    p.vy = (p.vy / currentSpeed) * speed;
+                }
+            });
+        }
+
+        // 4. 탄성 충돌 연산
+        function resolveCollisions() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p1 = particles[i];
+                    const p2 = particles[j];
+
+                    if (simMode === 'AA' && (p1.type !== 'A' || p2.type !== 'A')) continue;
+
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = p1.radius + p2.radius;
+
+                    if (dist < minDist) {
+                        const overlap = minDist - dist;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        const totalMass = p1.mass + p2.mass;
+                        p1.x -= nx * overlap * (p2.mass / totalMass);
+                        p1.y -= ny * overlap * (p2.mass / totalMass);
+                        p2.x += nx * overlap * (p1.mass / totalMass);
+                        p2.y += ny * overlap * (p1.mass / totalMass);
+
+                        const kx = p1.vx - p2.vx;
+                        const ky = p1.vy - p2.vy;
+                        const vn = kx * nx + ky * ny;
+
+                        if (vn > 0) {
+                            const impulse = (2 * vn) / totalMass;
+                            p1.vx -= impulse * p2.mass * nx;
+                            p1.vy -= impulse * p2.mass * ny;
+                            p2.vx += impulse * p1.mass * nx;
+                            p2.vy += impulse * p1.mass * ny;
+
+                            // 충돌 기록 남기기
+                            if (simMode === 'AB') {
+                                if ((p1.type === 'A' && p2.type === 'B') || (p1.type === 'B' && p2.type === 'A')) {
+                                    triggerCollisionRecord((p1.x + p2.x)/2, (p1.y + p2.y)/2);
+                                }
+                            } else {
+                                if (p1.type === 'A' && p2.type === 'A') {
+                                    triggerCollisionRecord((p1.x + p2.x)/2, (p1.y + p2.y)/2);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function triggerCollisionRecord(x, y) {
+            totalCollisionCount++;
+            collisionTimestamps.push(Date.now());
+            if (ripples.length < 15) {
+                ripples.push(new Ripple(x, y));
+            }
+        }
+
+        // 실시간 속력 데이터만 갱신
+        function updateSimpleMetadata() {
+            let totalSpeed = 0;
+            particles.forEach(p => {
+                totalSpeed += Math.hypot(p.vx, p.vy);
+            });
+            const avg = particles.length > 0 ? (totalSpeed / particles.length) : 0;
+            valAvgSpeed.innerText = (avg * 10).toFixed(1);
+        }
+
+        // 실시간 충돌 빈도 연산
+        function calculateRealtimeCollisionRate() {
+            const now = Date.now();
+            collisionTimestamps = collisionTimestamps.filter(t => now - t < 1000);
+            valSimRate.innerText = collisionTimestamps.length.toFixed(1);
+            valTotalCollisions.innerText = totalCollisionCount;
+        }
+
+        // 미니 차트 그리기 (수식 없이 순수한 빈도 트렌드)
+        let chartTick = 0;
+        function drawTrendChart() {
+            const w = chartCanvas.width = chartCanvas.parentElement.clientWidth;
+            const h = chartCanvas.height = chartCanvas.parentElement.clientHeight;
+
+            chartCtx.clearRect(0, 0, w, h);
+
+            // 그리드 격자선
+            chartCtx.strokeStyle = '#1e293b';
+            chartCtx.lineWidth = 1;
+            for (let i = 0; i < w; i += 40) {
+                chartCtx.beginPath(); chartCtx.moveTo(i, 0); chartCtx.lineTo(i, h); chartCtx.stroke();
+            }
+            for (let j = 0; j < h; j += 25) {
+                chartCtx.beginPath(); chartCtx.moveTo(0, j); chartCtx.lineTo(w, j); chartCtx.stroke();
+            }
+
+            // 히스토리 트래킹
+            chartTick++;
+            if (chartTick % 10 === 0) {
+                rateHistory.push(collisionTimestamps.length);
+                if (rateHistory.length > 40) rateHistory.shift();
+            }
+
+            // 꺾은선 그리기
+            chartCtx.beginPath();
+            const step = w / 39;
+            const maxVal = Math.max(...rateHistory, 10); // 최소 10 기준선 설정
+
+            for (let i = 0; i < rateHistory.length; i++) {
+                const x = i * step;
+                const y = h - (rateHistory[i] / maxVal) * (h - 15) - 5;
+                if (i === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            }
+
+            chartCtx.strokeStyle = '#10b981';
+            chartCtx.lineWidth = 2.5;
+            chartCtx.stroke();
+
+            // 영역 채우기 그라데이션
+            chartCtx.lineTo((rateHistory.length - 1) * step, h);
+            chartCtx.lineTo(0, h);
+            chartCtx.closePath();
+            chartCtx.fillStyle = 'rgba(16, 185, 129, 0.1)';
+            chartCtx.fill();
+        }
+
+        // 5. 메인 애니메이션 프레임
+        function animate() {
+            if (activeTab === 'sandbox') {
+                const w = canvas.width / window.devicePixelRatio;
+                const h = canvas.height / window.devicePixelRatio;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // 어두운 챔버 그리드
+                ctx.strokeStyle = '#111827';
+                ctx.lineWidth = 1;
+                const gridSize = 40;
+                for (let x = 0; x < w; x += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+                }
+                for (let y = 0; y < h; y += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+                }
+
+                if (isPlaying) {
+                    resolveCollisions();
+                    particles.forEach(p => p.update(w, h));
+                    ripples.forEach(r => r.update());
+                    ripples = ripples.filter(r => r.alpha > 0);
+                }
+
+                particles.forEach(p => p.draw());
+                ripples.forEach(r => r.draw());
+
+                calculateRealtimeCollisionRate();
+                updateSimpleMetadata();
+                drawTrendChart();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // 조작 컨트롤러 반응 및 문자 치환
+        function handleSliderInputs() {
+            temperature = parseFloat(sliderTemp.value);
+            numA = parseInt(sliderNumA.value);
+            numB = parseInt(sliderNumB.value);
+            radA = parseFloat(sliderRadA.value);
+            radB = parseFloat(sliderRadB.value);
+            massA = parseFloat(sliderMassA.value);
+            massB = parseFloat(sliderMassB.value);
+
+            // 직관적인 텍스트 레이블 가이드로 변경
+            if (temperature < 150) lblTemp.innerText = "느림 (저온)";
+            else if (temperature < 350) lblTemp.innerText = "보통 (실온)";
+            else if (temperature < 500) lblTemp.innerText = "빠름 (고온)";
+            else lblTemp.innerText = "매우 빠름 (초고온)";
+
+            lblNumA.innerText = `${numA}개`;
+            lblNumB.innerText = `${numB}개`;
+            lblRadA.innerText = `${radA} px`;
+            lblRadB.innerText = `${radB} px`;
+
+            // 질량 텍스트화
+            if (massA < 1.5) lblMassA.innerText = "매우 가벼움";
+            else if (massA < 4.0) lblMassA.innerText = "가벼움";
+            else if (massA < 7.0) lblMassA.innerText = "보통";
+            else lblMassA.innerText = "무거움";
+
+            if (massB < 1.5) lblMassB.innerText = "매우 가벼움";
+            else if (massB < 4.0) lblMassB.innerText = "가벼움";
+            else if (massB < 7.0) lblMassB.innerText = "보통";
+            else lblMassB.innerText = "무거움";
+
+            adjustParticleCounts();
+            syncPhysicalProperties();
+        }
+
+        [sliderTemp, sliderNumA, sliderNumB, sliderRadA, sliderRadB, sliderMassA, sliderMassB].forEach(slider => {
+            slider.addEventListener('input', handleSliderInputs);
+        });
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('btn-play');
+            const icon = document.getElementById('icon-play');
+            const overlay = document.getElementById('pause-overlay');
+
+            if (isPlaying) {
+                btn.classList.replace('text-amber-400', 'text-indigo-400');
+                overlay.classList.add('hidden');
+                icon.setAttribute('data-lucide', 'pause');
+            } else {
+                btn.classList.replace('text-indigo-400', 'text-amber-400');
+                overlay.classList.remove('hidden');
+                icon.setAttribute('data-lucide', 'play');
+            }
+            lucide.createIcons();
+        }
+
+        function resetCounters() {
+            totalCollisionCount = 0;
+            collisionTimestamps = [];
+            rateHistory.fill(0);
+            valTotalCollisions.innerText = '0';
+            valSimRate.innerText = '0.0';
+        }
+
+        function setMode(mode) {
+            simMode = mode;
+            const btnAB = document.getElementById('btn-mode-AB');
+            const btnAA = document.getElementById('btn-mode-AA');
+            const controlNumB = document.getElementById('control-numB');
+            const controlRadB = document.getElementById('control-radB');
+            const controlMassB = document.getElementById('control-massB');
+
+            if (mode === 'AB') {
+                btnAB.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 border border-indigo-500 text-white shadow";
+                btnAA.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white";
+                controlNumB.classList.remove('opacity-30', 'pointer-events-none');
+                controlRadB.classList.remove('opacity-30', 'pointer-events-none');
+                controlMassB.classList.remove('opacity-30', 'pointer-events-none');
+            } else {
+                btnAB.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white";
+                btnAA.className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 border border-emerald-500 text-white shadow";
+                controlNumB.classList.add('opacity-30', 'pointer-events-none');
+                controlRadB.classList.add('opacity-30', 'pointer-events-none');
+                controlMassB.classList.add('opacity-30', 'pointer-events-none');
+            }
+            resetCounters();
+            adjustParticleCounts();
+            syncPhysicalProperties();
+        }
+
+
+        // ==========================================
+        // 6. TAB 2: 충돌 실린더 (Cylinder Model) 직관적 시각화
+        // ==========================================
+        let cylMoleculeA = { x: 50, y: 100, radius: 10 };
+        let cylTargetB = [];
+        let isSweeping = false;
+        let isDraggingA = false;
+        let cylDragOffset = { x: 0, y: 0 };
+        const cylSliderD = document.getElementById('cylinder-range-d');
+
+        function resizeCylinderCanvas() {
+            const container = cylCanvas.parentElement;
+            cylCanvas.width = container.clientWidth * window.devicePixelRatio;
+            cylCanvas.height = container.clientHeight * window.devicePixelRatio;
+            cylCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            cylMoleculeA.y = cylCanvas.height / (2 * window.devicePixelRatio);
+        }
+
+        function resetCylinderDemo() {
+            const w = cylCanvas.width / window.devicePixelRatio;
+            const h = cylCanvas.height / window.devicePixelRatio;
+
+            cylMoleculeA.x = 60;
+            // 중요: 탭 1에서 조절한 빨간 분자 크기(radA)에 동적으로 연동시킵니다.
+            cylMoleculeA.radius = radA; 
+            isSweeping = false;
+
+            const interactionD = parseFloat(cylSliderD.value);
+            // r_B = d - r_A 공식에 따른 동적 생성 크기 지정
+            const targetBRadius = Math.max(5, interactionD - cylMoleculeA.radius);
+
+            // 파란 분자 랜덤 흩뿌리기 (중복 배치 방지 알고리즘 적용)
+            cylTargetB = [];
+            let attempts = 0;
+            while (cylTargetB.length < 12 && attempts < 500) {
+                const newB = {
+                    x: 150 + Math.random() * (w - 200),
+                    y: 30 + Math.random() * (h - 60),
+                    radius: targetBRadius,
+                    caught: false
+                };
+
+                // 다른 파란 분자들과의 겹침 방지 확인
+                let overlap = false;
+                for (let b of cylTargetB) {
+                    const dist = Math.hypot(b.x - newB.x, b.y - newB.y);
+                    if (dist < b.radius + newB.radius + 15) { // 넉넉한 오프셋 15px 확보
+                        overlap = true;
+                        break;
+                    }
+                }
+
+                // 시작 시점의 빨간 분자 A와의 불필요한 초기 오버랩 방지
+                const distToA = Math.hypot(cylMoleculeA.x - newB.x, cylMoleculeA.y - newB.y);
+                if (distToA < cylMoleculeA.radius + newB.radius + 20) {
+                    overlap = true;
+                }
+
+                if (!overlap) {
+                    cylTargetB.push(newB);
+                }
+                attempts++;
+            }
+            drawCylinderScene();
+        }
+
+        function drawCylinderScene() {
+            const w = cylCanvas.width / window.devicePixelRatio;
+            const h = cylCanvas.height / window.devicePixelRatio;
+            cylCtx.clearRect(0, 0, w, h);
+
+            // 간단한 모눈 그리드
+            cylCtx.strokeStyle = '#1e293b';
+            cylCtx.lineWidth = 0.5;
+            for (let x = 0; x < w; x += 30) {
+                cylCtx.beginPath(); cylCtx.moveTo(x, 0); cylCtx.lineTo(x, h); cylCtx.stroke();
+            }
+            for (let y = 0; y < h; y += 30) {
+                cylCtx.beginPath(); cylCtx.moveTo(0, y); cylCtx.lineTo(w, y); cylCtx.stroke();
+            }
+
+            const interactionD = parseFloat(cylSliderD.value);
+            // 물리 공식 r_B = d - r_A 를 실시간 동적으로 연동
+            const targetBRadius = Math.max(5, interactionD - cylMoleculeA.radius);
+
+            // 실시간 슬라이더 변경 시, 이미 화면에 배치된 입자들의 물리 반경을 실시간 동기화 업데이트
+            cylTargetB.forEach(b => {
+                b.radius = targetBRadius;
+            });
+
+            // 이동하며 쓸고 가는 '가상의 충돌 터널' 렌더링 (그라데이션 효과 부여)
+            cylCtx.fillStyle = 'rgba(99, 102, 241, 0.12)';
+            cylCtx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+            cylCtx.lineWidth = 2;
+            cylCtx.setLineDash([4, 4]);
+
+            const cylStartX = 60;
+            const cylEndX = cylMoleculeA.x;
+
+            if (cylEndX > cylStartX) {
+                cylCtx.beginPath();
+                cylCtx.rect(cylStartX, cylMoleculeA.y - interactionD, cylEndX - cylStartX, interactionD * 2);
+                cylCtx.fill();
+                cylCtx.stroke();
+            }
+            cylCtx.setLineDash([]);
+
+            // 충돌 여부 체크 (수식 없이 순수 거리 기반 타겟 판정)
+            let caughtCount = 0;
+            cylTargetB.forEach(b => {
+                // 파란 분자의 중심이 터널 범위(y축) 내부 및 분자 A가 지나간 범위(x축) 내부인지 판독
+                const inYRange = (b.y >= cylMoleculeA.y - interactionD) && (b.y <= cylMoleculeA.y + interactionD);
+                const inXRange = (b.x >= cylStartX) && (b.x <= cylMoleculeA.x);
+
+                if (inYRange && inXRange) {
+                    b.caught = true;
+                    caughtCount++;
+                } else {
+                    b.caught = false;
+                }
+
+                // 타겟 원형 그리기 (충돌 시 빨간색 경고빛 방출)
+                const gradB = cylCtx.createRadialGradient(b.x - b.radius * 0.3, b.y - b.radius * 0.3, b.radius * 0.1, b.x, b.y, b.radius);
+                if (b.caught) {
+                    gradB.addColorStop(0, '#fecdd3');
+                    gradB.addColorStop(0.7, '#f43f5e'); // 강한 충돌 반응 색
+                    gradB.addColorStop(1, '#881337');
+                } else {
+                    gradB.addColorStop(0, '#67e8f9');
+                    gradB.addColorStop(0.7, '#06b6d4');
+                    gradB.addColorStop(1, '#083344');
+                }
+                cylCtx.beginPath();
+                cylCtx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                cylCtx.fillStyle = gradB;
+                cylCtx.fill();
+
+                // 테두리 강조선
+                cylCtx.beginPath();
+                cylCtx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                cylCtx.strokeStyle = b.caught ? 'rgba(244, 63, 94, 0.9)' : 'rgba(6, 182, 212, 0.3)';
+                cylCtx.lineWidth = b.caught ? 2 : 1;
+                cylCtx.stroke();
+            });
+
+            // 조작 입자 A 그리기
+            const gradA = cylCtx.createRadialGradient(
+                cylMoleculeA.x - cylMoleculeA.radius * 0.3, cylMoleculeA.y - cylMoleculeA.radius * 0.3, cylMoleculeA.radius * 0.1,
+                cylMoleculeA.x, cylMoleculeA.y, cylMoleculeA.radius
+            );
+            gradA.addColorStop(0, '#fca5a5');
+            gradA.addColorStop(0.7, '#ef4444');
+            gradA.addColorStop(1, '#991b1b');
+
+            // 터널 높이를 나타내는 수직 지지대 바 표시
+            cylCtx.beginPath();
+            cylCtx.moveTo(cylMoleculeA.x, cylMoleculeA.y - interactionD);
+            cylCtx.lineTo(cylMoleculeA.x, cylMoleculeA.y + interactionD);
+            cylCtx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+            cylCtx.lineWidth = 2.5;
+            cylCtx.stroke();
+
+            // 입자 원체 그리기
+            cylCtx.beginPath();
+            cylCtx.arc(cylMoleculeA.x, cylMoleculeA.y, cylMoleculeA.radius, 0, Math.PI * 2);
+            cylCtx.fillStyle = gradA;
+            cylCtx.fill();
+
+            // 상단 레이블
+            cylCtx.fillStyle = '#f8fafc';
+            cylCtx.font = "bold 11px 'Inter'";
+            cylCtx.fillText("분자 A", cylMoleculeA.x - 17, cylMoleculeA.y - interactionD - 8);
+
+            // 상태 수치 갱신
+            const distanceMoved = Math.max(0, cylMoleculeA.x - cylStartX);
+            const relativeArea = (interactionD * 2 * distanceMoved);
+
+            // 중요: 하드코딩된 '15px'를 사용자의 실시간 빨간 분자 크기(cylMoleculeA.radius) 변수로 동적 교체 완료!
+            document.getElementById('cyl-val-sigma').innerText = `터널 반경(d) = ${interactionD} px (A ${cylMoleculeA.radius}px + B ${targetBRadius}px)`;
+            document.getElementById('cyl-val-vol').innerText = `${relativeArea.toLocaleString()} 면적 단위`;
+            document.getElementById('cyl-val-caught').innerText = `${caughtCount} / 12 개 충돌 완료`;
+        }
+
+        // 마우스 드래그 핸들러
+        cylCanvas.addEventListener('mousedown', (e) => {
+            const rect = cylCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) * (cylCanvas.width / window.devicePixelRatio / rect.width);
+            const mouseY = (e.clientY - rect.top) * (cylCanvas.height / window.devicePixelRatio / rect.height);
+
+            const dist = Math.hypot(cylMoleculeA.x - mouseX, cylMoleculeA.y - mouseY);
+            if (dist < cylMoleculeA.radius + 15) {
+                isDraggingA = true;
+                cylDragOffset.x = mouseX - cylMoleculeA.x;
+            }
+        });
+
+        cylCanvas.addEventListener('mousemove', (e) => {
+            if (!isDraggingA) return;
+            const rect = cylCanvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left) * (cylCanvas.width / window.devicePixelRatio / rect.width);
+            const w = cylCanvas.width / window.devicePixelRatio;
+
+            let targetX = mouseX - cylDragOffset.x;
+            if (targetX < 60) targetX = 60;
+            if (targetX > w - 40) targetX = w - 40;
+
+            cylMoleculeA.x = targetX;
+            drawCylinderScene();
+        });
+
+        window.addEventListener('mouseup', () => { isDraggingA = false; });
+
+        function triggerCylinderSweep() {
+            if (isSweeping) return;
+            isSweeping = true;
+            cylMoleculeA.x = 60;
+            const maxW = cylCanvas.width / window.devicePixelRatio - 50;
+
+            function step() {
+                if (cylMoleculeA.x < maxW && isSweeping) {
+                    cylMoleculeA.x += 4;
+                    drawCylinderScene();
+                    requestAnimationFrame(step);
+                } else {
+                    isSweeping = false;
+                }
+            }
+            step();
+        }
+
+        cylSliderD.addEventListener('input', drawCylinderScene);
+
+
+        // ==========================================
+        // 7. 공통 코어: 탭 스위치
+        // ==========================================
+        function switchTab(tabId) {
+            activeTab = tabId;
+            const tabs = ['sandbox', 'cylinder'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const content = document.getElementById(`content-${t}`);
+                if (t === tabId) {
+                    btn.className = "px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow";
+                    content.classList.remove('hidden');
+                    content.classList.add('flex');
+                } else {
+                    btn.className = "px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-white";
+                    content.classList.remove('flex');
+                    content.classList.add('hidden');
+                }
+            });
+
+            if (tabId === 'sandbox') {
+                setTimeout(() => {
+                    resizeSandboxCanvas();
+                    createParticles();
+                }, 50);
+            } else if (tabId === 'cylinder') {
+                setTimeout(() => {
+                    resizeCylinderCanvas();
+                    resetCylinderDemo();
+                }, 50);
+            }
+        }
+
+        window.onload = function() {
+            lucide.createIcons();
+            resizeSandboxCanvas();
+            createParticles();
+            handleSliderInputs();
+            animate();
+        };
+
+        window.addEventListener('resize', () => {
+            if (activeTab === 'sandbox') {
+                resizeSandboxCanvas();
+                createParticles();
+            } else if (activeTab === 'cylinder') {
+                resizeCylinderCanvas();
+                resetCylinderDemo();
+            }
+        });
+    </script>
+</body>
+</html>
